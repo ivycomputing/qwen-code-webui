@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Claude Code Web UI - Package Builder
+# Qwen Code Web UI - Package Builder
 # Creates offline installation packages for different platforms
 #
 
@@ -46,7 +46,7 @@ DATE=$(date +%Y%m%d)
 
 echo ""
 print_info "=========================================="
-print_info "  Claude Code Web UI 离线安装包构建"
+print_info "  Qwen Code Web UI 离线安装包构建"
 print_info "=========================================="
 echo ""
 print_info "版本: $VERSION"
@@ -64,7 +64,7 @@ cd "$PROJECT_ROOT"
 make build
 
 # Check if build was successful
-if [ ! -f "$DIST_DIR/claude-code-webui" ]; then
+if [ ! -f "$DIST_DIR/qwen-code-webui" ]; then
     print_error "构建失败，找不到二进制文件"
     exit 1
 fi
@@ -91,7 +91,7 @@ create_package() {
         PKG_ARCH=${ARCH#linux-}
     fi
 
-    local PACKAGE_NAME="claude-code-webui-$VERSION-$DATE-$OS_NAME-$PKG_ARCH"
+    local PACKAGE_NAME="qwen-code-webui-$VERSION-$DATE-$OS_NAME-$PKG_ARCH"
     local PACKAGE_PATH="$PACKAGE_DIR/$PACKAGE_NAME"
 
     print_info "创建 $OS_NAME $PKG_ARCH 安装包..."
@@ -115,7 +115,7 @@ create_package() {
     # Create README
     if [ "$OS_NAME" = "macOS" ]; then
         cat > "$PACKAGE_PATH/README.txt" << EOF
-Claude Code Web UI - 离线安装包
+Qwen Code Web UI - 离线安装包
 版本: $VERSION
 架构: macOS $PKG_ARCH
 日期: $DATE
@@ -128,13 +128,13 @@ Claude Code Web UI - 离线安装包
 
 系统要求:
 - macOS 系统 ($PKG_ARCH 架构)
-- Claude CLI 已安装并认证
+- Qwen CLI 已安装并认证
 
-更多信息请访问: https://github.com/sugyan/claude-code-webui
+更多信息请访问: https://github.com/richardhuang/qwen-code-webui
 EOF
     else
         cat > "$PACKAGE_PATH/README.txt" << EOF
-Claude Code Web UI - 离线安装包
+Qwen Code Web UI - 离线安装包
 版本: $VERSION
 架构: Linux $PKG_ARCH
 日期: $DATE
@@ -148,9 +148,9 @@ Claude Code Web UI - 离线安装包
 系统要求:
 - Linux 系统 ($PKG_ARCH 架构)
 - systemd 服务管理器
-- Claude CLI 已安装并认证
+- Qwen CLI 已安装并认证
 
-更多信息请访问: https://github.com/sugyan/claude-code-webui
+更多信息请访问: https://github.com/richardhuang/qwen-code-webui
 EOF
     fi
 
@@ -199,23 +199,23 @@ build_target() {
 
 # Build for Linux targets (cross-compile)
 print_info "构建 Linux x64 版本..."
-build_target "x86_64-unknown-linux-gnu" "claude-code-webui-linux-x64"
+build_target "x86_64-unknown-linux-gnu" "qwen-code-webui-linux-x64"
 
 print_info "构建 Linux ARM64 版本..."
-build_target "aarch64-unknown-linux-gnu" "claude-code-webui-linux-arm64"
+build_target "aarch64-unknown-linux-gnu" "qwen-code-webui-linux-arm64"
 
 # Build for macOS targets (cross-compile)
 print_info "构建 macOS x64 版本..."
-build_target "x86_64-apple-darwin" "claude-code-webui-macos-x64"
+build_target "x86_64-apple-darwin" "qwen-code-webui-macos-x64"
 
 print_info "构建 macOS ARM64 版本..."
-build_target "aarch64-apple-darwin" "claude-code-webui-macos-arm64"
+build_target "aarch64-apple-darwin" "qwen-code-webui-macos-arm64"
 
 # Create packages for each architecture
-create_package "linux-x64" "claude-code-webui-linux-x64"
-create_package "linux-arm64" "claude-code-webui-linux-arm64"
-create_package "macos-x64" "claude-code-webui-macos-x64"
-create_package "macos-arm64" "claude-code-webui-macos-arm64"
+create_package "linux-x64" "qwen-code-webui-linux-x64"
+create_package "linux-arm64" "qwen-code-webui-linux-arm64"
+create_package "macos-x64" "qwen-code-webui-macos-x64"
+create_package "macos-arm64" "qwen-code-webui-macos-arm64"
 
 # ============================================
 # Summary

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Claude Code Web UI - Offline Installer
+# Qwen Code Web UI - Offline Installer
 # Supports Linux (systemd) and macOS (launchd)
 #
 
@@ -64,7 +64,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 print_info "=========================================="
-print_info "  Claude Code Web UI 离线安装程序"
+print_info "  Qwen Code Web UI 离线安装程序"
 print_info "=========================================="
 echo ""
 
@@ -73,16 +73,16 @@ ARCH=$(uname -m)
 case $ARCH in
     x86_64)
         if [ "$OS_TYPE" = "linux" ]; then
-            BINARY_NAME="claude-code-webui-linux-x64"
+            BINARY_NAME="qwen-code-webui-linux-x64"
         else
-            BINARY_NAME="claude-code-webui-macos-x64"
+            BINARY_NAME="qwen-code-webui-macos-x64"
         fi
         ;;
     aarch64|arm64)
         if [ "$OS_TYPE" = "linux" ]; then
-            BINARY_NAME="claude-code-webui-linux-arm64"
+            BINARY_NAME="qwen-code-webui-linux-arm64"
         else
-            BINARY_NAME="claude-code-webui-macos-arm64"
+            BINARY_NAME="qwen-code-webui-macos-arm64"
         fi
         ;;
     *)
@@ -117,19 +117,19 @@ if [ "$OS_TYPE" = "macos" ]; then
     read -p "用户名 [$CURRENT_USER]: " INSTALL_USER
     INSTALL_USER=${INSTALL_USER:-$CURRENT_USER}
 else
-    read -p "用户名 [claude-webui]: " INSTALL_USER
-    INSTALL_USER=${INSTALL_USER:-claude-webui}
+    read -p "用户名 [qwen-webui]: " INSTALL_USER
+    INSTALL_USER=${INSTALL_USER:-qwen-webui}
 fi
 
 # Prompt for install directory
 echo ""
 print_info "请输入安装目录"
 if [ "$OS_TYPE" = "macos" ]; then
-    read -p "安装目录 [/usr/local/claude-code-webui]: " INSTALL_DIR
-    INSTALL_DIR=${INSTALL_DIR:-/usr/local/claude-code-webui}
+    read -p "安装目录 [/usr/local/qwen-code-webui]: " INSTALL_DIR
+    INSTALL_DIR=${INSTALL_DIR:-/usr/local/qwen-code-webui}
 else
-    read -p "安装目录 [/opt/claude-code-webui]: " INSTALL_DIR
-    INSTALL_DIR=${INSTALL_DIR:-/opt/claude-code-webui}
+    read -p "安装目录 [/opt/qwen-code-webui]: " INSTALL_DIR
+    INSTALL_DIR=${INSTALL_DIR:-/opt/qwen-code-webui}
 fi
 
 # Warn about home directory installation on Linux with SELinux
@@ -137,7 +137,7 @@ if [ "$OS_TYPE" = "linux" ] && [[ "$INSTALL_DIR" == /home/* ]]; then
     if command -v getenforce &>/dev/null && [ "$(getenforce)" != "Disabled" ]; then
         print_warning "警告: 检测到 SELinux 已启用"
         print_warning "安装在 /home 目录下需要额外的 SELinux 配置"
-        print_warning "建议使用默认目录 /opt/claude-code-webui 或 /usr/local/claude-code-webui"
+        print_warning "建议使用默认目录 /opt/qwen-code-webui 或 /usr/local/qwen-code-webui"
         echo ""
         read -p "是否继续安装在 $INSTALL_DIR？[y/N]: " CONTINUE_HOME
         if [[ ! "$CONTINUE_HOME" =~ ^[Yy]$ ]]; then
@@ -210,8 +210,8 @@ mkdir -p "$INSTALL_DIR"
 
 # Copy binary
 print_info "复制二进制文件..."
-cp "$BINARY_PATH" "$INSTALL_DIR/claude-code-webui"
-chmod +x "$INSTALL_DIR/claude-code-webui"
+cp "$BINARY_PATH" "$INSTALL_DIR/qwen-code-webui"
+chmod +x "$INSTALL_DIR/qwen-code-webui"
 
 # Set ownership
 if [ "$OS_TYPE" = "linux" ]; then
@@ -234,70 +234,70 @@ if [ "$OS_TYPE" = "linux" ]; then
         # to allow systemd to execute them
         if [[ "$INSTALL_DIR" == /home/* ]]; then
             # Change SELinux context to bin_t for executable
-            semanage fcontext -a -t bin_t "$INSTALL_DIR/claude-code-webui" 2>/dev/null || true
-            restorecon -v "$INSTALL_DIR/claude-code-webui" 2>/dev/null || true
+            semanage fcontext -a -t bin_t "$INSTALL_DIR/qwen-code-webui" 2>/dev/null || true
+            restorecon -v "$INSTALL_DIR/qwen-code-webui" 2>/dev/null || true
             print_success "SELinux 上下文配置完成"
         fi
     fi
 fi
 
 # ============================================
-# Detect Claude CLI path
+# Detect Qwen CLI path
 # ============================================
 
-print_info "检测 Claude CLI 路径..."
+print_info "检测 Qwen CLI 路径..."
 
-# Try to find claude CLI in various locations
-CLAUDE_PATH=""
-CLAUDE_SEARCH_PATHS=(
-    "/usr/local/bin/claude"
-    "/usr/bin/claude"
-    "$HOME/.local/bin/claude"
-    "$HOME/.npm-global/bin/claude"
-    "$HOME/.volta/bin/claude"
-    "$HOME/.asdf/shims/claude"
-    "/home/$INSTALL_USER/.local/bin/claude"
-    "/home/$INSTALL_USER/.npm-global/bin/claude"
-    "/home/$INSTALL_USER/.volta/bin/claude"
-    "/home/$INSTALL_USER/.asdf/shims/claude"
+# Try to find qwen CLI in various locations
+QWEN_PATH=""
+QWEN_SEARCH_PATHS=(
+    "/usr/local/bin/qwen"
+    "/usr/bin/qwen"
+    "$HOME/.local/bin/qwen"
+    "$HOME/.npm-global/bin/qwen"
+    "$HOME/.volta/bin/qwen"
+    "$HOME/.asdf/shims/qwen"
+    "/home/$INSTALL_USER/.local/bin/qwen"
+    "/home/$INSTALL_USER/.npm-global/bin/qwen"
+    "/home/$INSTALL_USER/.volta/bin/qwen"
+    "/home/$INSTALL_USER/.asdf/shims/qwen"
 )
 
 # First try which command
-if command -v claude &>/dev/null; then
-    CLAUDE_PATH=$(command -v claude)
-    print_success "找到 Claude CLI: $CLAUDE_PATH"
+if command -v qwen &>/dev/null; then
+    QWEN_PATH=$(command -v qwen)
+    print_success "找到 Qwen CLI: $QWEN_PATH"
 else
     # Search in common locations
-    for path in "${CLAUDE_SEARCH_PATHS[@]}"; do
+    for path in "${QWEN_SEARCH_PATHS[@]}"; do
         if [ -x "$path" ]; then
-            CLAUDE_PATH="$path"
-            print_success "找到 Claude CLI: $CLAUDE_PATH"
+            QWEN_PATH="$path"
+            print_success "找到 Qwen CLI: $QWEN_PATH"
             break
         fi
     done
 fi
 
-if [ -z "$CLAUDE_PATH" ]; then
-    print_warning "未找到 Claude CLI，服务可能无法正常启动"
-    print_warning "请确保 Claude CLI 已安装并认证"
-    print_warning "安装命令: npm install -g @anthropic-ai/claude-code"
-    print_warning "认证命令: claude auth"
+if [ -z "$QWEN_PATH" ]; then
+    print_warning "未找到 Qwen CLI，服务可能无法正常启动"
+    print_warning "请确保 Qwen CLI 已安装并认证"
+    print_warning "安装命令: npm install -g @anthropic-ai/qwen-code"
+    print_warning "认证命令: qwen auth"
     echo ""
-    read -p "是否继续安装？[y/N]: " CONTINUE_NO_CLAUDE
-    if [[ ! "$CONTINUE_NO_CLAUDE" =~ ^[Yy]$ ]]; then
+    read -p "是否继续安装？[y/N]: " CONTINUE_NO_QWEN
+    if [[ ! "$CONTINUE_NO_QWEN" =~ ^[Yy]$ ]]; then
         print_info "安装已取消"
         exit 0
     fi
 fi
 
 # Build PATH environment variable for the service
-# Include common paths where claude might be installed
+# Include common paths where qwen might be installed
 SERVICE_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-if [ -n "$CLAUDE_PATH" ]; then
-    CLAUDE_DIR=$(dirname "$CLAUDE_PATH")
-    # Add claude directory to PATH if not already included
-    if [[ ":$SERVICE_PATH:" != *":$CLAUDE_DIR:"* ]]; then
-        SERVICE_PATH="$CLAUDE_DIR:$SERVICE_PATH"
+if [ -n "$QWEN_PATH" ]; then
+    QWEN_DIR=$(dirname "$QWEN_PATH")
+    # Add qwen directory to PATH if not already included
+    if [[ ":$SERVICE_PATH:" != *":$QWEN_DIR:"* ]]; then
+        SERVICE_PATH="$QWEN_DIR:$SERVICE_PATH"
     fi
 fi
 # Add common npm global bin paths
@@ -318,11 +318,11 @@ if [ "$OS_TYPE" = "linux" ]; then
 
     print_info "创建 systemd 服务..."
 
-    SERVICE_FILE="/etc/systemd/system/claude-code-webui.service"
+    SERVICE_FILE="/etc/systemd/system/qwen-code-webui.service"
 
     cat > "$SERVICE_FILE" << EOF
 [Unit]
-Description=Claude Code Web UI
+Description=Qwen Code Web UI
 After=network.target
 
 [Service]
@@ -331,23 +331,23 @@ User=$INSTALL_USER
 Group=$INSTALL_USER
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$SERVICE_PATH"
-ExecStart=$INSTALL_DIR/claude-code-webui --host $HOST --port $PORT
+ExecStart=$INSTALL_DIR/qwen-code-webui --host $HOST --port $PORT
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    
+
     print_success "systemd 服务文件创建成功"
-    
+
     # Reload systemd
     print_info "重载 systemd 配置..."
     systemctl daemon-reload
-    
+
     # Enable service
     print_info "启用开机自启..."
-    systemctl enable claude-code-webui
+    systemctl enable qwen-code-webui
     
 else
     # ============================================
@@ -367,7 +367,7 @@ else
     <string>com.qwen-code-webui</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$INSTALL_DIR/claude-code-webui</string>
+        <string>$INSTALL_DIR/qwen-code-webui</string>
         <string>--host</string>
         <string>$HOST</string>
         <string>--port</string>
@@ -383,9 +383,9 @@ else
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/var/log/claude-code-webui.log</string>
+    <string>/var/log/qwen-code-webui.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/claude-code-webui.log</string>
+    <string>/var/log/qwen-code-webui.log</string>
     <key>UserName</key>
     <string>$INSTALL_USER</string>
 </dict>
@@ -449,15 +449,15 @@ echo ""
 print_info "启动服务..."
 
 if [ "$OS_TYPE" = "linux" ]; then
-    systemctl start claude-code-webui
+    systemctl start qwen-code-webui
     sleep 2
 
-    if systemctl is-active --quiet claude-code-webui; then
+    if systemctl is-active --quiet qwen-code-webui; then
         print_success "服务启动成功"
     else
         print_error "服务启动失败，请检查日志:"
-        journalctl -u claude-code-webui --no-pager -n 20
-        
+        journalctl -u qwen-code-webui --no-pager -n 20
+
         # Provide SELinux troubleshooting hints
         if command -v getenforce &>/dev/null && [ "$(getenforce)" != "Disabled" ]; then
             if [[ "$INSTALL_DIR" == /home/* ]]; then
@@ -465,14 +465,14 @@ if [ "$OS_TYPE" = "linux" ]; then
                 print_warning "SELinux 故障排查:"
                 print_warning "检测到安装在 /home 目录下且 SELinux 已启用"
                 echo "  1. 检查 SELinux 上下文:"
-                echo "     ls -Z $INSTALL_DIR/claude-code-webui"
+                echo "     ls -Z $INSTALL_DIR/qwen-code-webui"
                 echo "  2. 手动修复 SELinux 上下文:"
-                echo "     semanage fcontext -a -t bin_t '$INSTALL_DIR/claude-code-webui'"
-                echo "     restorecon -v '$INSTALL_DIR/claude-code-webui'"
+                echo "     semanage fcontext -a -t bin_t '$INSTALL_DIR/qwen-code-webui'"
+                echo "     restorecon -v '$INSTALL_DIR/qwen-code-webui'"
                 echo "  3. 或临时禁用 SELinux 进行测试:"
                 echo "     setenforce 0"
                 echo "  4. 查看 SELinux 拒绝日志:"
-                echo "     ausearch -m avc -ts recent | grep claude-code-webui"
+                echo "     ausearch -m avc -ts recent | grep qwen-code-webui"
             fi
         fi
         exit 1
@@ -480,12 +480,12 @@ if [ "$OS_TYPE" = "linux" ]; then
 else
     launchctl load -w "$PLIST_FILE"
     sleep 2
-    
+
     if launchctl list | grep -q "com.qwen-code-webui"; then
         print_success "服务启动成功"
     else
         print_error "服务启动失败，请检查日志:"
-        tail -20 /var/log/claude-code-webui.log
+        tail -20 /var/log/qwen-code-webui.log
         exit 1
     fi
 fi
@@ -516,27 +516,27 @@ echo ""
 
 if [ "$OS_TYPE" = "linux" ]; then
     print_info "服务状态:"
-    echo "  systemctl status claude-code-webui"
+    echo "  systemctl status qwen-code-webui"
     echo ""
     print_info "查看日志:"
-    echo "  journalctl -u claude-code-webui -f"
+    echo "  journalctl -u qwen-code-webui -f"
     echo ""
     print_info "停止服务:"
-    echo "  systemctl stop claude-code-webui"
+    echo "  systemctl stop qwen-code-webui"
     echo ""
     print_info "重启服务:"
-    echo "  systemctl restart claude-code-webui"
+    echo "  systemctl restart qwen-code-webui"
     echo ""
     print_info "卸载服务:"
-    echo "  systemctl disable --now claude-code-webui"
-    echo "  rm -rf $INSTALL_DIR /etc/systemd/system/claude-code-webui.service"
+    echo "  systemctl disable --now qwen-code-webui"
+    echo "  rm -rf $INSTALL_DIR /etc/systemd/system/qwen-code-webui.service"
     echo "  systemctl daemon-reload"
 else
     print_info "服务状态:"
-    echo "  sudo launchctl list | grep claude-code-webui"
+    echo "  sudo launchctl list | grep qwen-code-webui"
     echo ""
     print_info "查看日志:"
-    echo "  tail -f /var/log/claude-code-webui.log"
+    echo "  tail -f /var/log/qwen-code-webui.log"
     echo ""
     print_info "停止服务:"
     echo "  sudo launchctl unload -w $PLIST_FILE"
@@ -557,7 +557,7 @@ echo ""
 echo "  本机访问:    http://127.0.0.1:$PORT"
 echo "  局域网访问:  http://$SERVER_IP:$PORT"
 echo ""
-print_warning "注意: 请确保 Claude CLI 已安装并认证"
-print_warning "安装命令: npm install -g @anthropic-ai/claude-code"
-print_warning "认证命令: claude auth"
+print_warning "注意: 请确保 Qwen CLI 已安装并认证"
+print_warning "安装命令: npm install -g @anthropic-ai/qwen-code"
+print_warning "认证命令: qwen auth"
 echo ""
