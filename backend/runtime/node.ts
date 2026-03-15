@@ -105,11 +105,11 @@ export class NodeRuntime implements Runtime {
     });
   }
 
-  serve(
+  async serve(
     port: number,
     hostname: string,
     handler: (req: Request) => Response | Promise<Response>,
-  ): void {
+  ): Promise<void> {
     // Use Hono with Node.js server to handle Web API Request/Response
     const app = new Hono();
 
@@ -120,14 +120,21 @@ export class NodeRuntime implements Runtime {
     });
 
     // Start the server using @hono/node-server
-    serve({
+    // The serve function returns a server instance that keeps the process alive
+    const server = serve({
       fetch: app.fetch,
       port,
       hostname,
     });
 
     console.log(`Listening on http://${hostname}:${port}/`);
+
+    // Keep the server instance alive to prevent process exit
+    // This ensures the Node.js event loop remains active
+    this._server = server;
   }
+
+  private _server?: import("@hono/node-server").ServerType;
 
   createStaticFileMiddleware(options: { root: string }): MiddlewareHandler {
     return serveStatic(options);

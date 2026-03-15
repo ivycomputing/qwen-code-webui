@@ -44,7 +44,7 @@ async function main(runtime: NodeRuntime) {
 
   // Start server (only show this message when everything is ready)
   logger.cli.info(`🚀 Server starting on ${args.host}:${args.port}`);
-  runtime.serve(args.port, args.host, app.fetch);
+  await runtime.serve(args.port, args.host, app.fetch);
 }
 
 // Run the application
