@@ -36,7 +36,7 @@ export async function handleHistoriesRequest(c: Context) {
     }
 
     // Build history directory path directly from encoded name
-    const historyDir = `${homeDir}/.claude/projects/${encodedProjectName}`;
+    const historyDir = `${homeDir}/.qwen/projects/${encodedProjectName}`;
 
     logger.history.debug(`History directory: ${historyDir}`);
 

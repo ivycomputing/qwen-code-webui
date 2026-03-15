@@ -356,7 +356,7 @@ else
 
     print_info "创建 launchd 服务..."
 
-    PLIST_FILE="/Library/LaunchDaemons/com.claude-code-webui.plist"
+    PLIST_FILE="/Library/LaunchDaemons/com.qwen-code-webui.plist"
 
     cat > "$PLIST_FILE" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -364,7 +364,7 @@ else
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.claude-code-webui</string>
+    <string>com.qwen-code-webui</string>
     <key>ProgramArguments</key>
     <array>
         <string>$INSTALL_DIR/claude-code-webui</string>
@@ -481,7 +481,7 @@ else
     launchctl load -w "$PLIST_FILE"
     sleep 2
     
-    if launchctl list | grep -q "com.claude-code-webui"; then
+    if launchctl list | grep -q "com.qwen-code-webui"; then
         print_success "服务启动成功"
     else
         print_error "服务启动失败，请检查日志:"
