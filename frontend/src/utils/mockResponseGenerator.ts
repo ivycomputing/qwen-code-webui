@@ -111,7 +111,7 @@ export function createCombinedAssistantMessage(
   };
 }
 
-// Generate realistic Claude result messages
+// Generate realistic Qwen result messages
 export function createResultMessage(
   sessionId: string,
   inputTokens: number = 45,
@@ -312,7 +312,7 @@ export const DEMO_SCENARIOS = {
         type: "assistant" as const,
         delay: 1500,
         data: createAssistantMessage(
-          "Hello! I'm Claude, your AI assistant. I can help you with coding, file operations, and much more. I can see this is a Claude Code Web UI project - a React frontend with a Deno backend. What specific aspect would you like me to help you understand?",
+          "Hello! I'm Qwen, your AI assistant. I can help you with coding, file operations, and much more. I can see this is a Qwen Code Web UI project - a React frontend with a Deno backend. What specific aspect would you like me to help you understand?",
           "demo-session-basic",
         ),
       },
@@ -369,7 +369,7 @@ export const DEMO_SCENARIOS = {
         type: "assistant" as const,
         delay: 1000,
         data: createAssistantMessage(
-          "I can see this is the main App.tsx file for the Claude Code Web UI project. It's a React application that uses React Router for navigation between a project selector page and the main chat interface. The app includes theme management with light/dark mode support, and provides a web-based interface for interacting with the Claude CLI tool. The routing system allows users to first select a working directory, then engage in conversations with Claude within that project context.",
+          "I can see this is the main App.tsx file for the Qwen Code Web UI project. It's a React application that uses React Router for navigation between a project selector page and the main chat interface. The app includes theme management with light/dark mode support, and provides a web-based interface for interacting with the Qwen CLI tool. The routing system allows users to first select a working directory, then engage in conversations with Qwen within that project context.",
           "demo-session-files",
         ),
       },
@@ -593,7 +593,7 @@ if __name__ == "__main__":
     const planContent = `# README Creation Plan
 
 ## Overview
-I'll create a comprehensive README.md file for the Claude Code Web UI project with essential documentation.
+I'll create a comprehensive README.md file for the Qwen Code Web UI project with essential documentation.
 
 ## Implementation Steps
 1. **Project Analysis**: Review the project structure to understand key features
@@ -674,7 +674,7 @@ I'll create a comprehensive README.md file for the Claude Code Web UI project wi
           type: "assistant" as const,
           delay: 1200,
           data: createAssistantMessage(
-            "Great! I can see this is the Claude Code Web UI project. Now I'll create a comprehensive README.md file with all the essential information.",
+            "Great! I can see this is the Qwen Code Web UI project. Now I'll create a comprehensive README.md file with all the essential information.",
             "demo-session-plan",
           ),
         },
@@ -685,13 +685,13 @@ I'll create a comprehensive README.md file for the Claude Code Web UI project wi
             "Write",
             {
               file_path: "/Users/demo/claude-code-webui/README.md",
-              content: `# Claude Code Web UI
+              content: `# Qwen Code Web UI
 
-A modern, web-based interface for the Claude Code CLI tool that provides streaming responses in an intuitive chat interface.
+A modern, web-based interface for the Qwen Code CLI tool that provides streaming responses in an intuitive chat interface.
 
 ## ✨ Features
 
-- **🌐 Web Interface**: Access Claude Code through your browser
+- **🌐 Web Interface**: Access Qwen Code through your browser
 - **💬 Real-time Chat**: Streaming responses with live updates
 - **📁 Project Management**: Select and switch between project directories
 - **🎨 Theme Support**: Light/dark theme with system preference detection
@@ -723,7 +723,7 @@ A modern, web-based interface for the Claude Code CLI tool that provides streami
 
 - **Backend**: TypeScript + Hono framework (Deno/Node.js)
 - **Frontend**: React + Vite + TailwindCSS + TypeScript
-- **Streaming**: Real-time JSON streaming from Claude CLI
+- **Streaming**: Real-time JSON streaming from Qwen CLI
 
 ## 📄 License
 

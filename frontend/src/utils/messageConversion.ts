@@ -74,7 +74,9 @@ export function createToolMessage(
   timestamp?: number,
 ): ToolMessage {
   const toolName = contentItem.name || "Unknown";
-  const argsDisplay = formatToolArguments(contentItem.input as Record<string, unknown> | undefined);
+  const argsDisplay = formatToolArguments(
+    contentItem.input as Record<string, unknown> | undefined,
+  );
 
   return {
     type: "tool",

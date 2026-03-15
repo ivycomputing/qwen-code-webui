@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useStreamParser } from "./useStreamParser";
 import type { StreamingContext } from "./useMessageProcessor";
-import type { SDKMessage } from "../../types";
 import { generateId } from "../../utils/id";
 
 // Mock dependencies
@@ -30,15 +29,19 @@ describe("useStreamParser", () => {
     it("should detect ExitPlanMode tool use and create plan message", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-123",
               name: "ExitPlanMode",
               input: {
@@ -46,6 +49,8 @@ describe("useStreamParser", () => {
               },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -70,20 +75,26 @@ describe("useStreamParser", () => {
     it("should handle ExitPlanMode with empty plan content", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-456",
               name: "ExitPlanMode",
               input: {},
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -108,20 +119,26 @@ describe("useStreamParser", () => {
     it("should handle ExitPlanMode with missing input field", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-789",
               name: "ExitPlanMode",
-              // input field is intentionally missing
+              input: {},
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -146,22 +163,28 @@ describe("useStreamParser", () => {
     it("should handle ExitPlanMode with missing toolUseId", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
-              // id field is intentionally missing
+              type: "tool_use" as const,
+              id: "",
               name: "ExitPlanMode",
               input: {
                 plan: "Test plan content",
               },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -186,15 +209,19 @@ describe("useStreamParser", () => {
     it("should handle non-string plan content gracefully", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-invalid",
               name: "ExitPlanMode",
               input: {
@@ -202,6 +229,8 @@ describe("useStreamParser", () => {
               },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -226,15 +255,19 @@ describe("useStreamParser", () => {
     it("should not create plan message for non-ExitPlanMode tools", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "bash-123",
               name: "Bash",
               input: {
@@ -242,6 +275,8 @@ describe("useStreamParser", () => {
               },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -306,7 +341,7 @@ describe("useStreamParser", () => {
       result.current.processStreamLine(
         JSON.stringify({
           type: "error",
-          error: "Claude execution failed",
+          error: "Qwen execution failed",
         }),
         mockContext,
       );
@@ -314,7 +349,7 @@ describe("useStreamParser", () => {
       expect(mockContext.addMessage).toHaveBeenCalledWith({
         type: "error",
         subtype: "stream_error",
-        message: "Claude execution failed",
+        message: "Qwen execution failed",
         timestamp: expect.any(Number),
       });
     });
@@ -362,19 +397,23 @@ describe("useStreamParser", () => {
     it("should handle assistant message with both text and ExitPlanMode tool use", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "text",
+              type: "text" as const,
               text: "I'll help you with that. Here's my plan:",
             },
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-mixed",
               name: "ExitPlanMode",
               input: {
@@ -382,6 +421,8 @@ describe("useStreamParser", () => {
               },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -410,26 +451,32 @@ describe("useStreamParser", () => {
     it("should handle multiple tool uses including ExitPlanMode", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "test-session",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "bash-123",
               name: "Bash",
               input: { command: "ls" },
             },
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-multi",
               name: "ExitPlanMode",
               input: { plan: "Multi-tool plan" },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 
@@ -468,20 +515,26 @@ describe("useStreamParser", () => {
       const { result } = renderHook(() => useStreamParser());
       mockContext.hasReceivedInit = true;
 
-      const assistantMessage: Extract<SDKMessage, { type: "assistant" }> = {
-        type: "assistant",
+      const assistantMessage = {
+        type: "assistant" as const,
         session_id: "session-with-plan",
         uuid: generateId(),
         parent_tool_use_id: null,
         message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
           content: [
             {
-              type: "tool_use",
+              type: "tool_use" as const,
               id: "plan-session",
               name: "ExitPlanMode",
               input: { plan: "Plan with session tracking" },
             },
           ],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
         },
       };
 

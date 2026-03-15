@@ -1,16 +1,13 @@
 /**
  * JSONL file parsing utilities for conversation history
- * Handles reading and parsing Claude conversation history files
+ * Handles reading and parsing Qwen conversation history files
  */
 
-import type {
-  SDKAssistantMessage,
-  SDKUserMessage,
-} from "@anthropic-ai/claude-code";
+import type { SDKAssistantMessage, SDKUserMessage } from "@qwen-code/sdk";
 import { logger } from "../utils/logger.ts";
 import { readTextFile, readDir } from "../utils/fs.ts";
 
-// Raw JSONL line structure from Claude history files
+// Raw JSONL line structure from Qwen history files
 export interface RawHistoryLine {
   type: "user" | "assistant" | "system" | "result";
   message?: SDKUserMessage["message"] | SDKAssistantMessage["message"];
@@ -91,8 +88,6 @@ async function parseHistoryFile(
                 break;
               }
             }
-          } else if (typeof content === "string") {
-            lastMessagePreview = content.substring(0, 100);
           }
         }
       } catch (parseError) {

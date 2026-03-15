@@ -99,14 +99,17 @@ export function SystemMessageComponent({
       }
       return details.join("\n");
     } else if (message.type === "result") {
-      const details = [
-        `Duration: ${message.duration_ms}ms`,
-      ];
+      const details = [`Duration: ${message.duration_ms}ms`];
       // Cost may not be available in Qwen SDK
-      if ("total_cost_usd" in message && typeof message.total_cost_usd === "number") {
+      if (
+        "total_cost_usd" in message &&
+        typeof message.total_cost_usd === "number"
+      ) {
         details.push(`Cost: $${message.total_cost_usd.toFixed(4)}`);
       }
-      details.push(`Tokens: ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`);
+      details.push(
+        `Tokens: ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`,
+      );
       return details.join("\n");
     } else if (message.type === "error") {
       return message.message;

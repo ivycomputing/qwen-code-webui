@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Context } from "hono";
 import { handleChatRequest } from "./chat";
 import type { ChatRequest } from "../../shared/types";
-import { query } from "@anthropic-ai/claude-code";
+import { query } from "@qwen-code/sdk";
 
-// Define minimal mock types for Claude Code SDK to maintain type safety in tests
-type MockClaudeCode = {
+// Define minimal mock types for Qwen Code SDK to maintain type safety in tests
+type MockQwenCode = {
   query: typeof vi.fn;
 };
 
 vi.mock(
-  "@anthropic-ai/claude-code",
-  (): MockClaudeCode => ({
+  "@qwen-code/sdk",
+  (): MockQwenCode => ({
     query: vi.fn(),
   }),
 );
@@ -55,7 +55,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
   });
 
   describe("Permission Mode Parameter Handling", () => {
-    it("should pass permissionMode 'plan' to Claude SDK", async () => {
+    it("should pass permissionMode 'plan' to Qwen SDK", async () => {
       const chatRequest: ChatRequest = {
         message: "Test message",
         requestId: "test-123",
@@ -90,9 +90,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         options: expect.objectContaining({
           permissionMode: "plan",
           abortController: expect.any(AbortController),
-          executable: "node",
-          executableArgs: [],
-          pathToClaudeCodeExecutable: "/path/to/claude-cli",
+          pathToQwenExecutable: "/path/to/claude-cli",
         }),
       });
 
@@ -100,11 +98,11 @@ describe("Chat Handler - Permission Mode Tests", () => {
       expect(response.headers.get("Content-Type")).toBe("application/x-ndjson");
     });
 
-    it("should pass permissionMode 'acceptEdits' to Claude SDK", async () => {
+    it("should pass permissionMode 'auto-edit' to Qwen SDK", async () => {
       const chatRequest: ChatRequest = {
         message: "Test message",
         requestId: "test-456",
-        permissionMode: "acceptEdits",
+        permissionMode: "auto-edit",
       };
 
       mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
@@ -129,12 +127,12 @@ describe("Chat Handler - Permission Mode Tests", () => {
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test message",
         options: expect.objectContaining({
-          permissionMode: "acceptEdits",
+          permissionMode: "auto-edit",
         }),
       });
     });
 
-    it("should pass permissionMode 'default' to Claude SDK", async () => {
+    it("should pass permissionMode 'default' to Qwen SDK", async () => {
       const chatRequest: ChatRequest = {
         message: "Test message",
         requestId: "test-789",
@@ -235,9 +233,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
           allowedTools: ["Bash", "Edit"],
           cwd: "/project/path",
           abortController: expect.any(AbortController),
-          executable: "node",
-          executableArgs: [],
-          pathToClaudeCodeExecutable: "/path/to/claude-cli",
+          pathToQwenExecutable: "/path/to/claude-cli",
         }),
       });
     });
@@ -283,7 +279,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const chatRequest: ChatRequest = {
         message: "Regular message",
         requestId: "test-regular",
-        permissionMode: "acceptEdits",
+        permissionMode: "auto-edit",
       };
 
       mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
@@ -308,7 +304,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Regular message",
         options: expect.objectContaining({
-          permissionMode: "acceptEdits",
+          permissionMode: "auto-edit",
         }),
       });
     });
@@ -454,7 +450,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const chatRequest: ChatRequest = {
         message: "Abort test",
         requestId: "test-abort",
-        permissionMode: "acceptEdits",
+        permissionMode: "auto-edit",
       };
 
       mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
@@ -541,7 +537,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const chatRequest: ChatRequest = {
         message: "Controller tracking",
         requestId: "test-tracking",
-        permissionMode: "acceptEdits",
+        permissionMode: "auto-edit",
       };
 
       mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);

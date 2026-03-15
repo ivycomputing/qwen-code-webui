@@ -15,8 +15,8 @@ function renderPermissionContent(patterns: string[]): JSX.Element {
   if (patterns.length === 0) {
     return (
       <p className="text-slate-600 dark:text-slate-300 mb-3">
-        Qwen wants to use bash commands, but the specific commands could not
-        be determined.
+        Qwen wants to use bash commands, but the specific commands could not be
+        determined.
       </p>
     );
   }

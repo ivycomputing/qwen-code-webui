@@ -140,9 +140,13 @@ export async function detectQwenCliPath(
         ? `${tempDir};${currentPath}`
         : `${tempDir}:${currentPath}`;
 
-      const executionResult = await runtime.runCommand(qwenPath, ["--version"], {
-        env: { PATH: modifiedPath },
-      });
+      const executionResult = await runtime.runCommand(
+        qwenPath,
+        ["--version"],
+        {
+          env: { PATH: modifiedPath },
+        },
+      );
 
       // Verify command executed successfully
       if (!executionResult.success) {
@@ -272,9 +276,7 @@ export async function validateQwenCli(
       if (candidates.length === 0) {
         logger.cli.error("❌ Qwen CLI not found in PATH");
         logger.cli.error("   Please install qwen-code globally:");
-        logger.cli.error(
-          "   npm install -g @qwen-code/qwen-code",
-        );
+        logger.cli.error("   npm install -g @qwen-code/qwen-code");
         logger.cli.error(
           "   Or visit: https://github.com/QwenLM/qwen-code for installation instructions",
         );
@@ -285,18 +287,14 @@ export async function validateQwenCli(
       if (isWindows && candidates.length > 1) {
         const cmdCandidate = candidates.find((path) => path.endsWith(".cmd"));
         qwenPath = cmdCandidate || candidates[0];
-        logger.cli.debug(
-          `Found Qwen CLI candidates: ${candidates.join(", ")}`,
-        );
+        logger.cli.debug(`Found Qwen CLI candidates: ${candidates.join(", ")}`);
         logger.cli.debug(
           `Using Qwen CLI path: ${qwenPath} (Windows .cmd preferred)`,
         );
       } else {
         // Use the first candidate (most likely to be the correct one)
         qwenPath = candidates[0];
-        logger.cli.debug(
-          `Found Qwen CLI candidates: ${candidates.join(", ")}`,
-        );
+        logger.cli.debug(`Found Qwen CLI candidates: ${candidates.join(", ")}`);
         logger.cli.debug(`Using Qwen CLI path: ${qwenPath}`);
       }
     }
@@ -323,9 +321,7 @@ export async function validateQwenCli(
     } else {
       // Show warning but continue with fallback when detection fails
       logger.cli.warn("⚠️  Qwen CLI script path detection failed");
-      logger.cli.warn(
-        "   Falling back to using the qwen executable directly.",
-      );
+      logger.cli.warn("   Falling back to using the qwen executable directly.");
       logger.cli.warn("   This may not work properly, but continuing anyway.");
       logger.cli.warn("");
       logger.cli.warn(`   Using fallback path: ${qwenPath}`);
