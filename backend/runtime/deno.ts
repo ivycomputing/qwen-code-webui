@@ -83,8 +83,10 @@ export class DenoRuntime implements Runtime {
     port: number,
     hostname: string,
     handler: (req: Request) => Response | Promise<Response>,
-  ): void {
-    Deno.serve({ port, hostname }, handler);
+  ): Promise<void> {
+    const server = Deno.serve({ port, hostname }, handler);
+    // Return the finished promise which resolves when server closes
+    return server.finished;
   }
 
   createStaticFileMiddleware(options: { root: string }): MiddlewareHandler {
