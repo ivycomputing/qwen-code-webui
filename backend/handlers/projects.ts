@@ -3,6 +3,7 @@ import type { ProjectInfo, ProjectsResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 import { readDir, stat } from "../utils/fs.ts";
 import { getHomeDir } from "../utils/os.ts";
+import { decodeProjectPath } from "../utils/projectMapping.ts";
 
 /**
  * Handles GET /api/projects requests
@@ -35,15 +36,42 @@ export async function handleProjectsRequest(c: Context) {
           // Directory names are encoded project paths (e.g., "-Users-rhuang-workspace")
           const encodedName = entry.name;
 
-          // Convert encoded name back to path
-          // Encoded format: "-" + path with "/", "\", ":", ".", "_" replaced by "-"
-          // We need to decode it back to the original path
-          const decodedPath = decodeProjectPath(encodedName);
+          // Skip hidden files like .mapping.json
+          if (encodedName.startsWith(".")) {
+            continue;
+          }
 
-          projects.push({
-            path: decodedPath,
+          // Convert encoded name back to path using mapping file and heuristics
+          const decodedPath = await decodeProjectPath(
             encodedName,
-          });
+            async (path) => {
+              try {
+                const pathInfo = await stat(path);
+                return pathInfo.isDirectory;
+              } catch {
+                return false;
+              }
+            },
+          );
+
+          if (decodedPath) {
+            projects.push({
+              path: decodedPath,
+              encodedName,
+            });
+          } else {
+            // Fallback: use simple decoding if advanced decoding fails
+            // This handles edge cases where the path might not exist anymore
+            const fallbackPath = simpleDecodeProjectPath(encodedName);
+            projects.push({
+              path: fallbackPath,
+              encodedName,
+            });
+            logger.api.warn(
+              "Could not determine actual path for project: {encodedName}, using fallback: {fallbackPath}",
+              { encodedName, fallbackPath },
+            );
+          }
         }
       }
 
@@ -64,11 +92,12 @@ export async function handleProjectsRequest(c: Context) {
 }
 
 /**
- * Decode an encoded project name back to its original path
+ * Simple fallback decoding for project paths
+ * This is used when advanced decoding fails
  * The encoding replaces "/", "\", ":", ".", "_" with "-"
  * Since this is lossy, we make a best effort to reconstruct the path
  */
-function decodeProjectPath(encodedName: string): string {
+function simpleDecodeProjectPath(encodedName: string): string {
   // The encoded name starts with "-" (representing the leading "/" in Unix paths)
   // e.g., "-Users-rhuang-workspace" -> "/Users/rhuang/workspace"
 
