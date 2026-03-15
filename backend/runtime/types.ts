@@ -30,7 +30,7 @@ export interface Runtime {
     port: number,
     hostname: string,
     handler: (req: Request) => Response | Promise<Response>,
-  ): void;
+  ): Promise<void>;
 
   // Static file serving (different middleware)
   createStaticFileMiddleware(options: { root: string }): MiddlewareHandler;
