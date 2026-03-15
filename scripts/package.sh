@@ -58,6 +58,11 @@ print_info "清理旧的打包目录..."
 rm -rf "$PACKAGE_DIR"
 mkdir -p "$PACKAGE_DIR"
 
+# Clean up broken symlinks in node_modules that cause warnings during deno compile
+print_info "清理损坏的符号链接..."
+find "$PROJECT_ROOT/backend/node_modules/.deno/node_modules/@img" -type l ! -exec test -e {} \; -delete 2>/dev/null || true
+rmdir "$PROJECT_ROOT/backend/node_modules/.deno/node_modules/@img" 2>/dev/null || true
+
 # Build the project first
 print_info "构建项目..."
 cd "$PROJECT_ROOT"
