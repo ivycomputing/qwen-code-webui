@@ -18,10 +18,10 @@ export async function getEncodedProjectName(
     return null;
   }
 
-  const projectsDir = `${homeDir}/.claude/projects`;
+  const projectsDir = `${homeDir}/.qwen/projects`;
 
   try {
-    // Read all directories in .claude/projects
+    // Read all directories in .qwen/projects
     const entries = [];
     for await (const entry of readDir(projectsDir)) {
       if (entry.isDirectory) {

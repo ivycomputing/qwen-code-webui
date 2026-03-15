@@ -34,7 +34,7 @@ export async function loadConversation(
   }
 
   // Build file path
-  const historyDir = `${homeDir}/.claude/projects/${encodedProjectName}`;
+  const historyDir = `${homeDir}/.qwen/projects/${encodedProjectName}`;
   const filePath = `${historyDir}/${sessionId}.jsonl`;
 
   // Check if file exists before trying to read it
