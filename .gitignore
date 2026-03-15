@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+dist/
+backend/dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Demo recordings and Playwright artifacts
+frontend/demo-recordings/
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Lock files (optional - uncomment if you want to ignore)
+# deno.lock
+# package-lock.json
+# pnpm-lock.yaml
