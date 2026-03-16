@@ -1,8 +1,8 @@
 # 🌐 Qwen Code Web UI
 
 [![npm Version](https://img.shields.io/npm/v/qwen-code-webui)](https://www.npmjs.com/package/qwen-code-webui)
-[![License](https://img.shields.io/github/license/QwenLM/qwen-code-webui)](https://github.com/QwenLM/qwen-code-webui/blob/main/LICENSE)
-[![GitHub Release](https://img.shields.io/github/v/release/QwenLM/qwen-code-webui)](https://github.com/QwenLM/qwen-code-webui/releases)
+[![License](https://img.shields.io/github/license/richardhuang/qwen-code-webui)](https://github.com/richardhuang/qwen-code-webui/blob/main/LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/richardhuang/qwen-code-webui)](https://github.com/richardhuang/qwen-code-webui/releases)
 
 > **A modern web interface for Qwen Code CLI** - Transform your command-line coding experience into an intuitive web-based chat interface
 
@@ -77,7 +77,7 @@ qwen-code-webui
 
 ```bash
 # Clone repository
-git clone https://github.com/QwenLM/qwen-code-webui.git
+git clone https://github.com/richardhuang/qwen-code-webui.git
 cd qwen-code-webui
 
 # Backend (choose one)
@@ -163,7 +163,7 @@ qwen-code-webui --debug
 
 ```bash
 # Clone repository
-git clone https://github.com/QwenLM/qwen-code-webui.git
+git clone https://github.com/richardhuang/qwen-code-webui.git
 cd qwen-code-webui
 
 # Install dependencies
@@ -246,6 +246,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **Made with ❤️ for the Qwen Code community**
 
-[⭐ Star this repo](https://github.com/QwenLM/qwen-code-webui) • [🐛 Report issues](https://github.com/QwenLM/qwen-code-webui/issues)
+[⭐ Star this repo](https://github.com/richardhuang/qwen-code-webui) • [🐛 Report issues](https://github.com/richardhuang/qwen-code-webui/issues)
 
 </div>
