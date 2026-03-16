@@ -1,6 +1,7 @@
 // API configuration - uses relative paths with Vite proxy in development
 export const API_CONFIG = {
   ENDPOINTS: {
+    VERSION: "/api/version",
     CHAT: "/api/chat",
     ABORT: "/api/abort",
     PROJECTS: "/api/projects",
