@@ -3,6 +3,12 @@
 # Qwen Code Web UI - Package Builder
 # Creates offline installation packages for different platforms
 #
+# Usage:
+#   ./package.sh              # Build with current version
+#   ./package.sh --bump patch # Build and bump patch version (0.1.0 -> 0.1.1)
+#   ./package.sh --bump minor # Build and bump minor version (0.1.0 -> 0.2.0)
+#   ./package.sh --bump major # Build and bump major version (0.1.0 -> 1.0.0)
+#
 
 set -e
 
@@ -39,46 +45,141 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DIST_DIR="$PROJECT_ROOT/dist"
 PACKAGE_DIR="$PROJECT_ROOT/packages"
+PACKAGE_JSON="$PROJECT_ROOT/backend/package.json"
 
-# Version info
-VERSION=$(cd "$PROJECT_ROOT" && git describe --tags --always 2>/dev/null || echo "dev")
+# Parse arguments
+BUMP_TYPE=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --bump)
+            BUMP_TYPE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --bump <type>  Bump version before building (patch|minor|major)"
+            echo "  -h, --help     Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Build with current version"
+            echo "  $0 --bump patch       # Build and bump patch version (0.1.0 -> 0.1.1)"
+            echo "  $0 --bump minor       # Build and bump minor version (0.1.0 -> 0.2.0)"
+            echo "  $0 --bump major       # Build and bump major version (0.1.0 -> 1.0.0)"
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Function to bump version
+bump_version() {
+    local current_version="$1"
+    local bump_type="$2"
+    
+    # Remove 'v' prefix if present
+    current_version="${current_version#v}"
+    
+    # Parse version parts
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "$current_version"
+    
+    # Bump version based on type
+    case "$bump_type" in
+        patch)
+            patch=$((patch + 1))
+            ;;
+        minor)
+            minor=$((minor + 1))
+            patch=0
+            ;;
+        major)
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+        *)
+            print_error "Invalid bump type: $bump_type (use patch|minor|major)"
+            exit 1
+            ;;
+    esac
+    
+    echo "${major}.${minor}.${patch}"
+}
+
+# Function to update package.json version
+update_package_json() {
+    local new_version="$1"
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"${new_version}\"/" "$PACKAGE_JSON"
+    else
+        # Linux
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${new_version}\"/" "$PACKAGE_JSON"
+    fi
+}
+
+# Get current version from package.json
+CURRENT_VERSION=$(grep '"version"' "$PACKAGE_JSON" | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+
+# Handle version bumping
+if [[ -n "$BUMP_TYPE" ]]; then
+    print_info "Current version: $CURRENT_VERSION"
+    
+    NEW_VERSION=$(bump_version "$CURRENT_VERSION" "$BUMP_TYPE")
+    print_info "Bumping version: $CURRENT_VERSION -> $NEW_VERSION"
+    
+    # Update package.json
+    update_package_json "$NEW_VERSION"
+    print_success "Updated package.json to version $NEW_VERSION"
+    
+    VERSION="$NEW_VERSION"
+else
+    VERSION="$CURRENT_VERSION"
+fi
+
 DATE=$(date +%Y%m%d)
 
 echo ""
 print_info "=========================================="
-print_info "  Qwen Code Web UI 离线安装包构建"
+print_info "  Qwen Code Web UI Package Builder"
 print_info "=========================================="
 echo ""
-print_info "版本: $VERSION"
-print_info "日期: $DATE"
+print_info "Version: $VERSION"
+print_info "Date: $DATE"
 echo ""
 
 # Clean previous packages
-print_info "清理旧的打包目录..."
+print_info "Cleaning previous packages..."
 rm -rf "$PACKAGE_DIR"
 mkdir -p "$PACKAGE_DIR"
 
 # Clean up broken symlinks in node_modules that cause warnings during deno compile
-print_info "清理损坏的符号链接..."
+print_info "Cleaning broken symlinks..."
 find "$PROJECT_ROOT/backend/node_modules/.deno/node_modules/@img" -type l ! -exec test -e {} \; -delete 2>/dev/null || true
 rmdir "$PROJECT_ROOT/backend/node_modules/.deno/node_modules/@img" 2>/dev/null || true
 
 # Build the project first
-print_info "构建项目..."
+print_info "Building project..."
 cd "$PROJECT_ROOT"
 make build
 
 # Check if build was successful
 if [ ! -f "$DIST_DIR/qwen-code-webui" ]; then
-    print_error "构建失败，找不到二进制文件"
+    print_error "Build failed: binary not found"
     exit 1
 fi
 
-print_success "构建完成"
+print_success "Build completed"
 echo ""
 
 # ============================================
-# Create Linux packages
+# Create packages
 # ============================================
 
 # Function to create package for a specific architecture
@@ -96,10 +197,10 @@ create_package() {
         PKG_ARCH=${ARCH#linux-}
     fi
 
-    local PACKAGE_NAME="qwen-code-webui-$VERSION-$DATE-$OS_NAME-$PKG_ARCH"
+    local PACKAGE_NAME="qwen-code-webui-v${VERSION}-${DATE}-${OS_NAME}-${PKG_ARCH}"
     local PACKAGE_PATH="$PACKAGE_DIR/$PACKAGE_NAME"
 
-    print_info "创建 $OS_NAME $PKG_ARCH 安装包..."
+    print_info "Creating $OS_NAME $PKG_ARCH package..."
 
     # Create package directory
     mkdir -p "$PACKAGE_PATH"
@@ -108,7 +209,7 @@ create_package() {
     if [ -f "$DIST_DIR/$BINARY_NAME" ]; then
         cp "$DIST_DIR/$BINARY_NAME" "$PACKAGE_PATH/$BINARY_NAME"
     else
-        print_warning "找不到二进制文件: $BINARY_NAME，跳过"
+        print_warning "Binary not found: $BINARY_NAME, skipping"
         rm -rf "$PACKAGE_PATH"
         return
     fi
@@ -118,49 +219,27 @@ create_package() {
     chmod +x "$PACKAGE_PATH/install.sh"
 
     # Create README
-    if [ "$OS_NAME" = "macOS" ]; then
-        cat > "$PACKAGE_PATH/README.txt" << EOF
-Qwen Code Web UI - 离线安装包
-版本: $VERSION
-架构: macOS $PKG_ARCH
-日期: $DATE
+    cat > "$PACKAGE_PATH/README.txt" << EOF
+Qwen Code Web UI - Offline Installation Package
+Version: $VERSION
+Platform: $OS_NAME $PKG_ARCH
+Date: $DATE
 
-安装说明:
-1. 将此压缩包上传到目标机器
-2. 解压: tar -xzf $PACKAGE_NAME.tar.gz
-3. 进入目录: cd $PACKAGE_NAME
-4. 以管理员执行: sudo ./install.sh
+Installation Instructions:
+1. Upload this archive to the target machine
+2. Extract: tar -xzf $PACKAGE_NAME.tar.gz
+3. Enter directory: cd $PACKAGE_NAME
+4. Run as admin: sudo ./install.sh
 
-系统要求:
-- macOS 系统 ($PKG_ARCH 架构)
-- Qwen CLI 已安装并认证
+Requirements:
+- $OS_NAME system ($PKG_ARCH architecture)
+- Qwen CLI installed and authenticated
 
-更多信息请访问: https://github.com/richardhuang/qwen-code-webui
+For more information: https://github.com/ivycomputing/qwen-code-webui
 EOF
-    else
-        cat > "$PACKAGE_PATH/README.txt" << EOF
-Qwen Code Web UI - 离线安装包
-版本: $VERSION
-架构: Linux $PKG_ARCH
-日期: $DATE
-
-安装说明:
-1. 将此压缩包上传到目标服务器
-2. 解压: tar -xzf $PACKAGE_NAME.tar.gz
-3. 进入目录: cd $PACKAGE_NAME
-4. 以 root 执行: ./install.sh
-
-系统要求:
-- Linux 系统 ($PKG_ARCH 架构)
-- systemd 服务管理器
-- Qwen CLI 已安装并认证
-
-更多信息请访问: https://github.com/richardhuang/qwen-code-webui
-EOF
-    fi
 
     # Remove macOS extended attributes and AppleDouble files
-    print_info "移除 macOS 元数据文件..."
+    print_info "Removing macOS metadata files..."
     find "$PACKAGE_PATH" -name "._*" -type f -delete 2>/dev/null || true
     # Remove extended attributes recursively (macOS only)
     if command -v xattr &>/dev/null; then
@@ -172,20 +251,15 @@ EOF
     COPYFILE_DISABLE=1 tar --no-xattrs -czf "$PACKAGE_NAME.tar.gz" "$PACKAGE_NAME"
     rm -rf "$PACKAGE_NAME"
 
-    print_success "创建完成: $PACKAGE_NAME.tar.gz"
+    print_success "Created: $PACKAGE_NAME.tar.gz"
 }
-
-# Build for current architecture first
-print_info "检测当前架构..."
-CURRENT_ARCH=$(uname -m)
-CURRENT_OS=$(uname -s)
 
 # Function to build for a specific target
 build_target() {
     local TARGET=$1
     local OUTPUT_NAME=$2
 
-    print_info "交叉编译 $TARGET..."
+    print_info "Cross-compiling for $TARGET..."
     cd "$PROJECT_ROOT/backend"
     deno compile --target "$TARGET" \
         --allow-net --allow-run --allow-read --allow-write --allow-env --allow-sys \
@@ -194,26 +268,29 @@ build_target() {
         cli/deno.ts
 
     if [ $? -eq 0 ]; then
-        print_success "编译成功: $OUTPUT_NAME"
+        print_success "Compiled: $OUTPUT_NAME"
         return 0
     else
-        print_error "编译失败: $TARGET"
+        print_error "Failed to compile: $TARGET"
         return 1
     fi
 }
 
-# Build for Linux targets (cross-compile)
-print_info "构建 Linux x64 版本..."
+# Build for all targets
+print_info "Detecting current architecture..."
+CURRENT_ARCH=$(uname -m)
+CURRENT_OS=$(uname -s)
+
+print_info "Building Linux x64 binary..."
 build_target "x86_64-unknown-linux-gnu" "qwen-code-webui-linux-x64"
 
-print_info "构建 Linux ARM64 版本..."
+print_info "Building Linux ARM64 binary..."
 build_target "aarch64-unknown-linux-gnu" "qwen-code-webui-linux-arm64"
 
-# Build for macOS targets (cross-compile)
-print_info "构建 macOS x64 版本..."
+print_info "Building macOS x64 binary..."
 build_target "x86_64-apple-darwin" "qwen-code-webui-macos-x64"
 
-print_info "构建 macOS ARM64 版本..."
+print_info "Building macOS ARM64 binary..."
 build_target "aarch64-apple-darwin" "qwen-code-webui-macos-arm64"
 
 # Create packages for each architecture
@@ -228,11 +305,30 @@ create_package "macos-arm64" "qwen-code-webui-macos-arm64"
 
 echo ""
 print_success "=========================================="
-print_success "  打包完成"
+print_success "  Build Complete"
 print_success "=========================================="
 echo ""
-print_info "生成的文件:"
-ls -lh "$PACKAGE_DIR"/*.tar.gz 2>/dev/null || print_warning "没有生成任何安装包"
+print_info "Generated files:"
+ls -lh "$PACKAGE_DIR"/*.tar.gz 2>/dev/null || print_warning "No packages generated"
 echo ""
-print_info "文件位置: $PACKAGE_DIR"
+print_info "Package location: $PACKAGE_DIR"
+
+# Show next steps if version was bumped
+if [[ -n "$BUMP_TYPE" ]]; then
+    echo ""
+    print_info "Next steps:"
+    echo "  1. Commit the version change:"
+    echo "     git add backend/package.json && git commit -m \"chore: bump version to $VERSION\""
+    echo ""
+    echo "  2. Create and push tag:"
+    echo "     git tag -a v$VERSION -m \"Release v$VERSION\""
+    echo "     git push origin v$VERSION"
+    echo ""
+    echo "  3. Create GitHub release:"
+    echo "     gh release create v$VERSION --title \"v$VERSION\" --notes \"...\""
+    echo ""
+    echo "  4. Upload packages:"
+    echo "     gh release upload v$VERSION packages/*.tar.gz --clobber"
+fi
+
 echo ""
