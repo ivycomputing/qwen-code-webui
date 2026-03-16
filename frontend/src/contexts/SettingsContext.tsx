@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import type { AppSettings, SettingsContextType } from "../types/settings";
+import type {
+  AppSettings,
+  SettingsContextType,
+  ExperimentalFeatures,
+} from "../types/settings";
 import { getSettings, setSettings } from "../utils/storage";
 import { SettingsContext } from "./SettingsContextTypes";
+import { DEFAULT_EXPERIMENTAL } from "../types/settings";
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettingsState] = useState<AppSettings>(() =>
@@ -48,16 +53,26 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     });
   }, [settings.enterBehavior, updateSettings]);
 
+  // Get experimental features with defaults
+  const experimental: ExperimentalFeatures = useMemo(
+    () => ({
+      ...DEFAULT_EXPERIMENTAL,
+      ...settings.experimental,
+    }),
+    [settings.experimental],
+  );
+
   const value = useMemo(
     (): SettingsContextType => ({
       settings,
       theme: settings.theme,
       enterBehavior: settings.enterBehavior,
+      experimental,
       toggleTheme,
       toggleEnterBehavior,
       updateSettings,
     }),
-    [settings, toggleTheme, toggleEnterBehavior, updateSettings],
+    [settings, experimental, toggleTheme, toggleEnterBehavior, updateSettings],
   );
 
   return (

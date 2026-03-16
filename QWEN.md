@@ -216,6 +216,70 @@ Qwen Code Web UI supports the following permission modes:
 | `auto-edit` | Auto-approve edit operations (edit, write_file) |
 | `yolo` | All operations execute automatically without confirmation |
 
+## @qwen-code/webui Component Integration
+
+Qwen Code Web UI integrates with the `@qwen-code/webui` component library for consistent UI rendering with the Qwen Code CLI.
+
+### Features
+
+- **ChatViewer Component**: Renders chat messages with consistent styling
+- **Tool Call Components**: Specialized components for different tool types (Read, Edit, Write, Shell, etc.)
+- **Todo List Support**: Uses UpdatedPlanToolCall for rendering todo items
+- **Thinking Message Support**: Displays Qwen's reasoning process
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    WebUIChatMessages                        │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  ChatViewer (@qwen-code/webui)                        │  │
+│  │  - UserMessage                                        │  │
+│  │  - AssistantMessage                                   │  │
+│  │  - ThinkingMessage                                    │  │
+│  │  - ToolCall Components (Read, Edit, Shell, etc.)     │  │
+│  │  - UpdatedPlanToolCall (Todo lists)                   │  │
+│  └───────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Custom Components (for extended types)               │  │
+│  │  - PlanMessageComponent                               │  │
+│  │  - SystemMessageComponent                             │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Message Adapter
+
+The `MessageAdapter` module (`frontend/src/adapters/MessageAdapter.ts`) converts internal message types to the `ChatMessageData` format required by the ChatViewer component.
+
+Key functions:
+- `adaptMessagesToWebUI()`: Converts AllMessage[] to ExtendedMessage[]
+- `filterEmptyMessages()`: Removes empty messages
+- Type guards: `isPlanMessage()`, `isTodoMessage()`, `isThinkingMessage()`
+
+### Experimental Feature Flag
+
+The WebUI components integration is controlled by an experimental feature flag:
+
+```typescript
+// In settings
+{
+  "experimental": {
+    "useWebUIComponents": true
+  }
+}
+```
+
+When enabled, the `WebUIChatMessages` component is used instead of the legacy `ChatMessages` component.
+
+### Platform Context
+
+The `WebPlatformContext` (`frontend/src/context/WebPlatformContext.tsx`) provides platform-specific capabilities for the web environment:
+
+- `copyToClipboard()`: Copy text to clipboard
+- `openTempFile()`: Download content as a file
+- Feature flags for platform capabilities
+
 ## Configuration
 
 ### Qwen Code Settings
