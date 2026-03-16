@@ -10,8 +10,9 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 # 配置
+# 注意：前端 Vite 默认监听 localhost (IPv6)，后端监听 127.0.0.1 (IPv4)
 FRONTEND_URL = "http://localhost:3000"
-BACKEND_URL = "http://localhost:8080"
+BACKEND_URL = "http://127.0.0.1:8080"
 SCREENSHOT_DIR = Path(__file__).parent.parent.parent / "screenshots"
 
 

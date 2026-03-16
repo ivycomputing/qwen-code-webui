@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- feat: 添加版本号显示和实验性功能开关
+  - 后端添加 `/api/version` 端点返回版本号
+  - 前端添加 `useVersion` hook 获取版本
+  - 设置界面添加实验性功能区域，支持切换 `useWebUIComponents`
+  - 设置界面底部显示版本号
+
+### Changed
+
+- docs: 将 `QWEN.md` 改名为 `PROJECT_CONTEXT.md` 并移到 `docs/` 目录下
+
+### Removed
+
+- docs: 删除 `CLAUDE.md` 文件（已过时）
+
+### Features
+
+- feat: 集成 `@qwen-code/webui` 组件库
+  - 添加消息适配器 `MessageAdapter` 用于格式转换
+  - 添加 `WebUIChatMessages` 组件用于渲染聊天消息
+  - 添加 `WebPlatformContext` 用于平台抽象
+  - 支持实验性功能开关控制组件使用
+
 ## [0.1.56](https://github.com/sugyan/claude-code-webui/compare/0.1.55...0.1.56) - 2025-09-18
 - chore(deps): Bump @hono/node-server from 1.17.0 to 1.19.1 in /backend by @dependabot[bot] in https://github.com/sugyan/claude-code-webui/pull/314
 - chore(deps): Bump actions/download-artifact from 4.3.0 to 5.0.0 by @dependabot[bot] in https://github.com/sugyan/claude-code-webui/pull/307
