@@ -143,6 +143,7 @@ export function SystemMessageComponent({
         border: "border-blue-200 dark:border-blue-700",
         bg: "bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800",
       }}
+      showPreview={false}
     />
   );
 }
