@@ -23,6 +23,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@qwen-code/sdk": "^0.1.4",
+    "@qwen-code/webui": "^0.1.0-beta.4",
     "dayjs": "^1.11.13",
     "react": "^19.1.0",
     "react-dom": "^19.1.1",

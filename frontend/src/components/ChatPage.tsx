@@ -13,11 +13,13 @@ import { usePermissions } from "../hooks/chat/usePermissions";
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
+import { useSettings } from "../hooks/useSettings";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
 import { HistoryButton } from "./chat/HistoryButton";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
+import { WebUIChatMessages } from "./chat/WebUIChatMessages";
 import { HistoryView } from "./HistoryView";
 import { getChatUrl, getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
@@ -29,6 +31,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const { experimental } = useSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Extract and normalize working directory from URL
@@ -565,7 +568,11 @@ export function ChatPage() {
         ) : (
           <>
             {/* Chat Messages */}
-            <ChatMessages messages={messages} isLoading={isLoading} />
+            {experimental.useWebUIComponents ? (
+              <WebUIChatMessages messages={messages} isLoading={isLoading} />
+            ) : (
+              <ChatMessages messages={messages} isLoading={isLoading} />
+            )}
 
             {/* Input */}
             <ChatInput
