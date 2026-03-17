@@ -417,12 +417,6 @@ export function ChatPage() {
     navigate("/");
   }, [navigate]);
 
-  const handleBackToProjectChat = useCallback(() => {
-    if (workingDirectory) {
-      navigate(`/projects${workingDirectory}`);
-    }
-  }, [navigate, workingDirectory]);
-
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -440,76 +434,50 @@ export function ChatPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <div className="max-w-6xl mx-auto p-3 sm:p-6 h-screen flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:mb-8 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            {isHistoryView && (
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            {(isHistoryView || isLoadedConversation) && (
               <button
-                onClick={handleBackToChat}
-                className="p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
-                aria-label="Back to chat"
+                onClick={isHistoryView ? handleBackToChat : handleBackToHistory}
+                className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
+                aria-label={isHistoryView ? "Back to chat" : "Back to history"}
               >
-                <ChevronLeftIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-            )}
-            {isLoadedConversation && (
-              <button
-                onClick={handleBackToHistory}
-                className="p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
-                aria-label="Back to history"
-              >
-                <ChevronLeftIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <ChevronLeftIcon className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </button>
             )}
             <div>
               <nav aria-label="Breadcrumb">
                 <div className="flex items-center">
-                  <button
-                    onClick={handleBackToProjects}
-                    className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
-                    aria-label="Back to project selection"
-                  >
-                    Qwen Code Web UI
-                  </button>
-                  {(isHistoryView || sessionId) && (
+                  {isHistoryView ? (
+                    <h1 className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight">
+                      Conversation History
+                    </h1>
+                  ) : sessionId ? (
                     <>
-                      <span
-                        className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight mx-3 select-none"
-                        aria-hidden="true"
-                      >
-                        {" "}
-                        ›{" "}
-                      </span>
-                      <h1
-                        className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight"
-                        aria-current="page"
-                      >
-                        {isHistoryView
-                          ? "Conversation History"
-                          : "Conversation"}
+                      <h1 className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight">
+                        Conversation
                       </h1>
+                      {sessionId && (
+                        <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+                          ({sessionId.substring(0, 8)}...)
+                        </span>
+                      )}
                     </>
+                  ) : (
+                    <button
+                      onClick={handleBackToProjects}
+                      className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
+                      aria-label="Back to project selection"
+                      title="Back to project selection"
+                    >
+                      {workingDirectory || "Chat"}
+                    </button>
                   )}
                 </div>
               </nav>
-              {workingDirectory && (
-                <div className="flex items-center text-sm font-mono mt-1">
-                  <button
-                    onClick={handleBackToProjectChat}
-                    className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded px-1 -mx-1 cursor-pointer"
-                    aria-label={`Return to new chat in ${workingDirectory}`}
-                  >
-                    {workingDirectory}
-                  </button>
-                  {sessionId && (
-                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                      Session: {sessionId.substring(0, 8)}...
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {!isHistoryView && <HistoryButton onClick={handleHistoryClick} />}
             <SettingsButton onClick={handleSettingsClick} />
           </div>
