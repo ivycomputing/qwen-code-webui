@@ -96,12 +96,12 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Permission mode toggle: Ctrl+Shift+M (all platforms)
+    // Permission mode toggle: Ctrl+Shift+M (Windows/Linux) or Cmd+Shift+M (macOS)
     if (
-      e.key === KEYBOARD_SHORTCUTS.PERMISSION_MODE_TOGGLE &&
+      e.key.toLowerCase() ===
+        KEYBOARD_SHORTCUTS.PERMISSION_MODE_TOGGLE.toLowerCase() &&
       e.shiftKey &&
-      e.ctrlKey &&
-      !e.metaKey && // Avoid conflicts with browser shortcuts on macOS
+      (e.ctrlKey || e.metaKey) &&
       !isComposing
     ) {
       e.preventDefault();
@@ -257,11 +257,11 @@ export function ChatInput({
           onPermissionModeChange(getNextPermissionMode(permissionMode))
         }
         className="w-full px-4 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-mono text-left transition-colors cursor-pointer"
-        title={`Current: ${getPermissionModeName(permissionMode)} - Click to cycle (Ctrl+Shift+M)`}
+        title={`Current: ${getPermissionModeName(permissionMode)} - Click to cycle (Ctrl/Cmd+Shift+M)`}
       >
         {getPermissionModeIndicator(permissionMode)}
         <span className="ml-2 text-slate-400 dark:text-slate-500 text-[10px]">
-          - Click to cycle (Ctrl+Shift+M)
+          - Click to cycle (Ctrl/Cmd+Shift+M)
         </span>
       </button>
     </div>
