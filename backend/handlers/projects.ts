@@ -55,22 +55,37 @@ export async function handleProjectsRequest(c: Context) {
           );
 
           if (decodedPath) {
-            projects.push({
-              path: decodedPath,
-              encodedName,
-            });
+            // Verify the decoded path actually exists and is a directory
+            try {
+              const pathInfo = await stat(decodedPath);
+              if (pathInfo.isDirectory) {
+                projects.push({
+                  path: decodedPath,
+                  encodedName,
+                });
+              } else {
+                logger.api.debug("Skipping non-directory: {decodedPath}", { decodedPath });
+              }
+            } catch {
+              logger.api.debug("Skipping non-existent directory: {decodedPath}", { decodedPath });
+            }
           } else {
             // Fallback: use simple decoding if advanced decoding fails
-            // This handles edge cases where the path might not exist anymore
             const fallbackPath = simpleDecodeProjectPath(encodedName);
-            projects.push({
-              path: fallbackPath,
-              encodedName,
-            });
-            logger.api.warn(
-              "Could not determine actual path for project: {encodedName}, using fallback: {fallbackPath}",
-              { encodedName, fallbackPath },
-            );
+            // Only add if the fallback path actually exists
+            try {
+              const pathInfo = await stat(fallbackPath);
+              if (pathInfo.isDirectory) {
+                projects.push({
+                  path: fallbackPath,
+                  encodedName,
+                });
+              } else {
+                logger.api.debug("Skipping non-directory fallback path: {fallbackPath}", { fallbackPath });
+              }
+            } catch {
+              logger.api.debug("Skipping non-existent fallback path: {fallbackPath}", { fallbackPath });
+            }
           }
         }
       }
