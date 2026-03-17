@@ -44,8 +44,9 @@ export function CollapsibleDetails({
   const hasDetails = details.trim().length > 0;
   // When forceExpanded is true, always show expanded; otherwise use local state
   const effectiveExpanded = forceExpanded === true ? true : isExpanded;
-  // When forceExpanded is true, disable collapse functionality
-  const isCollapsible = hasDetails && !defaultExpanded && forceExpanded !== true;
+  // When forceExpanded is explicitly set (true or false), allow collapse
+  // Otherwise, use defaultExpanded to determine collapsibility
+  const isCollapsible = hasDetails && forceExpanded !== true;
 
   const contentPreview = React.useMemo(() => {
     const computedTotalLines = details.split("\n").length;

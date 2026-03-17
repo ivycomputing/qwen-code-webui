@@ -26,7 +26,6 @@ import { ThinkingMessageComponent } from "../MessageComponents";
 
 interface WebUIChatMessagesProps {
   messages: AllMessage[];
-  isLoading: boolean;
   expandThinking?: boolean;
   className?: string;
 }
@@ -39,7 +38,6 @@ interface WebUIChatMessagesProps {
  */
 export function WebUIChatMessages({
   messages,
-  isLoading,
   expandThinking,
   className,
 }: WebUIChatMessagesProps) {
@@ -154,9 +152,6 @@ export function WebUIChatMessages({
 
             {/* Render extended messages with custom components */}
             {extendedMessages.map(renderExtendedMessage)}
-
-            {/* Loading indicator */}
-            {isLoading && <LoadingComponent />}
           </>
         )}
       </div>
@@ -180,7 +175,6 @@ export function WebUIChatMessages({
             emptyMessage=""
             autoScroll={true}
           />
-          {isLoading && <LoadingComponent />}
         </>
       )}
     </div>
@@ -203,23 +197,6 @@ function EmptyState() {
         <p className="text-sm mt-2 opacity-80">
           Type your message below to begin
         </p>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Loading component
- */
-function LoadingComponent() {
-  return (
-    <div className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-lg p-4 mt-2">
-      <div className="text-xs font-semibold mb-2 opacity-90 text-slate-600 dark:text-slate-400">
-        Qwen
-      </div>
-      <div className="flex items-center gap-2 text-sm">
-        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-        <span className="animate-pulse">Thinking...</span>
       </div>
     </div>
   );

@@ -550,7 +550,6 @@ export function ChatPage() {
             {experimental.useWebUIComponents ? (
               <WebUIChatMessages
                 messages={messages}
-                isLoading={isLoading}
                 expandThinking={expandThinking}
               />
             ) : (
