@@ -2,6 +2,9 @@ import React, { useRef, useEffect, useState } from "react";
 import { StopIcon } from "@heroicons/react/24/solid";
 import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
+import { useInputHistory } from "../../hooks/useInputHistory";
+import { useSlashCommand } from "../../hooks/useSlashCommand";
+import { SlashCommandSuggestion } from "./SlashCommandSuggestion";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
 import type { PermissionMode } from "../../types";
@@ -68,6 +71,24 @@ export function ChatInput({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const { enterBehavior } = useEnterBehavior();
+  const {
+    addToHistory,
+    navigatePrevious,
+    navigateNext,
+    resetNavigation,
+  } = useInputHistory();
+
+  // Slash command handling
+  const {
+    isActive: isSlashActive,
+    suggestions,
+    selectedIndex,
+    position,
+    navigateUp: navigateSlashUp,
+    navigateDown: navigateSlashDown,
+    confirmSelection: confirmSlashSelection,
+    cancelSuggestions: cancelSlashSuggestions,
+  } = useSlashCommand(inputRef as React.RefObject<HTMLTextAreaElement>, input, onInputChange);
 
   // Focus input when not loading and not in permission mode
   useEffect(() => {
@@ -92,6 +113,9 @@ export function ChatInput({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (input.trim()) {
+      addToHistory(input);
+    }
     onSubmit();
   };
 
@@ -107,6 +131,61 @@ export function ChatInput({
       e.preventDefault();
       onPermissionModeChange(getNextPermissionMode(permissionMode));
       return;
+    }
+
+    // Slash command navigation (when active)
+    if (isSlashActive && !isComposing) {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        navigateSlashUp();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        navigateSlashDown();
+        return;
+      }
+      if (e.key === KEYBOARD_SHORTCUTS.SUBMIT) {
+        e.preventDefault();
+        if (confirmSlashSelection()) {
+          return;
+        }
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelSlashSuggestions();
+        return;
+      }
+    }
+
+    // History navigation with up/down arrows (only when input is focused and slash command not active)
+    if (!isComposing && !isSlashActive && document.activeElement === inputRef.current) {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const previousValue = navigatePrevious(input);
+        onInputChange(previousValue);
+        // Move cursor to end of text
+        setTimeout(() => {
+          if (inputRef.current) {
+            const len = inputRef.current.value.length;
+            inputRef.current.setSelectionRange(len, len);
+          }
+        }, 0);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const nextValue = navigateNext(input);
+        onInputChange(nextValue);
+        // Move cursor to end of text
+        setTimeout(() => {
+          if (inputRef.current) {
+            const len = inputRef.current.value.length;
+            inputRef.current.setSelectionRange(len, len);
+          }
+        }, 0);
+        return;
+      }
     }
 
     if (e.key === KEYBOARD_SHORTCUTS.SUBMIT && !isComposing) {
@@ -218,7 +297,10 @@ export function ChatInput({
         <textarea
           ref={inputRef}
           value={input}
-          onChange={(e) => onInputChange(e.target.value)}
+          onChange={(e) => {
+            onInputChange(e.target.value);
+            resetNavigation();
+          }}
           onKeyDown={handleKeyDown}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
@@ -229,6 +311,17 @@ export function ChatInput({
           className={`w-full px-4 py-3 pr-20 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm shadow-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 resize-none overflow-hidden min-h-[48px] max-h-[${UI_CONSTANTS.TEXTAREA_MAX_HEIGHT}px]`}
           disabled={isLoading}
         />
+        {/* Slash command suggestion popup */}
+        {isSlashActive && (
+          <SlashCommandSuggestion
+            suggestions={suggestions}
+            selectedIndex={selectedIndex}
+            onSelect={() => {
+              // Handle command execution if needed
+            }}
+            position={position}
+          />
+        )}
         <div className="absolute right-2 bottom-3 flex gap-2">
           {isLoading && currentRequestId && (
             <button
