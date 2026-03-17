@@ -98,6 +98,7 @@ function convertToolResultToToolCall(
     SaveMemory: "save_memory",
   };
 
+  const isKnownTool = message.toolName in kindMap;
   const kind = kindMap[message.toolName] || message.toolName.toLowerCase();
 
   // Convert unknown to string | object | undefined
@@ -108,10 +109,15 @@ function convertToolResultToToolCall(
         : String(message.toolUseResult)
       : undefined;
 
+  // For unknown tools, don't set title to avoid duplicate display
+  // (kind and title would both show the tool name)
+  // For known tools, title shows the specific operation (e.g., file path)
+  const title = isKnownTool ? message.toolName : "";
+
   return {
     toolCallId: `tool-${message.timestamp}`,
     kind,
-    title: message.toolName,
+    title,
     status: "completed" as const,
     rawInput,
     content: [
