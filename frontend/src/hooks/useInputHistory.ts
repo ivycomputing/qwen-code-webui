@@ -1,36 +1,62 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 
 const HISTORY_MAX_LENGTH = 100;
 const HISTORY_STORAGE_KEY = "qwen_input_history";
 
+// Helper to get history from localStorage
+function getHistoryFromStorage(): string[] {
+  try {
+    const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return parsed.slice(0, HISTORY_MAX_LENGTH);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load input history:", error);
+  }
+  return [];
+}
+
+// Helper to save history to localStorage
+function saveHistoryToStorage(history: string[]) {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch (error) {
+    console.error("Failed to save input history:", error);
+  }
+}
+
 export function useInputHistory() {
-  const [history, setHistory] = useState<string[]>([]);
+  // Initialize history from localStorage
+  const [history, setHistory] = useState<string[]>(() => getHistoryFromStorage());
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [currentInput, setCurrentInput] = useState("");
 
-  // Load history from localStorage on mount
+  // Sync history with localStorage when it changes
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setHistory(parsed.slice(0, HISTORY_MAX_LENGTH));
+    saveHistoryToStorage(history);
+  }, [history]);
+
+  // Listen for storage events (for cross-tab sync)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === HISTORY_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setHistory(parsed.slice(0, HISTORY_MAX_LENGTH));
+          }
+        } catch (error) {
+          console.error("Failed to parse storage event:", error);
         }
       }
-    } catch (error) {
-      console.error("Failed to load input history:", error);
-    }
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
-
-  // Save history to localStorage when it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
-    } catch (error) {
-      console.error("Failed to save input history:", error);
-    }
-  }, [history]);
 
   // Add a message to history (called when sending a message)
   const addToHistory = useCallback((message: string) => {
@@ -40,8 +66,14 @@ export function useInputHistory() {
     setHistory((prev) => {
       // Remove duplicates and add to front
       const filtered = prev.filter((item) => item !== trimmed);
-      return [trimmed, ...filtered].slice(0, HISTORY_MAX_LENGTH);
+      const newHistory = [trimmed, ...filtered].slice(0, HISTORY_MAX_LENGTH);
+      
+      // Save immediately to localStorage
+      saveHistoryToStorage(newHistory);
+      
+      return newHistory;
     });
+    
     setHistoryIndex(null); // Reset index when adding new message
   }, []);
 
@@ -100,14 +132,11 @@ export function useInputHistory() {
     setHistory([]);
     setHistoryIndex(null);
     setCurrentInput("");
-    try {
-      localStorage.removeItem(HISTORY_STORAGE_KEY);
-    } catch (error) {
-      console.error("Failed to clear input history:", error);
-    }
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
   }, []);
 
-  return {
+  // Memoize the return value to prevent unnecessary re-renders
+  return useMemo(() => ({
     history,
     addToHistory,
     navigatePrevious,
@@ -115,5 +144,5 @@ export function useInputHistory() {
     resetNavigation,
     clearHistory,
     isNavigating: historyIndex !== null,
-  };
+  }), [history, addToHistory, navigatePrevious, navigateNext, resetNavigation, clearHistory, historyIndex]);
 }
