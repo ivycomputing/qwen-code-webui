@@ -3,7 +3,6 @@ import type { AllMessage } from "../../types";
 import {
   isChatMessage,
   isSystemMessage,
-  isToolMessage,
   isToolResultMessage,
   isPlanMessage,
   isThinkingMessage,
@@ -11,8 +10,6 @@ import {
 } from "../../types";
 import {
   ChatMessageComponent,
-  SystemMessageComponent,
-  ToolMessageComponent,
   ToolResultMessageComponent,
   PlanMessageComponent,
   ThinkingMessageComponent,
@@ -58,11 +55,18 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
     // Use timestamp as key for stable rendering, fallback to index if needed
     const key = `${message.timestamp}-${index}`;
 
+    // Skip rendering ToolMessage (tool_use) - only render ToolResultMessage (tool_result)
+    // ToolResultMessage already contains all the necessary information about the command execution
+    if (message.type === "tool") {
+      return null;
+    }
+
+    // Skip system messages (init, result, error) - not useful for users
     if (isSystemMessage(message)) {
-      return <SystemMessageComponent key={key} message={message} />;
-    } else if (isToolMessage(message)) {
-      return <ToolMessageComponent key={key} message={message} />;
-    } else if (isToolResultMessage(message)) {
+      return null;
+    }
+
+    if (isToolResultMessage(message)) {
       return <ToolResultMessageComponent key={key} message={message} />;
     } else if (isPlanMessage(message)) {
       return <PlanMessageComponent key={key} message={message} />;

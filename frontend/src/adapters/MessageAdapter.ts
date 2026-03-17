@@ -320,13 +320,17 @@ export function adaptMessagesToWebUI(
 }
 
 /**
- * Filter out empty messages (except tool calls)
+ * Filter out empty messages (except tool calls with toolCall data)
  */
 export function filterEmptyMessages(
   messages: ExtendedMessage[],
 ): ExtendedMessage[] {
   return messages.filter((msg) => {
-    if (msg.type === "tool_call") return true;
+    // For tool_call type, only keep messages with toolCall data (tool_result)
+    // Skip messages without toolCall data (tool_use) to avoid duplicate display
+    if (msg.type === "tool_call") {
+      return msg.toolCall !== undefined;
+    }
     if (msg.extendedType === "plan" || msg.extendedType === "todo") return true;
     const content = msg.message?.content;
     if (typeof content === "string") {

@@ -1,6 +1,6 @@
 {
   "name": "qwen-code-webui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Web-based interface for the Qwen Code CLI with streaming chat interface",
   "keywords": [
@@ -17,13 +17,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/QwenLM/qwen-code-webui.git",
-    "directory": "backend"
+    "url": "https://github.com/ivycomputing/qwen-code-webui.git"
   },
   "bugs": {
-    "url": "https://github.com/QwenLM/qwen-code-webui/issues"
+    "url": "https://github.com/ivycomputing/qwen-code-webui/issues"
   },
-  "homepage": "https://github.com/QwenLM/qwen-code-webui#readme",
+  "homepage": "https://github.com/ivycomputing/qwen-code-webui#readme",
   "main": "dist/cli/node.js",
   "bin": {
     "qwen-code-webui": "dist/cli/node.js"

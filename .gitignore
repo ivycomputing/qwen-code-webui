@@ -38,6 +38,15 @@ coverage/
 *.tmp
 *.temp
 
+# Development server PID files
+.dev/
+
+# Build packages
+packages/
+
+# Test screenshots
+screenshots/
+
 # Lock files (optional - uncomment if you want to ignore)
 # deno.lock
 # package-lock.json

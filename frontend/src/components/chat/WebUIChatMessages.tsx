@@ -23,7 +23,6 @@ import {
 } from "../../adapters";
 import { PlanMessageComponent } from "../MessageComponents";
 import { ThinkingMessageComponent } from "../MessageComponents";
-import { SystemMessageComponent } from "../MessageComponents";
 
 interface WebUIChatMessagesProps {
   messages: AllMessage[];
@@ -52,6 +51,7 @@ export function WebUIChatMessages({
 
   // Separate extended messages that need custom rendering
   // Note: Todo messages are handled by ChatViewer using UpdatedPlanToolCall
+  // Note: System messages (init, result, error) are hidden - not useful for users
   const { standardMessages, extendedMessages } = useMemo(() => {
     const standard: ChatMessageData[] = [];
     const extended: Array<{ message: ExtendedMessage; index: number }> = [];
@@ -59,13 +59,16 @@ export function WebUIChatMessages({
     adaptedMessages.forEach((msg, index) => {
       // Check if this message needs custom rendering
       // Todo messages are now handled by ChatViewer using UpdatedPlanToolCall
-      if (
-        isPlanMessage(msg) ||
+      // System messages (system, result, error) are skipped
+      if (isPlanMessage(msg)) {
+        extended.push({ message: msg, index });
+      } else if (
         msg.extendedType === "system" ||
         msg.extendedType === "result" ||
         msg.extendedType === "error"
       ) {
-        extended.push({ message: msg, index });
+        // Skip system messages - not useful for users
+        return;
       } else {
         standard.push(msg);
       }
@@ -115,20 +118,6 @@ export function WebUIChatMessages({
                   : "",
               timestamp: new Date(msg.timestamp).getTime(),
             }}
-          />
-        );
-
-      case "system":
-      case "result":
-      case "error":
-        return (
-          <SystemMessageComponent
-            key={key}
-            message={
-              msg.original as Parameters<
-                typeof SystemMessageComponent
-              >[0]["message"]
-            }
           />
         );
 
