@@ -88,6 +88,8 @@ export function ChatInput({
     navigateDown: navigateSlashDown,
     confirmSelection: confirmSlashSelection,
     cancelSuggestions: cancelSlashSuggestions,
+    completeWithTab,
+    isSubCommand,
   } = useSlashCommand(inputRef as React.RefObject<HTMLTextAreaElement>, input, onInputChange);
 
   // Focus input when not loading and not in permission mode
@@ -144,6 +146,12 @@ export function ChatInput({
         e.preventDefault();
         navigateSlashDown();
         return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        if (completeWithTab()) {
+          return;
+        }
       }
       if (e.key === KEYBOARD_SHORTCUTS.SUBMIT) {
         e.preventDefault();
@@ -317,9 +325,10 @@ export function ChatInput({
             suggestions={suggestions}
             selectedIndex={selectedIndex}
             onSelect={() => {
-              // Handle command execution if needed
+              confirmSlashSelection();
             }}
             position={position}
+            isSubCommand={isSubCommand}
           />
         )}
         <div className="absolute right-2 bottom-3 flex gap-2">

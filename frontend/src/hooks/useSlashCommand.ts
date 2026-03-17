@@ -1,21 +1,23 @@
 import { useState, useCallback, useEffect } from "react";
 import type { RefObject } from "react";
-import type { SlashCommand } from "../utils/slashCommands";
-import { searchSlashCommands } from "../utils/slashCommands";
+import type { SlashCommand, SubCommand } from "../utils/slashCommands";
+import { searchSlashCommands, getSubCommands, searchSubCommands } from "../utils/slashCommands";
 
 interface SlashCommandState {
   isActive: boolean;
   query: string;
-  suggestions: SlashCommand[];
+  suggestions: SlashCommand[] | SubCommand[];
   selectedIndex: number;
   position: { top: number; left: number } | null;
+  isSubCommand: boolean;
+  parentCommand: string | null;
 }
 
 export function useSlashCommand(
   inputRef: RefObject<HTMLTextAreaElement>,
   input: string,
   onInputChange: (value: string) => void,
-  onExecuteCommand?: (command: SlashCommand) => void,
+  onExecuteCommand?: (command: SlashCommand | SubCommand, isSubCommand: boolean) => void,
 ) {
   const [state, setState] = useState<SlashCommandState>({
     isActive: false,
@@ -23,6 +25,8 @@ export function useSlashCommand(
     suggestions: [],
     selectedIndex: 0,
     position: null,
+    isSubCommand: false,
+    parentCommand: null,
   });
 
   // Check for slash command trigger
@@ -31,37 +35,66 @@ export function useSlashCommand(
     const lines = text.split("\n");
     const lastLine = lines[lines.length - 1];
 
-    // Check if the last line starts with / or contains / followed by text
-    const slashMatch = lastLine.match(/\/([a-zA-Z]*)$/);
+    // Check for sub-command pattern: /skills xxx
+    const subCommandMatch = lastLine.match(/\/skills\s+([a-zA-Z-]*)$/);
+    if (subCommandMatch) {
+      const subQuery = subCommandMatch[1];
+      const subCommands = getSubCommands("/skills");
+      const filtered = searchSubCommands(subCommands, subQuery);
+      
+      setState((prev) => ({
+        ...prev,
+        isActive: true,
+        query: subQuery,
+        suggestions: filtered,
+        selectedIndex: 0,
+        isSubCommand: true,
+        parentCommand: "/skills",
+      }));
 
+      if (inputRef.current) {
+        const textarea = inputRef.current;
+        const rect = textarea.getBoundingClientRect();
+        const charWidth = 8.5;
+        const top = rect.bottom - 8;
+        const left = rect.left + Math.min((subCommandMatch[0].length) * charWidth, rect.width - 200);
+
+        setState((prev) => ({
+          ...prev,
+          position: {
+            top: top + window.scrollY,
+            left: left + window.scrollX,
+          },
+        }));
+      }
+      return;
+    }
+
+    // Check for slash command pattern: /xxx
+    const slashMatch = lastLine.match(/\/([a-zA-Z]*)$/);
     if (slashMatch) {
-      const query = slashMatch[0]; // Include the /
-      const suggestions = searchSlashCommands(query.slice(1)); // Search without /
+      const query = slashMatch[0];
+      const suggestions = searchSlashCommands(query.slice(1));
       setState((prev) => ({
         ...prev,
         isActive: true,
         query: query,
         suggestions,
         selectedIndex: 0,
+        isSubCommand: false,
+        parentCommand: null,
       }));
 
-      // Calculate position
       if (inputRef.current) {
         const textarea = inputRef.current;
         const rect = textarea.getBoundingClientRect();
         const cursorPosition = textarea.selectionStart || 0;
-        
-        // Get the line number and character position in the line
         const textBeforeCursor = text.substring(0, cursorPosition);
         const linesBeforeCursor = textBeforeCursor.split("\n");
         const currentLineIndex = linesBeforeCursor.length - 1;
         const currentColumn = linesBeforeCursor[currentLineIndex].length;
-
-        // Approximate position based on textarea dimensions
-        const charWidth = 8.5; // Approximate character width for monospace
-        
-        // Calculate position relative to viewport
-        const top = rect.bottom - 8; // Position below the textarea
+        const charWidth = 8.5;
+        const top = rect.bottom - 8;
         const left = rect.left + Math.min(currentColumn * charWidth, rect.width - 200);
 
         setState((prev) => ({
@@ -80,36 +113,94 @@ export function useSlashCommand(
         suggestions: [],
         selectedIndex: 0,
         position: null,
+        isSubCommand: false,
+        parentCommand: null,
       }));
     }
   }, [input, inputRef]);
 
+  // Complete command with Tab (auto-complete best match)
+  const completeWithTab = useCallback(() => {
+    if (!state.isActive || state.suggestions.length === 0) return false;
+    
+    const selected = state.suggestions[state.selectedIndex] as SlashCommand | SubCommand;
+    
+    if (inputRef.current) {
+      const textarea = inputRef.current;
+      const cursorPosition = textarea.selectionStart || 0;
+      const text = input;
+      const textBeforeCursor = text.substring(0, cursorPosition);
+      
+      if (state.isSubCommand) {
+        // Completing sub-command: /skills gh-i -> /skills gh-issue
+        const lastSpaceIndex = textBeforeCursor.lastIndexOf(" ");
+        if (lastSpaceIndex !== -1) {
+          const beforeSubCommand = textBeforeCursor.substring(0, lastSpaceIndex + 1);
+          const newText = beforeSubCommand + selected.name + " ";
+          onInputChange(newText);
+          
+          setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newText.length, newText.length);
+          }, 0);
+        }
+      } else {
+        // Completing main command: /s -> /skills
+        const lastSlashIndex = textBeforeCursor.lastIndexOf("/");
+        if (lastSlashIndex !== -1) {
+          const beforeCommand = textBeforeCursor.substring(0, lastSlashIndex);
+          const newText = beforeCommand + selected.name + " ";
+          onInputChange(newText);
+          
+          setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newText.length, newText.length);
+          }, 0);
+        }
+      }
+    }
+    
+    return true;
+  }, [state, input, inputRef, onInputChange]);
+
   // Select a command
   const selectCommand = useCallback(
-    (command: SlashCommand) => {
+    (command: SlashCommand | SubCommand) => {
       if (inputRef.current) {
         const textarea = inputRef.current;
-        const cursorPosition = textarea.selectionStart;
+        const cursorPosition = textarea.selectionStart || 0;
         const text = input;
         const textBeforeCursor = text.substring(0, cursorPosition);
         const textAfterCursor = text.substring(cursorPosition);
 
-        // Find the start of the slash command
-        const lastSlashIndex = textBeforeCursor.lastIndexOf("/");
-        if (lastSlashIndex !== -1) {
-          const beforeCommand = textBeforeCursor.substring(0, lastSlashIndex);
-          const afterCommand = textAfterCursor;
+        if (state.isSubCommand) {
+          // Selecting sub-command: execute it
+          const lastSpaceIndex = textBeforeCursor.lastIndexOf(" ");
+          if (lastSpaceIndex !== -1) {
+            const beforeSubCommand = textBeforeCursor.substring(0, lastSpaceIndex);
+            const newText = beforeSubCommand + " " + command.name + textAfterCursor;
+            onInputChange(newText);
+            
+            setTimeout(() => {
+              textarea.focus();
+              const newCursorPos = beforeSubCommand.length + command.name.length + 1;
+              textarea.setSelectionRange(newCursorPos, newCursorPos);
+            }, 0);
+          }
+        } else {
+          // Selecting main command: just complete it
+          const lastSlashIndex = textBeforeCursor.lastIndexOf("/");
+          if (lastSlashIndex !== -1) {
+            const beforeCommand = textBeforeCursor.substring(0, lastSlashIndex);
+            const newText = beforeCommand + command.name + " " + textAfterCursor;
+            onInputChange(newText);
 
-          // Replace with the full command name
-          const newText = beforeCommand + command.name + " " + afterCommand;
-          onInputChange(newText);
-
-          // Focus and set cursor position
-          setTimeout(() => {
-            textarea.focus();
-            const newCursorPos = beforeCommand.length + command.name.length + 1;
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
-          }, 0);
+            setTimeout(() => {
+              textarea.focus();
+              const newCursorPos = beforeCommand.length + command.name.length + 1;
+              textarea.setSelectionRange(newCursorPos, newCursorPos);
+            }, 0);
+          }
         }
       }
 
@@ -122,9 +213,9 @@ export function useSlashCommand(
         position: null,
       }));
 
-      onExecuteCommand?.(command);
+      onExecuteCommand?.(command, state.isSubCommand);
     },
-    [input, inputRef, onInputChange, onExecuteCommand],
+    [input, inputRef, onInputChange, onExecuteCommand, state.isSubCommand],
   );
 
   // Navigate suggestions with keyboard
@@ -171,10 +262,12 @@ export function useSlashCommand(
     suggestions: state.suggestions,
     selectedIndex: state.selectedIndex,
     position: state.position,
+    isSubCommand: state.isSubCommand,
     navigateUp,
     navigateDown,
     confirmSelection,
     cancelSuggestions,
     selectCommand,
+    completeWithTab,
   };
 }
