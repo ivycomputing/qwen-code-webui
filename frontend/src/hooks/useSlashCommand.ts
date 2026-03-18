@@ -70,9 +70,8 @@ export function useSlashCommand(
         // Subtract 2 char widths to align dropdown left edge with skill name first letter
         const left = rect.left + prefixLength * charWidth - (2 * charWidth);
 
-        // Position dropdown directly below input (within the expanded margin area)
-        const gap = 2; // Minimal gap to be close to input
-        const top = rect.bottom + window.scrollY + gap;
+        // Fixed vertical position: 3/4 of viewport height from top, minus 30px
+        const top = Math.floor(window.innerHeight * 3 / 4) - 30;
 
         setState((prev) => ({
           ...prev,
@@ -114,9 +113,8 @@ export function useSlashCommand(
         // slashMatch.index is the position of "/" in the last line
         const left = rect.left + (slashMatch.index ?? 0) * charWidth;
 
-        // Position dropdown directly below input (within the expanded margin area)
-        const gap = 2; // Minimal gap to be close to input
-        const top = rect.bottom + window.scrollY + gap;
+        // Fixed vertical position: 3/4 of viewport height from top, minus 30px (same as skill dropdown)
+        const top = Math.floor(window.innerHeight * 3 / 4) - 30;
 
         setState((prev) => ({
           ...prev,
