@@ -39,6 +39,7 @@ export function WebUIChatMessages({
   className,
 }: WebUIChatMessagesProps) {
   const chatViewerRef = useRef<ChatViewerHandle>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Adapt messages to webui format
   const adaptedMessages = useMemo(() => {
@@ -61,10 +62,32 @@ export function WebUIChatMessages({
     }
   }, [messages]);
 
+  // Force expand/collapse thinking messages based on expandThinking prop
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Find all thinking toggle buttons
+    const toggleButtons = containerRef.current.querySelectorAll<HTMLButtonElement>(
+      '.thinking-toggle-btn'
+    );
+    
+    toggleButtons.forEach((btn) => {
+      const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+      
+      // Click if current state doesn't match desired state
+      if (expandThinking && !isExpanded) {
+        btn.click();
+      } else if (!expandThinking && isExpanded) {
+        btn.click();
+      }
+    });
+  }, [expandThinking, messages]);
+
   // Use pure ChatViewer for all messages
   // Thinking messages are rendered by ChatViewer with native collapse/expand support
   return (
     <div
+      ref={containerRef}
       className={`flex-1 overflow-y-auto bg-white/70 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60 p-3 sm:p-6 mb-3 sm:mb-6 rounded-2xl shadow-sm backdrop-blur-sm flex flex-col ${className || ""}`}
     >
       {messages.length === 0 ? (
