@@ -127,19 +127,6 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Permission mode toggle: Ctrl+Shift+Y (Windows/Linux) or Cmd+Shift+Y (macOS)
-    if (
-      e.key.toLowerCase() ===
-        KEYBOARD_SHORTCUTS.PERMISSION_MODE_TOGGLE.toLowerCase() &&
-      e.shiftKey &&
-      (e.ctrlKey || e.metaKey) &&
-      !isComposing
-    ) {
-      e.preventDefault();
-      onPermissionModeChange(getNextPermissionMode(permissionMode));
-      return;
-    }
-
     // Slash command navigation (when active)
     if (isSlashActive && !isComposing) {
       if (e.key === "ArrowUp") {

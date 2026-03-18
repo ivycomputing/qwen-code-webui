@@ -429,11 +429,22 @@ export function ChatPage() {
         e.preventDefault();
         handleAbort();
       }
+      // Permission mode toggle: Ctrl+Shift+Y (Windows/Linux) or Cmd+Shift+Y (macOS)
+      if (
+        e.key.toLowerCase() === KEYBOARD_SHORTCUTS.PERMISSION_MODE_TOGGLE.toLowerCase() &&
+        e.shiftKey &&
+        (e.ctrlKey || e.metaKey)
+      ) {
+        e.preventDefault();
+        const modes: PermissionMode[] = ["default", "plan", "auto-edit", "yolo"];
+        const currentIndex = modes.indexOf(permissionMode);
+        setPermissionMode(modes[(currentIndex + 1) % modes.length]);
+      }
     };
 
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isLoading, currentRequestId, handleAbort]);
+  }, [isLoading, currentRequestId, handleAbort, permissionMode, setPermissionMode]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
