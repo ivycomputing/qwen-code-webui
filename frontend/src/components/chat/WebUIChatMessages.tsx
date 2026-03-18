@@ -139,19 +139,28 @@ export function WebUIChatMessages({
           <>
             <div className="flex-1" aria-hidden="true" />
 
-            {/* Render standard messages with ChatViewer */}
-            {standardMessages.length > 0 && (
-              <ChatViewer
-                ref={chatViewerRef}
-                messages={standardMessages}
-                className="webui-chat-viewer"
-                emptyMessage=""
-                autoScroll={true}
-              />
-            )}
-
-            {/* Render extended messages with custom components */}
-            {extendedMessages.map(renderExtendedMessage)}
+            {/* Render messages in order, interleaving standard and extended messages */}
+            {adaptedMessages.map((msg, index) => {
+              // Check if this is an extended message
+              const extendedMsg = extendedMessages.find(e => e.index === index);
+              if (extendedMsg) {
+                return renderExtendedMessage(extendedMsg);
+              }
+              // Otherwise render with ChatViewer (standard messages)
+              const standardMsg = standardMessages.find(s => s.uuid === msg.uuid);
+              if (standardMsg) {
+                return (
+                  <ChatViewer
+                    key={msg.uuid}
+                    messages={[standardMsg]}
+                    className="webui-chat-viewer"
+                    emptyMessage=""
+                    autoScroll={true}
+                  />
+                );
+              }
+              return null;
+            })}
           </>
         )}
       </div>
