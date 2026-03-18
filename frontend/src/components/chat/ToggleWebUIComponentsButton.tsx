@@ -35,7 +35,7 @@ export function ToggleWebUIComponentsButton({
       <ArrowsRightLeftIcon
         className={`w-4 h-4 ${
           isEnabled
-            ? "text-white"
+            ? "text-blue-500"
             : "text-slate-600 dark:text-slate-400"
         }`}
       />
