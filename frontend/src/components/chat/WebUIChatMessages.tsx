@@ -11,7 +11,6 @@ import { useRef, useEffect, useMemo } from "react";
 import {
   ChatViewer,
   type ChatViewerHandle,
-  type ChatMessageData,
 } from "@qwen-code/webui";
 import "@qwen-code/webui/styles.css";
 import type { AllMessage } from "../../types";

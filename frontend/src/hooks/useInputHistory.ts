@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 
 const HISTORY_MAX_LENGTH = 100;
 const HISTORY_STORAGE_KEY = "qwen_input_history";
@@ -34,6 +34,24 @@ export function useInputHistory() {
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [currentInput, setCurrentInput] = useState("");
 
+  // Use refs to track latest values for use in callbacks
+  const historyRef = useRef(history);
+  const historyIndexRef = useRef<number | null>(historyIndex);
+  const currentInputRef = useRef(currentInput);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
+
+  useEffect(() => {
+    currentInputRef.current = currentInput;
+  }, [currentInput]);
+
   // Sync history with localStorage when it changes
   useEffect(() => {
     saveHistoryToStorage(history);
@@ -53,7 +71,7 @@ export function useInputHistory() {
         }
       }
     };
-    
+
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
@@ -67,60 +85,61 @@ export function useInputHistory() {
       // Remove duplicates and add to front
       const filtered = prev.filter((item) => item !== trimmed);
       const newHistory = [trimmed, ...filtered].slice(0, HISTORY_MAX_LENGTH);
-      
+
       // Save immediately to localStorage
       saveHistoryToStorage(newHistory);
-      
+
       return newHistory;
     });
-    
+
     setHistoryIndex(null); // Reset index when adding new message
   }, []);
 
   // Navigate to previous history entry (up arrow)
-  const navigatePrevious = useCallback(
-    (currentValue: string): string => {
-      if (history.length === 0) return currentValue;
+  const navigatePrevious = useCallback((currentValue: string): string => {
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
 
-      // If we're not in history navigation, start from current value
-      if (historyIndex === null) {
-        // Save current input as temporary
-        setCurrentInput(currentValue);
-        setHistoryIndex(0);
-        return history[0];
-      }
+    if (currentHistory.length === 0) return currentValue;
 
-      // If we're already at the oldest entry, stay there
-      if (historyIndex >= history.length - 1) {
-        return history[history.length - 1];
-      }
+    // If we're not in history navigation, start from current value
+    if (currentIndex === null) {
+      // Save current input as temporary
+      setCurrentInput(currentValue);
+      setHistoryIndex(0);
+      return currentHistory[0];
+    }
 
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      return history[newIndex];
-    },
-    [history, historyIndex],
-  );
+    // If we're already at the oldest entry, stay there
+    if (currentIndex >= currentHistory.length - 1) {
+      return currentHistory[currentHistory.length - 1];
+    }
+
+    const newIndex = currentIndex + 1;
+    setHistoryIndex(newIndex);
+    return currentHistory[newIndex];
+  }, []);
 
   // Navigate to next history entry (down arrow)
-  const navigateNext = useCallback(
-    (currentValue: string): string => {
-      if (historyIndex === null) {
-        return currentValue;
-      }
+  const navigateNext = useCallback((currentValue: string): string => {
+    const currentIndex = historyIndexRef.current;
+    const storedCurrentInput = currentInputRef.current;
 
-      // If we're at the newest entry, go back to what was being typed
-      if (historyIndex <= 0) {
-        setHistoryIndex(null);
-        return currentInput || currentValue;
-      }
+    if (currentIndex === null) {
+      return currentValue;
+    }
 
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      return history[newIndex];
-    },
-    [history, historyIndex, currentInput],
-  );
+    // If we're at the newest entry, go back to what was being typed
+    if (currentIndex <= 0) {
+      setHistoryIndex(null);
+      return storedCurrentInput || currentValue;
+    }
+
+    const newIndex = currentIndex - 1;
+    setHistoryIndex(newIndex);
+    const currentHistory = historyRef.current;
+    return currentHistory[newIndex];
+  }, []);
 
   // Reset history navigation (called when input changes manually)
   const resetNavigation = useCallback(() => {
