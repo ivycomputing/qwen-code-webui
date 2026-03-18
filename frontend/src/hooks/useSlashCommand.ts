@@ -44,9 +44,8 @@ export function useSlashCommand(
       const subCommands = getSubCommands("/skills");
       const filtered = searchSubCommands(subCommands, subQuery);
 
-      // Calculate expanded height: each item is ~48px, plus small buffer
-      const itemHeight = 48;
-      const expandedHeight = filtered.length * itemHeight + 16;
+      // Use fixed expanded height: 1/4 of viewport height
+      const expandedHeight = Math.floor(window.innerHeight / 4);
 
       setState((prev) => ({
         ...prev,
@@ -88,9 +87,8 @@ export function useSlashCommand(
       const query = slashMatch[0];
       const suggestions = searchSlashCommands(query.slice(1));
 
-      // Calculate expanded height: each item is ~48px, plus small buffer
-      const itemHeight = 48;
-      const expandedHeight = suggestions.length * itemHeight + 16;
+      // Use fixed expanded height: 1/4 of viewport height
+      const expandedHeight = Math.floor(window.innerHeight / 4);
 
       setState((prev) => ({
         ...prev,

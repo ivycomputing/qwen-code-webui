@@ -38,7 +38,7 @@ export function SlashCommandSuggestion({
   return (
     <ul
       ref={listRef}
-      className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto min-w-[200px]"
+      className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-y-auto max-h-[calc(25vh-20px)] min-w-[200px]"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
