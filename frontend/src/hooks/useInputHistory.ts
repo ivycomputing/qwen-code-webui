@@ -89,6 +89,9 @@ export function useInputHistory() {
       // Save immediately to localStorage
       saveHistoryToStorage(newHistory);
 
+      // Update ref immediately so navigatePrevious/navigateNext can use it
+      historyRef.current = newHistory;
+
       return newHistory;
     });
 
@@ -98,7 +101,7 @@ export function useInputHistory() {
   // Navigate to previous history entry (up arrow)
   const navigatePrevious = useCallback((currentValue: string): string => {
     const currentHistory = historyRef.current;
-    const currentIndex = historyIndexRef.current;
+    let currentIndex = historyIndexRef.current;
 
     if (currentHistory.length === 0) return currentValue;
 
@@ -107,6 +110,7 @@ export function useInputHistory() {
       // Save current input as temporary
       setCurrentInput(currentValue);
       setHistoryIndex(0);
+      historyIndexRef.current = 0; // Update ref immediately
       return currentHistory[0];
     }
 
@@ -117,13 +121,15 @@ export function useInputHistory() {
 
     const newIndex = currentIndex + 1;
     setHistoryIndex(newIndex);
+    historyIndexRef.current = newIndex; // Update ref immediately
     return currentHistory[newIndex];
   }, []);
 
   // Navigate to next history entry (down arrow)
   const navigateNext = useCallback((currentValue: string): string => {
-    const currentIndex = historyIndexRef.current;
+    let currentIndex = historyIndexRef.current;
     const storedCurrentInput = currentInputRef.current;
+    const currentHistory = historyRef.current;
 
     if (currentIndex === null) {
       return currentValue;
@@ -132,18 +138,20 @@ export function useInputHistory() {
     // If we're at the newest entry, go back to what was being typed
     if (currentIndex <= 0) {
       setHistoryIndex(null);
+      historyIndexRef.current = null; // Update ref immediately
       return storedCurrentInput || currentValue;
     }
 
     const newIndex = currentIndex - 1;
     setHistoryIndex(newIndex);
-    const currentHistory = historyRef.current;
+    historyIndexRef.current = newIndex; // Update ref immediately
     return currentHistory[newIndex];
   }, []);
 
   // Reset history navigation (called when input changes manually)
   const resetNavigation = useCallback(() => {
     setHistoryIndex(null);
+    historyIndexRef.current = null; // Update ref immediately
   }, []);
 
   // Clear all history

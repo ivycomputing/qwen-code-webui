@@ -167,7 +167,7 @@ export function ChatInput({
     }
 
     // History navigation with up/down arrows (only when input is focused and slash command not active)
-    if (!isComposing && !isSlashActive && document.activeElement === inputRef.current) {
+    if (!isComposing && !isSlashActive && e.target === inputRef.current) {
       if (e.key === "ArrowUp") {
         e.preventDefault();
         const previousValue = navigatePrevious(input);
