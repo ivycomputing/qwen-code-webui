@@ -26,7 +26,7 @@ export function ToggleWebUIComponentsButton({
       onClick={handleClick}
       className={`p-2 rounded-lg border transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md ${
         isEnabled
-          ? "bg-purple-600 dark:bg-purple-600 border-purple-700 dark:border-purple-500 scale-105"
+          ? "bg-blue-600 dark:bg-blue-600 border-blue-700 dark:border-blue-500 scale-105"
           : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800"
       }`}
       aria-label={`Toggle WebUI Components. Currently ${isEnabled ? "enabled" : "disabled"}. Click to ${isEnabled ? "disable" : "enable"}.`}
@@ -35,7 +35,7 @@ export function ToggleWebUIComponentsButton({
       <ArrowsRightLeftIcon
         className={`w-4 h-4 ${
           isEnabled
-            ? "text-blue-500"
+            ? "text-white"
             : "text-slate-600 dark:text-slate-400"
         }`}
       />
