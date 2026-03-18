@@ -76,7 +76,7 @@ function migrateLegacySettings(): AppSettings {
     theme: legacyTheme,
     enterBehavior: legacyEnterBehavior,
     version: CURRENT_SETTINGS_VERSION,
-    expandThinking: false, // Default: thinking content collapsed
+    expandThinking: true, // Default: thinking content expanded
   };
 
   // Save migrated settings

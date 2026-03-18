@@ -74,7 +74,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       theme: settings.theme,
       enterBehavior: settings.enterBehavior,
       experimental,
-      expandThinking: settings.expandThinking ?? false,
+      expandThinking: settings.expandThinking ?? true, // Default to expanded
       toggleTheme,
       toggleEnterBehavior,
       toggleExpandThinking,

@@ -127,9 +127,9 @@ export function GeneralSettings() {
                 aria-label={`Default thinking expansion toggle. Currently ${expandThinking ? "expanded" : "collapsed"}. Click to toggle.`}
               >
                 {expandThinking ? (
-                  <ChevronUpIcon className="w-5 h-5 text-blue-500" />
+                  <ChevronDownIcon className="w-5 h-5 text-blue-500" />
                 ) : (
-                  <ChevronDownIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                  <ChevronUpIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 )}
                 <div>
                   <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
