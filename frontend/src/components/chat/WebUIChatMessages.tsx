@@ -60,7 +60,7 @@ export function WebUIChatMessages({
       // Check if this message needs custom rendering
       // Todo messages are now handled by ChatViewer using UpdatedPlanToolCall
       // System messages (system, result, error) are skipped
-      if (isPlanMessage(msg)) {
+      if (isPlanMessage(msg) || msg.extendedType === "thinking") {
         extended.push({ message: msg, index });
       } else if (
         msg.extendedType === "system" ||
