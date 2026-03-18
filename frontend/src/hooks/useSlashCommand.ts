@@ -69,9 +69,9 @@ export function useSlashCommand(
         const prefixLength = subCommandMatch[0].length - subQuery.length; // Length of "/skills "
         const left = rect.left + prefixLength * charWidth;
 
-        // Always position dropdown below the input at the bottom of expanded area
+        // Position dropdown directly below input (within the expanded margin area)
         const gap = 2; // Minimal gap to be close to input
-        const top = rect.bottom + window.scrollY + expandedHeight + gap;
+        const top = rect.bottom + window.scrollY + gap;
 
         setState((prev) => ({
           ...prev,
@@ -113,9 +113,9 @@ export function useSlashCommand(
         // slashMatch.index is the position of "/" in the last line
         const left = rect.left + (slashMatch.index ?? 0) * charWidth;
 
-        // Always position dropdown below the input at the bottom of expanded area
+        // Position dropdown directly below input (within the expanded margin area)
         const gap = 2; // Minimal gap to be close to input
-        const top = rect.bottom + window.scrollY + expandedHeight + gap;
+        const top = rect.bottom + window.scrollY + gap;
 
         setState((prev) => ({
           ...prev,
