@@ -228,13 +228,17 @@ class ExpandThinkingButtonTest(ChatTestBase):
 
 async def main():
     """Run the test."""
-    test = ExpandThinkingButtonTest()
+    # Use frontend dev server port (3000) 
+    test = ExpandThinkingButtonTest(
+        project_name="qwen-code-webui",
+        base_url="http://localhost:3000"
+    )
     result = await test.execute()
-    
+
     print(f"\n{'='*60}")
     print(f"Test Result: {'PASSED ✓' if result else 'FAILED ✗'}")
     print(f"{'='*60}")
-    
+
     return result
 
 
