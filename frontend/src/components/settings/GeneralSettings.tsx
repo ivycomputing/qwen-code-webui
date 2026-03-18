@@ -3,6 +3,8 @@ import {
   MoonIcon,
   CommandLineIcon,
   BeakerIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from "@heroicons/react/24/outline";
 import { useSettings } from "../../hooks/useSettings";
 import { useVersion } from "../../hooks/useVersion";
@@ -12,8 +14,10 @@ export function GeneralSettings() {
     theme,
     enterBehavior,
     experimental,
+    expandThinking,
     toggleTheme,
     toggleEnterBehavior,
+    toggleExpandThinking,
     updateSettings,
   } = useSettings();
   const { version } = useVersion();
@@ -106,6 +110,42 @@ export function GeneralSettings() {
             <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               Controls how the Enter key behaves when typing messages in the
               chat input.
+            </div>
+          </div>
+
+          {/* Expand Thinking Setting */}
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+              Default Thinking Expansion
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleExpandThinking}
+                className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 text-left flex-1"
+                role="switch"
+                aria-checked={expandThinking}
+                aria-label={`Default thinking expansion toggle. Currently ${expandThinking ? "expanded" : "collapsed"}. Click to toggle.`}
+              >
+                {expandThinking ? (
+                  <ChevronUpIcon className="w-5 h-5 text-blue-500" />
+                ) : (
+                  <ChevronDownIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                )}
+                <div>
+                  <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                    {expandThinking ? "Thinking Expanded" : "Thinking Collapsed"}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {expandThinking
+                      ? "AI thinking content is expanded by default"
+                      : "AI thinking content is collapsed by default"}
+                  </div>
+                </div>
+              </button>
+            </div>
+            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Controls whether AI thinking content and tool call details are
+              expanded or collapsed by default in chat messages.
             </div>
           </div>
         </div>

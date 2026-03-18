@@ -40,21 +40,23 @@ export function CollapsibleDetails({
   previewSummary,
   compact = false,
 }: CollapsibleDetailsProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasDetails = details.trim().length > 0;
+
+  // Local state for user-initiated expand/collapse when forceExpanded is not provided
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   
-  // When forceExpanded is true, show expanded; otherwise use local state
-  const effectiveExpanded = forceExpanded === true ? true : isExpanded;
-  
+  // When forceExpanded is provided, use it; otherwise use local state
+  const effectiveExpanded = forceExpanded !== undefined ? forceExpanded : isExpanded;
+
   // Always allow collapsing/expanding via click when there are details
   const isCollapsible = hasDetails;
 
-  // Sync local state with forceExpanded prop changes
+  // Sync local state with forceExpanded prop changes to ensure internal state matches
   React.useEffect(() => {
-    if (forceExpanded !== undefined) {
+    if (forceExpanded !== undefined && isExpanded !== forceExpanded) {
       setIsExpanded(forceExpanded);
     }
-  }, [forceExpanded]);
+  }, [forceExpanded, isExpanded]);
 
   const contentPreview = React.useMemo(() => {
     const computedTotalLines = details.split("\n").length;
