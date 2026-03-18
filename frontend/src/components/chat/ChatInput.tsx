@@ -167,7 +167,7 @@ export function ChatInput({
     }
 
     // History navigation with up/down arrows (only when input is focused and slash command not active)
-    if (!isComposing && !isSlashActive) {
+    if (!isSlashActive) {
       if (e.key === "ArrowUp") {
         e.preventDefault();
         const previousValue = navigatePrevious(input);
@@ -211,6 +211,10 @@ export function ChatInput({
     // Newline mode: Enter adds newline, Shift+Enter sends
     if (e.shiftKey) {
       e.preventDefault();
+      // Send message - add to history first
+      if (input.trim()) {
+        addToHistory(input);
+      }
       onSubmit();
     }
     // Enter is handled naturally by textarea (adds newline)
@@ -222,6 +226,10 @@ export function ChatInput({
     // Send mode: Enter sends, Shift+Enter adds newline
     if (!e.shiftKey) {
       e.preventDefault();
+      // Send message - add to history first
+      if (input.trim()) {
+        addToHistory(input);
+      }
       onSubmit();
     }
     // Shift+Enter is handled naturally by textarea (adds newline)
