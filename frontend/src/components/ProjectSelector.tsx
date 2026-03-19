@@ -174,7 +174,7 @@ export function ProjectSelector() {
                   }`}>
                     {project.path}
                   </span>
-                  {index === 0 && (
+                  {index === selectedIndex && (
                     <span className="text-xs text-slate-500 dark:text-slate-400">
                       Press Enter
                     </span>
