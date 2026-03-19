@@ -20,6 +20,30 @@ This skill automates the release process:
 - Deno installed for building
 - Write access to the repository
 
+# Stored Credentials
+
+## npm Automation Token
+
+**Location**: `~/.npm-automation-token`
+**Created**: 2026-03-18
+**Expires**: 2026-06-16 (90 days)
+
+**Usage**:
+```bash
+# Load token from file and add to .npmrc
+echo "//registry.npmjs.org/:_authToken=$(cat ~/.npm-automation-token)" >> ~/.npmrc
+cd backend && npm publish --otp=
+```
+
+**⚠️ Token Expiry Check**: Before using this skill, check if the token is within 7 days of expiry:
+```bash
+# If current date > 2026-06-09, remind user to generate a new token
+# Visit: https://www.npmjs.com/settings/ivycomputing/tokens
+# Create new "Automation" token and update ~/.npm-automation-token:
+#   echo "npm_<new_token>" > ~/.npm-automation-token
+#   chmod 600 ~/.npm-automation-token
+```
+
 # Steps
 
 ## 1. Check Current Version
@@ -129,33 +153,33 @@ gh release upload v{VERSION} packages/*.tar.gz --clobber
 
 ## 9. Publish to npm
 
+### Check Token Expiry First
+
+**Token File**: `~/.npm-automation-token` (expires 2026-06-16)
+
 ```bash
+# Check if token is expiring within 7 days
+# If current date > 2026-06-09, remind user:
+# "⚠️ npm token expires soon! Please generate a new one:"
+# 1. Visit https://www.npmjs.com/settings/ivycomputing/tokens
+# 2. Click "Generate New Token" → Select "Automation"
+# 3. Save new token: echo "npm_<new_token>" > ~/.npm-automation-token
+```
+
+### Publish Steps
+
+```bash
+# Load token from file and add to .npmrc
+echo "//registry.npmjs.org/:_authToken=$(cat ~/.npm-automation-token)" >> ~/.npmrc
+
 # Navigate to backend directory
 cd backend
 
-# Ensure build is complete
-npm run build
+# Build and tests run automatically via prepublishOnly
+npm publish --otp=
 
-# Run tests (required by prepublishOnly)
-npm test
-
-# Publish to npm
-npm publish
-
-# Or publish as public package (if not already configured)
-npm publish --access public
-```
-
-### npm Authentication
-
-If not already authenticated:
-
-```bash
-# Login to npm
-npm login
-
-# Verify authentication
-npm whoami
+# Verify publication
+npm view qwen-code-webui version
 ```
 
 ### npm Package Info
@@ -195,8 +219,11 @@ When user asks to create a release:
 5. Commit the version change if bumped
 6. Create tag and push to GitHub
 7. Create release with release notes
-8. Upload all packages from `packages/` directory
-9. Publish to npm with `cd backend && npm publish`
+8. Upload all packages from `packages/` directory (may take several minutes for ~350MB)
+9. Publish to npm:
+   - Check token expiry (warn if within 7 days of 2026-06-16)
+   - Load token: `echo "//registry.npmjs.org/:_authToken=$(cat ~/.npm-automation-token)" >> ~/.npmrc`
+   - Run `cd backend && npm publish --otp=`
 10. Verify the release on GitHub and npm
 
 # Release Notes Template
@@ -237,9 +264,20 @@ Download the appropriate package for your platform from the assets below:
 - If tag already exists, ask user to bump version
 - If upload fails, use `--clobber` flag to overwrite existing assets
 - If `gh` not authenticated, run `gh auth login`
-- If `npm` not authenticated, run `npm login`
+- If npm publish fails due to OTP:
+  - Use stored automation token: `echo "//registry.npmjs.org/:_authToken=$(cat ~/.npm-automation-token)" >> ~/.npmrc`
+  - Run `npm publish --otp=`
 - If npm publish fails due to version exists, bump version first
 - If npm publish fails due to package name, use `--access public` flag
+- **If token expired** (after 2026-06-16):
+  - Remind user: "⚠️ npm automation token expired!"
+  - User should visit: https://www.npmjs.com/settings/ivycomputing/tokens
+  - Revoke old token, create new "Automation" token
+  - Update `~/.npm-automation-token`:
+    ```bash
+    echo "npm_<new_token>" > ~/.npm-automation-token
+    chmod 600 ~/.npm-automation-token
+    ```
 
 # Notes
 
