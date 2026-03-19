@@ -73,30 +73,33 @@ export function ModelSelector({
           className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto scrollbar-thin"
           role="listbox"
         >
-          {models.map((model) => (
-            <button
-              key={model.id}
-              type="button"
-              onClick={() => {
-                onSelectModel(model.id);
-                setIsOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-                model.id === selectedModel
-                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-              }`}
-              role="option"
-              aria-selected={model.id === selectedModel}
-            >
-              <div className="font-medium truncate">{model.name}</div>
-              {model.id !== model.name && (
-                <div className="text-slate-500 dark:text-slate-400 text-[10px] truncate">
-                  {model.id}
-                </div>
-              )}
-            </button>
-          ))}
+          {models.map((model) => {
+            const isSelected = model.id === selectedModel;
+            return (
+              <button
+                key={model.id}
+                type="button"
+                onClick={() => {
+                  onSelectModel(model.id);
+                  setIsOpen(false);
+                }}
+                className={
+                  isSelected
+                    ? "w-full text-left px-3 py-2 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors"
+                    : "w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                }
+                role="option"
+                aria-selected={isSelected}
+              >
+                <div className="font-medium truncate">{model.name}</div>
+                {model.id !== model.name && (
+                  <div className="text-slate-500 dark:text-slate-400 text-[10px] truncate">
+                    {model.id}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
