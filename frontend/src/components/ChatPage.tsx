@@ -15,12 +15,14 @@ import { useAbortController } from "../hooks/chat/useAbortController";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
 import { useSettings } from "../hooks/useSettings";
 import { useExpandThinking } from "../hooks/useSettings";
+import { useModel } from "../hooks/useModel";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
 import { HistoryButton } from "./chat/HistoryButton";
 import { ProjectSwitchButton } from "./chat/ProjectSwitchButton";
 import { ExpandThinkingButton } from "./chat/ExpandThinkingButton";
 import { ToggleWebUIComponentsButton } from "./chat/ToggleWebUIComponentsButton";
+import { ModelSelector } from "./chat/ModelSelector";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
 import { WebUIChatMessages } from "./chat/WebUIChatMessages";
@@ -38,6 +40,14 @@ export function ChatPage() {
   const { experimental } = useSettings();
   const { expandThinking, toggleExpandThinking } = useExpandThinking();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Model selection
+  const {
+    models,
+    selectedModel,
+    setSelectedModel,
+    loading: modelsLoading,
+  } = useModel();
 
   // Extract and normalize working directory from URL
   const workingDirectory = (() => {
@@ -185,6 +195,7 @@ export function ChatPage() {
             allowedTools: tools || allowedTools,
             ...(workingDirectory ? { workingDirectory } : {}),
             permissionMode: overridePermissionMode || permissionMode,
+            ...(selectedModel ? { model: selectedModel } : {}),
           } as ChatRequest),
         });
 
@@ -254,6 +265,7 @@ export function ChatPage() {
       currentAssistantMessage,
       workingDirectory,
       permissionMode,
+      selectedModel,
       generateRequestId,
       clearInput,
       startRequest,
@@ -494,6 +506,14 @@ export function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!isHistoryView && (
+              <ModelSelector
+                models={models}
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                loading={modelsLoading}
+              />
+            )}
             <ProjectSwitchButton onClick={handleBackToProjects} />
             {!isHistoryView && (
               <ToggleWebUIComponentsButton />

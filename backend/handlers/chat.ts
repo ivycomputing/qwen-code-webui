@@ -26,6 +26,7 @@ function mapPermissionMode(mode?: string): PermissionMode | undefined {
  * @param allowedTools - Optional array of allowed tool names
  * @param workingDirectory - Optional working directory for Qwen execution
  * @param permissionMode - Optional permission mode for Qwen execution
+ * @param model - Optional model to use for the query
  * @returns AsyncGenerator yielding StreamResponse objects
  */
 async function* executeQwenCommand(
@@ -37,6 +38,7 @@ async function* executeQwenCommand(
   allowedTools?: string[],
   workingDirectory?: string,
   permissionMode?: string,
+  model?: string,
 ): AsyncGenerator<StreamResponse> {
   let abortController: AbortController;
 
@@ -68,6 +70,7 @@ async function* executeQwenCommand(
         ...(allowedTools ? { allowedTools } : {}),
         ...(workingDirectory ? { cwd: workingDirectory } : {}),
         ...(mappedPermissionMode ? { permissionMode: mappedPermissionMode } : {}),
+        ...(model ? { model } : {}),
       },
     })) {
       // Debug logging of raw SDK messages with detailed content
@@ -135,6 +138,7 @@ export async function handleChatRequest(
           chatRequest.allowedTools,
           chatRequest.workingDirectory,
           chatRequest.permissionMode,
+          chatRequest.model,
         )) {
           const data = JSON.stringify(chunk) + "\n";
           controller.enqueue(new TextEncoder().encode(data));

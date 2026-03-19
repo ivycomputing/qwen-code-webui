@@ -74,6 +74,9 @@ export const logger = {
   // API handlers
   api: getLogger(["api"]),
 
+  // Model management
+  models: getLogger(["models"]),
+
   // General application logging
   app: getLogger(["app"]),
 };

@@ -7,6 +7,7 @@ export const API_CONFIG = {
     PROJECTS: "/api/projects",
     HISTORIES: "/api/projects",
     CONVERSATIONS: "/api/projects",
+    MODELS: "/api/models",
   },
 } as const;
 
@@ -42,4 +43,9 @@ export const getConversationUrl = (
   sessionId: string,
 ) => {
   return `${API_CONFIG.ENDPOINTS.CONVERSATIONS}/${encodedProjectName}/histories/${sessionId}`;
+};
+
+// Helper function to get models URL
+export const getModelsUrl = () => {
+  return API_CONFIG.ENDPOINTS.MODELS;
 };

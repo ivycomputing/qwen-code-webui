@@ -18,6 +18,7 @@ import { handleConversationRequest } from "./handlers/conversations.ts";
 import { handleChatRequest } from "./handlers/chat.ts";
 import { handleAbortRequest } from "./handlers/abort.ts";
 import { handleVersionRequest } from "./handlers/version.ts";
+import { handleModelsRequest } from "./handlers/models.ts";
 import { logger } from "./utils/logger.ts";
 import { readBinaryFile } from "./utils/fs.ts";
 
@@ -58,6 +59,7 @@ export function createApp(
 
   // API routes
   app.get("/api/version", () => handleVersionRequest());
+  app.get("/api/models", (c) => handleModelsRequest(c));
   app.get("/api/projects", (c) => handleProjectsRequest(c));
 
   app.get("/api/projects/:encodedProjectName/histories", (c) =>

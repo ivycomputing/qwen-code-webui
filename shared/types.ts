@@ -11,6 +11,23 @@ export interface ChatRequest {
   allowedTools?: string[];
   workingDirectory?: string;
   permissionMode?: "default" | "plan" | "auto-edit" | "yolo";
+  model?: string;
+}
+
+// Model provider types
+export interface ModelConfig {
+  id: string;
+  name: string;
+  baseUrl?: string;
+  envKey?: string;
+  generationConfig?: {
+    extra_body?: Record<string, unknown>;
+    contextWindowSize?: number;
+  };
+}
+
+export interface ModelsResponse {
+  models: ModelConfig[];
 }
 
 export interface AbortRequest {
