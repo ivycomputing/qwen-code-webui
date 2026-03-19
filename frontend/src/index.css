@@ -31,3 +31,13 @@
 .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: rgb(100 116 139); /* slate-500 */
 }
+
+/* Model selector hover styles (for dynamically constructed class names) */
+@media (hover: hover) {
+  .model-option-hover:hover {
+    background-color: rgb(226 232 240); /* slate-200 */
+  }
+  .dark .model-option-hover:hover {
+    background-color: rgb(75 85 99); /* slate-600 */
+  }
+}

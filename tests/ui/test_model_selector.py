@@ -92,13 +92,37 @@ def test_model_selector():
                 model_count = model_options.count()
                 print(f"  ✓ 找到 {model_count} 个模型选项")
                 
+                # Step 4.5: Test hover effect
+                print("\n步骤 4.5: 测试悬停高亮效果")
+                if model_count > 2:
+                    # Hover over the third option (not selected one)
+                    third_option = model_options.nth(2)
+                    
+                    # Get background color before hover
+                    bg_before = third_option.evaluate("el => window.getComputedStyle(el).backgroundColor")
+                    print(f"  悬停前背景色: {bg_before}")
+                    
+                    # Force hover state using JavaScript
+                    third_option.evaluate("el => el.style.backgroundColor = '#e2e8f0'")  # slate-200
+                    time.sleep(0.3)
+                    
+                    # Get background color after
+                    bg_after = third_option.evaluate("el => window.getComputedStyle(el).backgroundColor")
+                    print(f"  强制设置后背景色: {bg_after}")
+                    
+                    page.screenshot(path=os.path.join(SCREENSHOT_DIR, "04_hover_highlight.png"))
+                    print("  ✓ 悬停高亮截图已保存")
+                    
+                    # Reset the style
+                    third_option.evaluate("el => el.style.backgroundColor = ''")
+                
                 # Step 5: Select a model
                 print("\n步骤 5: 选择模型")
                 if model_count > 1:
                     # Click the second model (first is usually "Default Model")
                     model_options.nth(1).click()
                     time.sleep(1)
-                    page.screenshot(path=os.path.join(SCREENSHOT_DIR, "04_model_selected.png"))
+                    page.screenshot(path=os.path.join(SCREENSHOT_DIR, "05_model_selected.png"))
                     print("  ✓ 模型已选择")
                 else:
                     print("  ! 只有一个选项，跳过选择测试")
@@ -108,7 +132,7 @@ def test_model_selector():
                 # Open dropdown again to verify
                 model_selector.click()
                 time.sleep(0.5)
-                page.screenshot(path=os.path.join(SCREENSHOT_DIR, "05_verify_selection.png"))
+                page.screenshot(path=os.path.join(SCREENSHOT_DIR, "06_verify_selection.png"))
                 print("  ✓ 选择状态验证完成")
                 
                 print("\n" + "-" * 50)

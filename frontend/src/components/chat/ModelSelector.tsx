@@ -86,7 +86,7 @@ export function ModelSelector({
                 className={
                   isSelected
                     ? "w-full text-left px-3 py-2 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors"
-                    : "w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    : "w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-300 model-option-hover transition-colors cursor-pointer"
                 }
                 role="option"
                 aria-selected={isSelected}
