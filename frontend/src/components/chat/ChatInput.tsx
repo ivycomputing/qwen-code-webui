@@ -147,9 +147,8 @@ export function ChatInput({
       }
       if (e.key === KEYBOARD_SHORTCUTS.SUBMIT) {
         e.preventDefault();
-        if (confirmSlashSelection()) {
-          return;
-        }
+        confirmSlashSelection();
+        return;
       }
       if (e.key === "Escape") {
         e.preventDefault();
