@@ -496,22 +496,6 @@ export function ChatPage() {
           <div className="flex items-center gap-2">
             <ProjectSwitchButton onClick={handleBackToProjects} />
             {!isHistoryView && (
-              <button
-                onClick={() => {
-                  const modes: PermissionMode[] = ["default", "plan", "auto-edit", "yolo"];
-                  const currentIndex = modes.indexOf(permissionMode);
-                  setPermissionMode(modes[(currentIndex + 1) % modes.length]);
-                }}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md cursor-pointer"
-                title={`Current mode: ${permissionMode} - Click to cycle (Ctrl/Cmd+Shift+Y)`}
-              >
-                {permissionMode === "default" && "🔧 Normal"}
-                {permissionMode === "plan" && "⏸ Plan"}
-                {permissionMode === "auto-edit" && "⏵⏵ Auto"}
-                {permissionMode === "yolo" && "🚀 YOLO"}
-              </button>
-            )}
-            {!isHistoryView && (
               <ToggleWebUIComponentsButton />
             )}
             {!isHistoryView && (
