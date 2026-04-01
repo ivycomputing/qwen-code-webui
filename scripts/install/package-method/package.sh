@@ -4,10 +4,11 @@
 # Creates offline installation packages for different platforms
 #
 # Usage:
-#   ./package.sh              # Build with current version
-#   ./package.sh --bump patch # Build and bump patch version (0.1.0 -> 0.1.1)
-#   ./package.sh --bump minor # Build and bump minor version (0.1.0 -> 0.2.0)
-#   ./package.sh --bump major # Build and bump major version (0.1.0 -> 1.0.0)
+#   ./package.sh                          # Build Linux x64 only (default)
+#   ./package.sh --all                    # Build all platforms
+#   ./package.sh --platform linux-x64     # Build specific platform
+#   ./package.sh --platform linux-arm64,macos-arm64  # Build multiple platforms
+#   ./package.sh --bump patch             # Build and bump patch version
 #
 
 set -e
@@ -42,10 +43,14 @@ print_error() {
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 DIST_DIR="$PROJECT_ROOT/dist"
 PACKAGE_DIR="$PROJECT_ROOT/packages"
 PACKAGE_JSON="$PROJECT_ROOT/backend/package.json"
+
+# Default platform (Linux x64 only)
+BUILD_PLATFORMS="linux-x64"
+ALL_PLATFORMS="linux-x64,linux-arm64,macos-x64,macos-arm64"
 
 # Parse arguments
 BUMP_TYPE=""
@@ -55,18 +60,30 @@ while [[ $# -gt 0 ]]; do
             BUMP_TYPE="$2"
             shift 2
             ;;
+        --all|-a)
+            BUILD_PLATFORMS="$ALL_PLATFORMS"
+            shift
+            ;;
+        --platform|-p)
+            BUILD_PLATFORMS="$2"
+            shift 2
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --bump <type>  Bump version before building (patch|minor|major)"
-            echo "  -h, --help     Show this help message"
+            echo "  --all, -a                Build all platforms (linux-x64, linux-arm64, macos-x64, macos-arm64)"
+            echo "  --platform, -p <list>    Build specific platforms (comma-separated)"
+            echo "                           Available: linux-x64, linux-arm64, macos-x64, macos-arm64"
+            echo "  --bump <type>            Bump version before building (patch|minor|major)"
+            echo "  -h, --help               Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0                    # Build with current version"
-            echo "  $0 --bump patch       # Build and bump patch version (0.1.0 -> 0.1.1)"
-            echo "  $0 --bump minor       # Build and bump minor version (0.1.0 -> 0.2.0)"
-            echo "  $0 --bump major       # Build and bump major version (0.1.0 -> 1.0.0)"
+            echo "  $0                                # Build Linux x64 only (default)"
+            echo "  $0 --all                          # Build all platforms"
+            echo "  $0 --platform linux-arm64         # Build Linux ARM64 only"
+            echo "  $0 -p linux-x64,macos-arm64       # Build Linux x64 and macOS ARM64"
+            echo "  $0 --bump patch                   # Build and bump patch version"
             exit 0
             ;;
         *)
@@ -214,9 +231,11 @@ create_package() {
         return
     fi
 
-    # Copy install script
+    # Copy install and uninstall scripts
     cp "$SCRIPT_DIR/install.sh" "$PACKAGE_PATH/install.sh"
+    cp "$SCRIPT_DIR/uninstall.sh" "$PACKAGE_PATH/uninstall.sh"
     chmod +x "$PACKAGE_PATH/install.sh"
+    chmod +x "$PACKAGE_PATH/uninstall.sh"
 
     # Create README
     cat > "$PACKAGE_PATH/README.txt" << EOF
@@ -230,6 +249,25 @@ Installation Instructions:
 2. Extract: tar -xzf $PACKAGE_NAME.tar.gz
 3. Enter directory: cd $PACKAGE_NAME
 4. Run as admin: sudo ./install.sh
+
+Advanced Options:
+  sudo ./install.sh -u <user>              # Run service as specific user
+  sudo ./install.sh -d /path/to/projects   # Mount project directories
+  sudo ./install.sh -p 8080 -y             # Non-interactive on custom port
+
+Examples:
+  # Interactive mode (recommended)
+  sudo ./install.sh
+
+  # Non-interactive with service user and project directories
+  sudo ./install.sh -u myuser -d /home/myuser/workspace -y
+
+  # Specify multiple project directories
+  sudo ./install.sh -u myuser -d /home/myuser/workspace:/home/myuser/projects -y
+
+Uninstallation:
+  sudo ./uninstall.sh          # Basic uninstall
+  sudo ./uninstall.sh --all    # Full cleanup including config
 
 Requirements:
 - $OS_NAME system ($PKG_ARCH architecture)
@@ -263,7 +301,7 @@ build_target() {
     cd "$PROJECT_ROOT/backend"
     deno compile --target "$TARGET" \
         --allow-net --allow-run --allow-read --allow-write --allow-env --allow-sys \
-        --include ./dist/static \
+        --include ./dist \
         --output "../dist/$OUTPUT_NAME" \
         cli/deno.ts
 
@@ -276,28 +314,65 @@ build_target() {
     fi
 }
 
-# Build for all targets
+# Function to check if platform is in build list
+should_build() {
+    local platform="$1"
+    local platforms="$BUILD_PLATFORMS"
+    
+    # Convert to lowercase and check
+    [[ ",$platforms," == *",$platform,"* ]]
+}
+
+# Build targets based on selected platforms
 print_info "Detecting current architecture..."
 CURRENT_ARCH=$(uname -m)
 CURRENT_OS=$(uname -s)
 
-print_info "Building Linux x64 binary..."
-build_target "x86_64-unknown-linux-gnu" "qwen-code-webui-linux-x64"
+print_info "Platforms to build: $BUILD_PLATFORMS"
+echo ""
 
-print_info "Building Linux ARM64 binary..."
-build_target "aarch64-unknown-linux-gnu" "qwen-code-webui-linux-arm64"
+# Build Linux x64
+if should_build "linux-x64"; then
+    print_info "Building Linux x64 binary..."
+    build_target "x86_64-unknown-linux-gnu" "qwen-code-webui-linux-x64"
+fi
 
-print_info "Building macOS x64 binary..."
-build_target "x86_64-apple-darwin" "qwen-code-webui-macos-x64"
+# Build Linux ARM64
+if should_build "linux-arm64"; then
+    print_info "Building Linux ARM64 binary..."
+    build_target "aarch64-unknown-linux-gnu" "qwen-code-webui-linux-arm64"
+fi
 
-print_info "Building macOS ARM64 binary..."
-build_target "aarch64-apple-darwin" "qwen-code-webui-macos-arm64"
+# Build macOS x64
+if should_build "macos-x64"; then
+    print_info "Building macOS x64 binary..."
+    build_target "x86_64-apple-darwin" "qwen-code-webui-macos-x64"
+fi
 
-# Create packages for each architecture
-create_package "linux-x64" "qwen-code-webui-linux-x64"
-create_package "linux-arm64" "qwen-code-webui-linux-arm64"
-create_package "macos-x64" "qwen-code-webui-macos-x64"
-create_package "macos-arm64" "qwen-code-webui-macos-arm64"
+# Build macOS ARM64
+if should_build "macos-arm64"; then
+    print_info "Building macOS ARM64 binary..."
+    build_target "aarch64-apple-darwin" "qwen-code-webui-macos-arm64"
+fi
+
+echo ""
+
+# Create packages for selected platforms
+if should_build "linux-x64"; then
+    create_package "linux-x64" "qwen-code-webui-linux-x64"
+fi
+
+if should_build "linux-arm64"; then
+    create_package "linux-arm64" "qwen-code-webui-linux-arm64"
+fi
+
+if should_build "macos-x64"; then
+    create_package "macos-x64" "qwen-code-webui-macos-x64"
+fi
+
+if should_build "macos-arm64"; then
+    create_package "macos-arm64" "qwen-code-webui-macos-arm64"
+fi
 
 # ============================================
 # Summary

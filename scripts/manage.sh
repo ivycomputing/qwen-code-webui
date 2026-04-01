@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Development server management script for Qwen Code Web UI
-# Usage: ./scripts/dev.sh {start|stop|restart|status|logs}
+# Server management script for Qwen Code Web UI
+# Usage: ./scripts/manage.sh {start|stop|restart|status|logs}
 #
 
 set -e
@@ -152,7 +152,7 @@ stop_frontend() {
 
 # Show status
 show_status() {
-    echo -e "${BLUE}=== Development Server Status ===${NC}"
+    echo -e "${BLUE}=== Server Status ===${NC}"
     echo ""
 
     if is_running "$BACKEND_PID_FILE"; then
@@ -213,7 +213,7 @@ case "${1:-}" in
         start_backend
         start_frontend
         echo ""
-        echo -e "${GREEN}=== Development servers started ===${NC}"
+        echo -e "${GREEN}=== Servers started ===${NC}"
         echo -e "Frontend: ${BLUE}http://localhost:3000${NC}"
         echo -e "Backend:  ${BLUE}http://localhost:8080${NC}"
         echo ""
@@ -225,17 +225,17 @@ case "${1:-}" in
         stop_frontend
         stop_backend
         echo ""
-        echo -e "${GREEN}=== Development servers stopped ===${NC}"
+        echo -e "${GREEN}=== Servers stopped ===${NC}"
         ;;
     restart)
-        echo -e "${BLUE}Restarting development servers...${NC}"
+        echo -e "${BLUE}Restarting servers...${NC}"
         stop_frontend
         stop_backend
         echo ""
         start_backend
         start_frontend
         echo ""
-        echo -e "${GREEN}=== Development servers restarted ===${NC}"
+        echo -e "${GREEN}=== Servers restarted ===${NC}"
         echo -e "Frontend: ${BLUE}http://localhost:3000${NC}"
         echo -e "Backend:  ${BLUE}http://localhost:8080${NC}"
         ;;
@@ -276,7 +276,7 @@ case "${1:-}" in
         esac
         ;;
     *)
-        echo "Qwen Code Web UI - Development Server Manager"
+        echo "Qwen Code Web UI - Server Manager"
         echo ""
         echo "Usage: $0 {command} [options]"
         echo ""
