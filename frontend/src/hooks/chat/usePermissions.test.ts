@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { usePermissions } from "./usePermissions";
+import { usePermissions, type CommandLoopRequest } from "./usePermissions";
 
 describe("usePermissions", () => {
   it("should initialize with empty allowed tools", () => {
@@ -167,7 +167,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
   it("should not detect loop on first error result", () => {
     const { result } = renderHook(() => usePermissions());
 
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
 
     act(() => {
       loopRequest = result.current.checkCommandResultLoop(
@@ -192,7 +192,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
       );
     });
 
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.checkCommandResultLoop(
         "run_shell_command",
@@ -226,7 +226,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
     });
 
     // Third call - should trigger loop detection
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.checkCommandResultLoop(
         "run_shell_command",
@@ -236,9 +236,9 @@ describe("usePermissions - Command Result Loop Detection", () => {
     });
 
     expect(loopRequest).not.toBeNull();
-    expect(loopRequest?.toolName).toBe("run_shell_command");
-    expect(loopRequest?.command).toBe("go build");
-    expect(loopRequest?.errorOutput).toBe("go: go.mod file not found");
+    expect(loopRequest!.toolName).toBe("run_shell_command");
+    expect(loopRequest!.command).toBe("go build");
+    expect(loopRequest!.errorOutput).toBe("go: go.mod file not found");
   });
 
   it("should not detect loop for different errors", () => {
@@ -263,7 +263,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
     });
 
     // Third call - another different error
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.checkCommandResultLoop(
         "run_shell_command",
@@ -306,7 +306,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
     });
 
     // Fourth call - error (count should be 2)
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.checkCommandResultLoop(
         "run_shell_command",
@@ -322,7 +322,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
     const { result } = renderHook(() => usePermissions());
 
     // read_file is in excluded tools
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
 
     // Call 3 times with same error
     for (let i = 0; i < 3; i++) {
@@ -396,7 +396,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
 
     // After disabling, same errors should not trigger loop
     for (let i = 0; i < 3; i++) {
-      let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+      let loopRequest: CommandLoopRequest | null = null;
       act(() => {
         loopRequest = result.current.checkCommandResultLoop(
           "run_shell_command",
@@ -405,6 +405,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
         );
       });
       // Should be null because tracking was cleared
+      expect(loopRequest).toBeNull();
     }
   });
 
@@ -422,7 +423,7 @@ describe("usePermissions - Command Result Loop Detection", () => {
       });
     }
 
-    let loopRequest: ReturnType<typeof result.current.checkCommandResultLoop>;
+    let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.checkCommandResultLoop(
         "run_shell_command",

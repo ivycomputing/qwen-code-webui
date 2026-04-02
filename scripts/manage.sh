@@ -38,6 +38,10 @@ is_running() {
     return 1
 }
 
+# Environment variables for backend
+export OPENACE_API_URL="${OPENACE_API_URL:-http://localhost:5001}"
+export QUOTA_CHECK_ENABLED="${QUOTA_CHECK_ENABLED:-true}"
+
 # Start backend server
 start_backend() {
     if is_running "$BACKEND_PID_FILE"; then
@@ -46,6 +50,8 @@ start_backend() {
     fi
 
     echo -e "${BLUE}Starting backend server...${NC}"
+    echo -e "  OPENACE_API_URL=${OPENACE_API_URL}"
+    echo -e "  QUOTA_CHECK_ENABLED=${QUOTA_CHECK_ENABLED}"
     ensure_pid_dir
 
     cd "$PROJECT_ROOT/backend"
