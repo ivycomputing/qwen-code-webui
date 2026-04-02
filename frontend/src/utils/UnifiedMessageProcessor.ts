@@ -15,6 +15,7 @@ import {
 } from "./messageConversion";
 import { isThinkingContentItem } from "./messageTypes";
 import { extractToolInfo, generateToolPatterns } from "./toolUtils";
+import type { CommandLoopRequest } from "../hooks/chat/usePermissions";
 
 /**
  * Tool cache interface for tracking tool_use information
@@ -52,6 +53,14 @@ export interface ProcessingContext {
     toolUseId: string,
   ) => void;
   onAbortRequest?: () => void;
+
+  // Command result loop detection
+  onCommandResultLoop?: (
+    toolName: string,
+    input: Record<string, unknown>,
+    result: { exitCode?: number; output: string }
+  ) => CommandLoopRequest | null;
+  onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
 }
 
 /**
@@ -182,6 +191,23 @@ export class UnifiedMessageProcessor {
 
     const cachedToolInfo = this.getCachedToolInfo(toolUseId);
     const toolName = cachedToolInfo?.name || "Tool";
+    const toolInput = cachedToolInfo?.input || {};
+
+    // Check for command result loop detection (streaming only)
+    if (options.isStreaming && context.onCommandResultLoop) {
+      // Extract exit code and output from tool result
+      const exitCode = this.extractExitCode(toolUseResult, content);
+      const loopRequest = context.onCommandResultLoop(toolName, toolInput, {
+        exitCode,
+        output: content,
+      });
+
+      if (loopRequest && context.onShowCommandLoopRequest) {
+        // Loop detected - show dialog and stop processing
+        context.onShowCommandLoopRequest(loopRequest);
+        return;
+      }
+    }
 
     // Don't show tool_result for TodoWrite since we already show TodoMessage from tool_use
     if (toolName === "TodoWrite") {
@@ -196,6 +222,43 @@ export class UnifiedMessageProcessor {
       toolUseResult,
     );
     context.addMessage(toolResultMessage);
+  }
+
+  /**
+   * Extract exit code from tool result
+   */
+  private extractExitCode(
+    toolUseResult: unknown,
+    content: string
+  ): number | undefined {
+    // Try to extract from toolUseResult structure
+    if (toolUseResult && typeof toolUseResult === "object") {
+      const result = toolUseResult as Record<string, unknown>;
+      if (result.exitCode !== undefined) {
+        return result.exitCode as number;
+      }
+      if (result.exit_code !== undefined) {
+        return result.exit_code as number;
+      }
+    }
+
+    // Try to extract from content string (common patterns)
+    const exitCodeMatch = content.match(/Exit Code:\s*(\d+)/i);
+    if (exitCodeMatch) {
+      return parseInt(exitCodeMatch[1], 10);
+    }
+
+    // Check for error indicators in content
+    if (
+      content.includes("Error:") ||
+      content.includes("error:") ||
+      content.includes("failed") ||
+      content.includes("not found")
+    ) {
+      return 1; // Assume failure if error indicators present
+    }
+
+    return undefined;
   }
 
   /**

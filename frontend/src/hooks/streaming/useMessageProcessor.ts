@@ -1,5 +1,6 @@
 import type { AllMessage, ChatMessage } from "../../types";
 import { useMessageConverter } from "../useMessageConverter";
+import type { CommandLoopRequest } from "../chat/usePermissions";
 
 export interface StreamingContext {
   currentAssistantMessage: ChatMessage | null;
@@ -17,6 +18,13 @@ export interface StreamingContext {
     toolUseId: string,
   ) => void;
   onAbortRequest?: () => void;
+  // Command result loop detection
+  onCommandResultLoop?: (
+    toolName: string,
+    input: Record<string, unknown>,
+    result: { exitCode?: number; output: string }
+  ) => CommandLoopRequest | null;
+  onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
 }
 
 /**

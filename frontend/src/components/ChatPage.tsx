@@ -143,6 +143,12 @@ export function ChatPage() {
     updatePermissionMode,
     recordDenial,
     resetDenialCounter,
+    // Command result loop detection
+    commandLoopRequest,
+    checkCommandResultLoop,
+    showCommandLoopRequest,
+    closeCommandLoopRequest,
+    disableCommandResultLoopDetection,
   } = usePermissions({
     onPermissionModeChange: setPermissionMode,
   });
@@ -229,6 +235,12 @@ export function ChatPage() {
           onAbortRequest: async () => {
             shouldAbort = true;
             await createAbortHandler(requestId)();
+          },
+          // Command result loop detection
+          onCommandResultLoop: checkCommandResultLoop,
+          onShowCommandLoopRequest: (request) => {
+            shouldAbort = true;
+            showCommandLoopRequest(request);
           },
         };
 
@@ -408,6 +420,40 @@ export function ChatPage() {
     updatePermissionMode("plan");
     closePlanModeRequest();
   }, [updatePermissionMode, closePlanModeRequest]);
+
+  // Command loop detection handlers
+  const handleCommandLoopAbort = useCallback(() => {
+    closeCommandLoopRequest();
+    // Abort current request if loading
+    if (isLoading && currentRequestId) {
+      abortRequest(currentRequestId, isLoading, resetRequestState);
+    }
+  }, [
+    closeCommandLoopRequest,
+    isLoading,
+    currentRequestId,
+    abortRequest,
+    resetRequestState,
+  ]);
+
+  const handleCommandLoopContinue = useCallback(() => {
+    disableCommandResultLoopDetection();
+    // Continue with current session
+    if (currentSessionId) {
+      sendMessage("continue", allowedTools, true);
+    }
+  }, [
+    disableCommandResultLoopDetection,
+    currentSessionId,
+    sendMessage,
+    allowedTools,
+  ]);
+
+  const handleCommandLoopManualInput = useCallback(() => {
+    closeCommandLoopRequest();
+    // Focus on input field for user to type new instruction
+    // The user can then type their own instruction
+  }, [closeCommandLoopRequest]);
 
   // Create permission data for inline permission interface
   const permissionData = permissionRequest
@@ -652,6 +698,89 @@ export function ChatPage() {
 
         {/* Settings Modal */}
         <SettingsModal isOpen={isSettingsOpen} onClose={handleSettingsClose} />
+
+        {/* Command Loop Detection Dialog */}
+        {commandLoopRequest && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-amber-600 dark:text-amber-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                  命令执行结果循环检测
+                </h2>
+              </div>
+
+              <p className="text-slate-600 dark:text-slate-400 mb-4">
+                检测到 AI 反复执行相同命令并得到相同错误结果。这表明当前方法无效，AI
+                可能陷入了死循环。
+              </p>
+
+              <div className="bg-slate-100 dark:bg-slate-700/50 rounded-lg p-4 mb-4">
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                      工具:
+                    </span>
+                    <span className="ml-2 text-slate-700 dark:text-slate-300">
+                      {commandLoopRequest.toolName}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                      命令:
+                    </span>
+                    <span className="ml-2 text-slate-700 dark:text-slate-300 font-mono text-xs">
+                      {commandLoopRequest.command}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                      错误:
+                    </span>
+                    <span className="ml-2 text-red-600 dark:text-red-400 font-mono text-xs">
+                      {commandLoopRequest.errorOutput}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={handleCommandLoopAbort}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  中止操作
+                </button>
+                <button
+                  onClick={handleCommandLoopContinue}
+                  className="px-4 py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors"
+                >
+                  继续尝试
+                </button>
+                <button
+                  onClick={handleCommandLoopManualInput}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  手动输入指令
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

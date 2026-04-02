@@ -18,7 +18,7 @@ interface UsePermissionsOptions {
 }
 
 /**
- * Configuration for loop detection
+ * Configuration for permission denial loop detection
  */
 interface LoopDetectionConfig {
   /** Maximum consecutive denials before triggering protection */
@@ -34,6 +34,34 @@ const DEFAULT_LOOP_DETECTION_CONFIG: LoopDetectionConfig = {
   resetWindowMs: 5 * 60 * 1000, // 5 minutes
   excludedTools: new Set(["exit_plan_mode"]),
 };
+
+/**
+ * Configuration for command result loop detection
+ */
+interface CommandResultLoopConfig {
+  /** Maximum same command results before triggering protection */
+  maxSameCommandResults: number;
+  /** Time window in ms to reset the counter (5 minutes) */
+  resetWindowMs: number;
+  /** Tools to exclude from loop detection */
+  excludedTools: Set<string>;
+}
+
+const DEFAULT_COMMAND_RESULT_LOOP_CONFIG: CommandResultLoopConfig = {
+  maxSameCommandResults: 3,
+  resetWindowMs: 5 * 60 * 1000, // 5 minutes
+  excludedTools: new Set(["read_file", "glob", "grep_search"]),
+};
+
+/**
+ * Command result loop detection request
+ */
+export interface CommandLoopRequest {
+  isOpen: boolean;
+  toolName: string;
+  command: string;
+  errorOutput: string;
+}
 
 /**
  * Build a message to break the AI out of a thinking loop
@@ -63,11 +91,26 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   // New state for inline permission system
   const [isPermissionMode, setIsPermissionMode] = useState(false);
 
-  // Loop detection state (using refs to avoid re-renders)
+  // Permission denial loop detection state (using refs to avoid re-renders)
   const consecutiveDenialsRef = useRef(0);
   const lastDenialTimeRef = useRef(0);
   const lastDeniedToolRef = useRef<string>("");
   const loopDetectionConfigRef = useRef(DEFAULT_LOOP_DETECTION_CONFIG);
+
+  // Command result loop detection state
+  const commandResultLoopConfigRef = useRef(DEFAULT_COMMAND_RESULT_LOOP_CONFIG);
+  const commandResultsRef = useRef<
+    Map<
+      string,
+      {
+        count: number;
+        lastErrorFingerprint: string;
+        lastTime: number;
+      }
+    >
+  >(new Map());
+  const [commandLoopRequest, setCommandLoopRequest] =
+    useState<CommandLoopRequest | null>(null);
 
   const showPermissionRequest = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
@@ -176,6 +219,148 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     lastDeniedToolRef.current = "";
   }, []);
 
+  /**
+   * Generate a fingerprint for error output (first 200 chars, normalized)
+   */
+  const generateErrorFingerprint = useCallback((errorOutput: string): string => {
+    // Normalize error output: take first 200 chars, remove whitespace variations
+    const normalized = errorOutput
+      .substring(0, 200)
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    return normalized;
+  }, []);
+
+  /**
+   * Generate a key for command identification
+   */
+  const generateCommandKey = useCallback(
+    (toolName: string, input: Record<string, unknown>): string => {
+      // For shell commands, use the command string
+      if (input.command && typeof input.command === "string") {
+        // Normalize command: remove path variations, keep core structure
+        const normalizedCommand = input.command
+          .replace(/\s+/g, " ")
+          .trim()
+          .substring(0, 100);
+        return `${toolName}:${normalizedCommand}`;
+      }
+      // For other tools, use JSON representation (truncated)
+      const inputStr = JSON.stringify(input).substring(0, 100);
+      return `${toolName}:${inputStr}`;
+    },
+    []
+  );
+
+  /**
+   * Check for command result loop detection
+   * Returns CommandLoopRequest if loop detected, null otherwise
+   */
+  const checkCommandResultLoop = useCallback(
+    (
+      toolName: string,
+      input: Record<string, unknown>,
+      result: { exitCode?: number; output: string }
+    ): CommandLoopRequest | null => {
+      const config = commandResultLoopConfigRef.current;
+      const now = Date.now();
+
+      // Skip excluded tools
+      if (config.excludedTools.has(toolName)) {
+        return null;
+      }
+
+      // Only check for failed results (non-zero exit code or error indicators)
+      const isError =
+        result.exitCode !== undefined && result.exitCode !== 0;
+      const hasErrorKeywords =
+        result.output.toLowerCase().includes("error") ||
+        result.output.toLowerCase().includes("failed") ||
+        result.output.toLowerCase().includes("not found");
+
+      if (!isError && !hasErrorKeywords) {
+        // Clear tracking for successful results
+        const key = generateCommandKey(toolName, input);
+        commandResultsRef.current.delete(key);
+        return null;
+      }
+
+      const key = generateCommandKey(toolName, input);
+      const errorFingerprint = generateErrorFingerprint(result.output);
+
+      // Get existing entry
+      const entry = commandResultsRef.current.get(key);
+
+      // Reset if outside time window
+      if (entry && now - entry.lastTime > config.resetWindowMs) {
+        commandResultsRef.current.delete(key);
+        return null;
+      }
+
+      // Check if same error fingerprint
+      if (entry && entry.lastErrorFingerprint === errorFingerprint) {
+        entry.count++;
+        entry.lastTime = now;
+
+        // Check threshold
+        if (entry.count >= config.maxSameCommandResults) {
+          // Loop detected - create request
+          const loopRequest: CommandLoopRequest = {
+            isOpen: true,
+            toolName,
+            command: input.command
+              ? String(input.command).substring(0, 100)
+              : JSON.stringify(input).substring(0, 100),
+            errorOutput: result.output.substring(0, 200),
+          };
+
+          // Reset tracking
+          commandResultsRef.current.delete(key);
+
+          return loopRequest;
+        }
+      } else {
+        // New or different error - start tracking
+        commandResultsRef.current.set(key, {
+          count: 1,
+          lastErrorFingerprint: errorFingerprint,
+          lastTime: now,
+        });
+      }
+
+      return null;
+    },
+    [generateCommandKey, generateErrorFingerprint]
+  );
+
+  /**
+   * Show command loop detection dialog
+   */
+  const showCommandLoopRequest = useCallback(
+    (request: CommandLoopRequest) => {
+      setCommandLoopRequest(request);
+      setIsPermissionMode(true);
+    },
+    []
+  );
+
+  /**
+   * Close command loop detection dialog
+   */
+  const closeCommandLoopRequest = useCallback(() => {
+    setCommandLoopRequest(null);
+    setIsPermissionMode(false);
+  }, []);
+
+  /**
+   * Disable command result loop detection for current session
+   */
+  const disableCommandResultLoopDetection = useCallback(() => {
+    commandResultsRef.current.clear();
+    closeCommandLoopRequest();
+  }, [closeCommandLoopRequest]);
+
   return {
     allowedTools,
     permissionRequest,
@@ -190,8 +375,14 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     showPlanModeRequest,
     closePlanModeRequest,
     updatePermissionMode,
-    // Loop detection
+    // Permission denial loop detection
     recordDenial,
     resetDenialCounter,
+    // Command result loop detection
+    commandLoopRequest,
+    checkCommandResultLoop,
+    showCommandLoopRequest,
+    closeCommandLoopRequest,
+    disableCommandResultLoopDetection,
   };
 }
