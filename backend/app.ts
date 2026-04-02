@@ -19,6 +19,10 @@ import { handleChatRequest } from "./handlers/chat.ts";
 import { handleAbortRequest } from "./handlers/abort.ts";
 import { handleVersionRequest } from "./handlers/version.ts";
 import { handleModelsRequest } from "./handlers/models.ts";
+import {
+  handleQuotaStatusRequest,
+  quotaCheckMiddleware,
+} from "./handlers/quota.ts";
 import { logger } from "./utils/logger.ts";
 import { readBinaryFile } from "./utils/fs.ts";
 
@@ -61,6 +65,7 @@ export function createApp(
   app.get("/api/version", () => handleVersionRequest());
   app.get("/api/models", (c) => handleModelsRequest(c));
   app.get("/api/projects", (c) => handleProjectsRequest(c));
+  app.get("/api/quota/status", (c) => handleQuotaStatusRequest(c));
 
   app.get("/api/projects/:encodedProjectName/histories", (c) =>
     handleHistoriesRequest(c),
