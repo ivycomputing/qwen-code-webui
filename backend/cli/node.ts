@@ -36,7 +36,11 @@ async function main(runtime: NodeRuntime) {
 
   // In development (tsx), __dirname is backend/cli, so static files are at ../dist/static
   // In production (bundled), __dirname is dist/cli, so static files are at ../static
-  const staticPath = join(__dirname, "../dist/static");
+  // Check if we're running from bundled dist directory
+  const isBundled = __dirname.includes("/dist/cli");
+  const staticPath = isBundled
+    ? join(__dirname, "../static")
+    : join(__dirname, "../dist/static");
 
   if (args.debug) {
     logger.cli.debug(`Static path: ${staticPath}`);
