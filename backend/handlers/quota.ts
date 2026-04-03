@@ -7,10 +7,12 @@
 
 import type { Context } from "hono";
 import { logger } from "../utils/logger.ts";
+import { getEnv } from "../utils/os.ts";
 
 // Open-ACE API configuration
-const OPENACE_API_URL = Deno.env.get("OPENACE_API_URL") || "http://localhost:5000";
-const QUOTA_CHECK_ENABLED = Deno.env.get("QUOTA_CHECK_ENABLED") !== "false";
+// Default to disabled since Open-ACE integration is optional
+const QUOTA_CHECK_ENABLED = getEnv("QUOTA_CHECK_ENABLED") === "true";
+const OPENACE_API_URL = getEnv("OPENACE_API_URL") || "http://localhost:5000";
 
 interface QuotaStatus {
   can_use: boolean;

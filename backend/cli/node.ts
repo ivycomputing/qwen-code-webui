@@ -33,7 +33,14 @@ async function main(runtime: NodeRuntime) {
   // Node.js 20.11.0+ compatible with fallback for older versions
   const __dirname =
     import.meta.dirname ?? dirname(fileURLToPath(import.meta.url));
-  const staticPath = join(__dirname, "../static");
+
+  // In development (tsx), __dirname is backend/cli, so static files are at ../dist/static
+  // In production (bundled), __dirname is dist/cli, so static files are at ../static
+  const staticPath = join(__dirname, "../dist/static");
+
+  if (args.debug) {
+    logger.cli.debug(`Static path: ${staticPath}`);
+  }
 
   // Create application
   const app = createApp(runtime, {

@@ -1,6 +1,8 @@
 import { Context } from "hono";
 import type { ModelsResponse, ModelConfig } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
+import { getHomeDir } from "../utils/os.ts";
+import { readFile } from "node:fs/promises";
 
 interface SettingsJson {
   modelProviders?: {
@@ -24,7 +26,7 @@ function cleanModelName(fullName: string): string {
  */
 export async function handleModelsRequest(c: Context): Promise<Response> {
   try {
-    const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
+    const homeDir = getHomeDir();
     if (!homeDir) {
       return c.json<ModelsResponse>({ models: [] }, 200);
     }
@@ -32,7 +34,7 @@ export async function handleModelsRequest(c: Context): Promise<Response> {
     const settingsPath = `${homeDir}/.qwen/settings.json`;
 
     try {
-      const settingsContent = await Deno.readTextFile(settingsPath);
+      const settingsContent = await readFile(settingsPath, "utf-8");
       const settings: SettingsJson = JSON.parse(settingsContent);
 
       let models = settings.modelProviders?.openai || [];
