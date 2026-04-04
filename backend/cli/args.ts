@@ -14,6 +14,8 @@ export interface ParsedArgs {
   host: string;
   qwenPath?: string;
   tokenSecret?: string;
+  quotaCheckEnabled?: boolean;
+  openaceApiUrl?: string;
 }
 
 export function parseCliArgs(): ParsedArgs {
@@ -53,6 +55,15 @@ export function parseCliArgs(): ParsedArgs {
       "--token-secret <secret>",
       "Token secret for Open-ACE integration authentication (optional)",
     )
+    .option(
+      "--quota-check-enabled",
+      "Enable quota checking with Open-ACE",
+      false,
+    )
+    .option(
+      "--openace-api-url <url>",
+      "Open-ACE API URL for quota checking",
+    )
     .option("-d, --debug", "Enable debug mode", false);
 
   // Parse arguments - Commander.js v14 handles this automatically
@@ -69,5 +80,7 @@ export function parseCliArgs(): ParsedArgs {
     host: options.host,
     qwenPath: options.qwenPath,
     tokenSecret: options.tokenSecret,
+    quotaCheckEnabled: options.quotaCheckEnabled,
+    openaceApiUrl: options.openaceApiUrl,
   };
 }

@@ -47,6 +47,7 @@ interface ChatInputProps {
   onInputChange: (value: string) => void;
   onSubmit: () => void;
   onAbort: () => void;
+  disabled?: boolean;
   // Permission mode props
   permissionMode: PermissionMode;
   onPermissionModeChange: (mode: PermissionMode) => void;
@@ -62,6 +63,7 @@ export function ChatInput({
   onInputChange,
   onSubmit,
   onAbort,
+  disabled = false,
   permissionMode,
   onPermissionModeChange,
   showPermissions = false,
@@ -319,7 +321,7 @@ export function ChatInput({
           rows={1}
           style={{ marginBottom: isSlashActive ? `${expandedHeight}px` : '0' }}
           className={`w-full px-4 py-3 pr-20 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm shadow-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 resize-none overflow-hidden min-h-[48px] max-h-[${UI_CONSTANTS.TEXTAREA_MAX_HEIGHT}px]`}
-          disabled={isLoading}
+          disabled={isLoading || disabled}
         />
         {/* Slash command suggestion popup */}
         {isSlashActive && (
@@ -349,7 +351,7 @@ export function ChatInput({
           )}
           <button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || disabled}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
           >
             {isLoading ? "..." : permissionMode === "plan" ? "Plan" : "Send"}

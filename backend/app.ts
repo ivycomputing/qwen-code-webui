@@ -32,6 +32,8 @@ export interface AppConfig {
   staticPath: string;
   cliPath: string; // Actual CLI script path detected by validateQwenCli
   tokenSecret?: string; // Secret for Open-ACE integration token validation
+  quotaCheckEnabled?: boolean; // Enable quota checking with Open-ACE
+  openaceApiUrl?: string; // Open-ACE API URL for quota checking
 }
 
 export function createApp(
@@ -66,6 +68,8 @@ export function createApp(
       debugMode: config.debugMode,
       runtime,
       cliPath: config.cliPath,
+      quotaCheckEnabled: config.quotaCheckEnabled,
+      openaceApiUrl: config.openaceApiUrl,
     }),
   );
 
@@ -87,7 +91,7 @@ export function createApp(
     handleAbortRequest(c, requestAbortControllers),
   );
 
-  app.post("/api/chat", (c) => handleChatRequest(c, requestAbortControllers));
+  app.post("/api/chat", quotaCheckMiddleware, (c) => handleChatRequest(c, requestAbortControllers));
 
   // Static file serving with SPA fallback
   // Serve static assets (CSS, JS, images, etc.)

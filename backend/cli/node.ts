@@ -52,6 +52,8 @@ async function main(runtime: NodeRuntime) {
     staticPath,
     cliPath,
     tokenSecret: args.tokenSecret,
+    quotaCheckEnabled: args.quotaCheckEnabled,
+    openaceApiUrl: args.openaceApiUrl,
   });
 
   // Start server (only show this message when everything is ready)

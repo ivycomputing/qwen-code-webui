@@ -40,6 +40,8 @@ export function ChatPage() {
   const { experimental } = useSettings();
   const { expandThinking, toggleExpandThinking } = useExpandThinking();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+  const [quotaErrorStatus, setQuotaErrorStatus] = useState<any>(null);
 
   // Model selection
   const {
@@ -206,6 +208,19 @@ export function ChatPage() {
             ...(selectedModel ? { model: selectedModel } : {}),
           } as ChatRequest),
         });
+
+        // Check for quota exceeded (403)
+        if (response.status === 403) {
+          try {
+            const errorData = await response.json();
+            if (errorData.error === "quota_exceeded") {
+              setIsQuotaExceeded(true);
+              setQuotaErrorStatus(errorData.quota_status);
+              resetRequestState();
+              return;
+            }
+          } catch { /* ignore parse error */ }
+        }
 
         if (!response.body) throw new Error("No response body");
 
@@ -665,6 +680,46 @@ export function ChatPage() {
           </div>
         ) : (
           <>
+            {/* Quota Exceeded Banner */}
+            {isQuotaExceeded && (
+              <div className="flex-shrink-0 mx-auto max-w-2xl w-full p-4">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 className="text-red-800 dark:text-red-300 font-semibold">配额已超限</h3>
+                  </div>
+                  <p className="text-red-600 dark:text-red-400 text-sm mb-3">
+                    您的 token 或请求配额已用尽，请联系管理员。
+                  </p>
+                  {quotaErrorStatus && (
+                    <div className="text-xs text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/30 rounded p-2 mb-3">
+                      <p>每日 Token: {quotaErrorStatus.daily?.tokens?.used ?? 0} / {quotaErrorStatus.daily?.tokens?.limit ?? '∞'}</p>
+                      <p>每日请求: {quotaErrorStatus.daily?.requests?.used ?? 0} / {quotaErrorStatus.daily?.requests?.limit ?? '∞'}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                      try {
+                        const resp = await fetch(getChatUrl().replace('/api/chat', '/api/quota/status'));
+                        if (resp.ok) {
+                          const data = await resp.json();
+                          if (data.can_use) {
+                            setIsQuotaExceeded(false);
+                            setQuotaErrorStatus(null);
+                          }
+                        }
+                      } catch {}
+                    }}
+                    className="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                  >
+                    重试
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Chat Messages */}
             {experimental.useWebUIComponents ? (
               <WebUIChatMessages
@@ -687,6 +742,7 @@ export function ChatPage() {
               onInputChange={setInput}
               onSubmit={() => sendMessage()}
               onAbort={handleAbort}
+              disabled={isQuotaExceeded}
               permissionMode={permissionMode}
               onPermissionModeChange={setPermissionMode}
               showPermissions={isPermissionMode}
