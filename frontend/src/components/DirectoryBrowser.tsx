@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, Fragment, useRef } from "react";
 import {
   FolderIcon,
   HomeIcon,
@@ -24,6 +24,7 @@ export function DirectoryBrowser({
   initialPath,
 }: DirectoryBrowserProps) {
   const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [currentPath, setCurrentPath] = useState<string>("");
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [directories, setDirectories] = useState<DirectoryInfo[]>([]);
@@ -66,6 +67,13 @@ export function DirectoryBrowser({
     loadDirectory(initialPath);
   }, [initialPath, loadDirectory]);
 
+  // Auto-focus when loading completes
+  useEffect(() => {
+    if (!loading && containerRef.current) {
+      containerRef.current.focus();
+    }
+  }, [loading]);
+
   const handleNavigate = (path: string) => {
     loadDirectory(path);
   };
@@ -106,13 +114,18 @@ export function DirectoryBrowser({
   }
 
   return (
-    <div className="flex flex-col h-[400px]" onKeyDown={(e) => {
-      // Allow Enter to select current folder when not in new folder input mode
-      if (e.key === "Enter" && !showNewDirInput) {
-        e.preventDefault();
-        handleSelectCurrent();
-      }
-    }}>
+    <div 
+      ref={containerRef}
+      className="flex flex-col h-[400px]" 
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // Allow Enter to select current folder when not in new folder input mode
+        if (e.key === "Enter" && !showNewDirInput) {
+          e.preventDefault();
+          handleSelectCurrent();
+        }
+      }}
+    >
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-700/50 rounded-t-lg border-b border-slate-200 dark:border-slate-600">
         <button

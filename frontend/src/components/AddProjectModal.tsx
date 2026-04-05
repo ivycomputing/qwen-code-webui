@@ -159,7 +159,15 @@ export function AddProjectModal({
 
                 {/* Content based on step */}
                 {step === "browse" && (
-                  <div className="p-4">
+                  <div 
+                    className="p-4"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        // Enter in browse step does nothing - let DirectoryBrowser handle it
+                      }
+                    }}
+                  >
                     <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                       {t("project.selectDirectory")}
                     </p>
