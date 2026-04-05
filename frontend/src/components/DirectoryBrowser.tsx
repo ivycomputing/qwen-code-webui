@@ -6,6 +6,7 @@ import {
   ArrowUpIcon,
   FolderPlusIcon,
 } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import {
   browseDirectory,
   type DirectoryInfo,
@@ -22,6 +23,7 @@ export function DirectoryBrowser({
   onSelectDirectory,
   initialPath,
 }: DirectoryBrowserProps) {
+  const { t } = useTranslation();
   const [currentPath, setCurrentPath] = useState<string>("");
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [directories, setDirectories] = useState<DirectoryInfo[]>([]);
@@ -39,7 +41,7 @@ export function DirectoryBrowser({
 
     try {
       const response: BrowseResponse = await browseDirectory(path);
-      
+
       if (response.error && response.fallback) {
         // Use fallback if available
         setCurrentPath(response.fallback.currentPath);
@@ -54,11 +56,11 @@ export function DirectoryBrowser({
         setCanCreate(response.canCreate);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to browse directory");
+      setError(err instanceof Error ? err.message : t("directoryBrowser.failedToBrowse"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadDirectory(initialPath);
@@ -84,11 +86,11 @@ export function DirectoryBrowser({
 
   const handleCreateNewDir = () => {
     if (!newDirName.trim()) return;
-    
-    const newPath = currentPath 
+
+    const newPath = currentPath
       ? `${currentPath}/${newDirName.trim()}`.replace(/\/+/g, "/")
       : newDirName.trim();
-    
+
     onSelectDirectory(newPath);
   };
 
@@ -98,28 +100,34 @@ export function DirectoryBrowser({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-slate-600 dark:text-slate-400">Loading...</div>
+        <div className="text-slate-600 dark:text-slate-400">{t("common.loading")}</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[400px]">
+    <div className="flex flex-col h-[400px]" onKeyDown={(e) => {
+      // Allow Enter to select current folder when not in new folder input mode
+      if (e.key === "Enter" && !showNewDirInput) {
+        e.preventDefault();
+        handleSelectCurrent();
+      }
+    }}>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-700/50 rounded-t-lg border-b border-slate-200 dark:border-slate-600">
         <button
           onClick={handleGoHome}
           className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300"
-          title="Home"
+          title={t("directoryBrowser.home")}
         >
           <HomeIcon className="h-5 w-5" />
         </button>
-        
+
         {parentPath && (
           <button
             onClick={handleGoUp}
             className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300"
-            title="Go up"
+            title={t("directoryBrowser.goUp")}
           >
             <ArrowUpIcon className="h-4 w-4" />
           </button>
@@ -158,7 +166,7 @@ export function DirectoryBrowser({
         {directories.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-500 dark:text-slate-400">
             <FolderIcon className="h-12 w-12 mb-2 opacity-50" />
-            <p>No subdirectories</p>
+            <p>{t("directoryBrowser.noSubdirectories")}</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -181,11 +189,11 @@ export function DirectoryBrowser({
                       }}
                       className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50"
                     >
-                      Select
+                      {t("common.select")}
                     </button>
                   )}
                   <span className="text-xs text-slate-400 dark:text-slate-500">
-                    {dir.isWritable ? "writable" : "read-only"}
+                    {dir.isWritable ? t("directoryBrowser.writable") : t("directoryBrowser.readOnly")}
                   </span>
                 </div>
               </button>
@@ -202,7 +210,7 @@ export function DirectoryBrowser({
               type="text"
               value={newDirName}
               onChange={(e) => setNewDirName(e.target.value)}
-              placeholder="New directory name"
+              placeholder={t("directoryBrowser.newDirectoryName")}
               className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
               onKeyDown={(e) => {
@@ -219,7 +227,7 @@ export function DirectoryBrowser({
               disabled={!newDirName.trim()}
               className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create
+              {t("common.create")}
             </button>
             <button
               onClick={() => {
@@ -228,7 +236,7 @@ export function DirectoryBrowser({
               }}
               className="px-3 py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -241,14 +249,14 @@ export function DirectoryBrowser({
             className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FolderPlusIcon className="h-4 w-4" />
-            New Folder
+            {t("directoryBrowser.newFolder")}
           </button>
 
           <button
             onClick={handleSelectCurrent}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
           >
-            Select This Folder
+            {t("directoryBrowser.selectThisFolder")}
           </button>
         </div>
       )}

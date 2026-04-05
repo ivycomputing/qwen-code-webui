@@ -1,0 +1,69 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "back": "Back",
+    "done": "Done",
+    "create": "Create",
+    "select": "Select",
+    "retry": "Retry",
+    "error": "Error"
+  },
+  "project": {
+    "addProject": "Add Project",
+    "addNewProject": "Add New Project",
+    "selectDirectory": "Select a directory for your project. You can also create a new directory.",
+    "projectPath": "Project Path",
+    "projectName": "Project Name (optional)",
+    "projectNamePlaceholder": "Leave empty to use directory name",
+    "description": "Description (optional)",
+    "descriptionPlaceholder": "Brief description of this project",
+    "willBeCreated": "Will be created",
+    "createDirectory": "Create the directory if it doesn't exist",
+    "sharedProject": "Shared project (accessible by other team members)",
+    "creating": "Creating project...",
+    "created": "Project Created!",
+    "failedToCreate": "Failed to create project",
+    "tryAgain": "Try Again",
+    "invalidPath": "Invalid path"
+  },
+  "directoryBrowser": {
+    "home": "Home",
+    "goUp": "Go up",
+    "noSubdirectories": "No subdirectories",
+    "writable": "writable",
+    "readOnly": "read-only",
+    "newFolder": "New Folder",
+    "newDirectoryName": "New directory name",
+    "selectThisFolder": "Select This Folder",
+    "failedToBrowse": "Failed to browse directory"
+  },
+  "settings": {
+    "title": "Settings",
+    "close": "Close settings",
+    "open": "Open settings",
+    "general": "General Settings",
+    "theme": "Theme",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "enterKeyBehavior": "Enter Key Behavior",
+    "enterToSend": "Enter to Send",
+    "enterForNewline": "Enter for Newline"
+  },
+  "chat": {
+    "processing": "Processing...",
+    "typeMessage": "Type message...",
+    "send": "Send",
+    "plan": "Plan",
+    "normalMode": "normal mode",
+    "planMode": "plan mode",
+    "autoEdit": "auto-edit",
+    "yoloMode": "yolo mode"
+  },
+  "quota": {
+    "exceeded": "Quota Exceeded",
+    "exceededMessage": "Your token or request quota has been exhausted. Please contact the administrator.",
+    "exceededLimits": "Exceeded Limits:"
+  }
+}

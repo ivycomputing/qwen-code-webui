@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import { DirectoryBrowser } from "./DirectoryBrowser";
 import {
   createOpenAceProject,
@@ -27,6 +28,7 @@ export function AddProjectModal({
   onClose,
   onProjectAdded,
 }: AddProjectModalProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>("browse");
   const [selectedPath, setSelectedPath] = useState<string>("");
   const [projectName, setProjectName] = useState<string>("");
@@ -56,7 +58,7 @@ export function AddProjectModal({
 
   const handleSelectDirectory = async (path: string) => {
     setSelectedPath(path);
-    
+
     // Extract default name from path
     const segments = path.split(/[/\\]/).filter(Boolean);
     setProjectName(segments[segments.length - 1] || "");
@@ -65,12 +67,12 @@ export function AddProjectModal({
     try {
       const result = await checkPath(path);
       setPathExists(result.exists);
-      
+
       if (!result.valid) {
-        setErrorMessage(result.error || "Invalid path");
+        setErrorMessage(result.error || t("project.invalidPath"));
         return;
       }
-      
+
       // Move to details step
       setStep("details");
     } catch (err) {
@@ -95,11 +97,11 @@ export function AddProjectModal({
 
       setCreatedProject(response.project);
       setStep("success");
-      
+
       // Notify parent
       onProjectAdded(response.project);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to create project");
+      setErrorMessage(err instanceof Error ? err.message : t("project.failedToCreate"));
       setStep("error");
     }
   };
@@ -145,7 +147,7 @@ export function AddProjectModal({
                     as="h3"
                     className="text-lg font-semibold text-slate-900 dark:text-slate-100"
                   >
-                    Add New Project
+                    {t("project.addNewProject")}
                   </Dialog.Title>
                   <button
                     onClick={handleClose}
@@ -159,7 +161,7 @@ export function AddProjectModal({
                 {step === "browse" && (
                   <div className="p-4">
                     <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                      Select a directory for your project. You can also create a new directory.
+                      {t("project.selectDirectory")}
                     </p>
                     <DirectoryBrowser
                       onSelectDirectory={handleSelectDirectory}
@@ -169,10 +171,16 @@ export function AddProjectModal({
                 )}
 
                 {step === "details" && (
-                  <div className="p-6 space-y-4">
+                  <form
+                    className="p-6 space-y-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleCreateProject();
+                    }}
+                  >
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        Project Path
+                        {t("project.projectPath")}
                       </label>
                       <div className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
                         <FolderIcon className="h-5 w-5 text-yellow-500" />
@@ -181,7 +189,7 @@ export function AddProjectModal({
                         </span>
                         {pathExists === false && (
                           <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded">
-                            Will be created
+                            {t("project.willBeCreated")}
                           </span>
                         )}
                       </div>
@@ -189,27 +197,34 @@ export function AddProjectModal({
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        Project Name (optional)
+                        {t("project.projectName")}
                       </label>
                       <input
                         type="text"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
-                        placeholder="Leave empty to use directory name"
+                        placeholder={t("project.projectNamePlaceholder")}
                         className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        Description (optional)
+                        {t("project.description")}
                       </label>
                       <textarea
                         value={projectDescription}
                         onChange={(e) => setProjectDescription(e.target.value)}
-                        placeholder="Brief description of this project"
+                        placeholder={t("project.descriptionPlaceholder")}
                         rows={2}
                         className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        onKeyDown={(e) => {
+                          // Allow Enter with Ctrl/Cmd to submit
+                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            handleCreateProject();
+                          }
+                        }}
                       />
                     </div>
 
@@ -226,7 +241,7 @@ export function AddProjectModal({
                           htmlFor="createDir"
                           className="text-sm text-slate-700 dark:text-slate-300"
                         >
-                          Create the directory if it doesn't exist
+                          {t("project.createDirectory")}
                         </label>
                       </div>
                     )}
@@ -243,26 +258,27 @@ export function AddProjectModal({
                         htmlFor="isShared"
                         className="text-sm text-slate-700 dark:text-slate-300"
                       >
-                        Shared project (accessible by other team members)
+                        {t("project.sharedProject")}
                       </label>
                     </div>
 
                     {/* Actions */}
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                       <button
+                        type="button"
                         onClick={handleBack}
                         className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
                       >
-                        Back
+                        {t("common.back")}
                       </button>
                       <button
-                        onClick={handleCreateProject}
+                        type="submit"
                         className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
                       >
-                        Add Project
+                        {t("project.addProject")}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 )}
 
                 {step === "creating" && (
@@ -287,24 +303,35 @@ export function AddProjectModal({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    <p className="text-slate-600 dark:text-slate-400">Creating project...</p>
+                    <p className="text-slate-600 dark:text-slate-400">{t("project.creating")}</p>
                   </div>
                 )}
 
                 {step === "success" && createdProject && (
-                  <div className="flex flex-col items-center justify-center p-12">
+                  <div
+                    className="flex flex-col items-center justify-center p-12"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleClose();
+                      }
+                    }}
+                    tabIndex={0}
+                    ref={(el) => el?.focus()}
+                  >
                     <CheckCircleIcon className="h-12 w-12 text-green-500 mb-4" />
                     <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                      Project Created!
+                      {t("project.created")}
                     </h3>
                     <p className="text-slate-600 dark:text-slate-400 text-center mb-4">
                       {createdProject.name || createdProject.path}
                     </p>
                     <button
                       onClick={handleClose}
+                      autoFocus
                       className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
                     >
-                      Done
+                      {t("common.done")}
                     </button>
                   </div>
                 )}
@@ -315,7 +342,7 @@ export function AddProjectModal({
                       <ExclamationCircleIcon className="h-6 w-6 text-red-500 flex-shrink-0" />
                       <div>
                         <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-                          Failed to create project
+                          {t("project.failedToCreate")}
                         </h3>
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1">
                           {errorMessage}
@@ -327,13 +354,13 @@ export function AddProjectModal({
                         onClick={handleBack}
                         className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
                       >
-                        Try Again
+                        {t("project.tryAgain")}
                       </button>
                       <button
                         onClick={handleClose}
                         className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </button>
                     </div>
                   </div>
