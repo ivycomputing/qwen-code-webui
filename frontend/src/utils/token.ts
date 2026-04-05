@@ -10,19 +10,27 @@
  */
 
 const TOKEN_STORAGE_KEY = "qwen-webui-token";
+const OPENACE_URL_STORAGE_KEY = "qwen-webui-openace-url";
 
 /**
- * Save token to sessionStorage if present in URL
+ * Save token and openace_url to sessionStorage if present in URL
  * Should be called once on app initialization
  */
 export function initTokenFromUrl(): void {
   const searchParams = new URLSearchParams(window.location.search);
   const tokenFromUrl = searchParams.get("token");
+  const openaceUrlFromUrl = searchParams.get("openace_url");
 
   if (tokenFromUrl) {
     // Save token to sessionStorage for persistence across SPA navigation
     sessionStorage.setItem(TOKEN_STORAGE_KEY, tokenFromUrl);
     console.log("[Token] Token saved from URL");
+  }
+
+  if (openaceUrlFromUrl) {
+    // Save openace_url to sessionStorage for API calls
+    sessionStorage.setItem(OPENACE_URL_STORAGE_KEY, openaceUrlFromUrl);
+    console.log("[Token] Open-ACE URL saved from URL:", openaceUrlFromUrl);
   }
 }
 
@@ -44,6 +52,23 @@ export function getToken(): string | undefined {
 }
 
 /**
+ * Get the Open-ACE API URL from sessionStorage or URL query parameter
+ * Returns undefined if no openace_url is present (standalone mode)
+ */
+export function getOpenAceUrl(): string | undefined {
+  // First check sessionStorage (persisted from initial URL)
+  const storedUrl = sessionStorage.getItem(OPENACE_URL_STORAGE_KEY);
+  if (storedUrl) {
+    return storedUrl;
+  }
+
+  // Fallback to URL query parameter (for initial page load)
+  const searchParams = new URLSearchParams(window.location.search);
+  const urlOpenace = searchParams.get("openace_url");
+  return urlOpenace || undefined;
+}
+
+/**
  * Add token to an API URL if present
  *
  * @param url The API URL
@@ -60,8 +85,9 @@ export function addTokenToUrl(url: string): string {
 }
 
 /**
- * Clear the stored token (for logout or session end)
+ * Clear the stored token and openace_url (for logout or session end)
  */
 export function clearToken(): void {
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(OPENACE_URL_STORAGE_KEY);
 }

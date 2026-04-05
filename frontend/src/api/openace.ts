@@ -5,18 +5,23 @@
  * Falls back to local qwen-code-webui API when not integrated.
  */
 
-import { getToken } from "../utils/token";
+import { getToken, getOpenAceUrl } from "../utils/token";
 
 // Open-ACE API base URL - can be configured via environment or detected from URL
 const getOpenAceBaseUrl = (): string => {
-  // When running inside Open-ACE iframe, use relative paths with proxy
+  // First check if openace_url was explicitly provided in URL parameters
+  const explicitOpenAceUrl = getOpenAceUrl();
+  if (explicitOpenAceUrl) {
+    return explicitOpenAceUrl;
+  }
+
+  // When running inside Open-ACE iframe, we need to call Open-ACE APIs
   // The parent window's origin is Open-ACE
   const token = getToken();
   if (token) {
-    // Integrated mode - use relative paths (same origin as parent iframe)
+    // Integrated mode - we need to determine Open-ACE's origin
     // In production, Open-ACE proxies requests to qwen-code-webui
     // But for project management, we need to call Open-ACE APIs
-    // We detect Open-ACE URL from the iframe parent
     try {
       // If we're in an iframe, try to get parent origin
       if (window.parent !== window) {
@@ -25,11 +30,19 @@ const getOpenAceBaseUrl = (): string => {
         return window.parent.location.origin;
       }
     } catch {
-      // Cross-origin iframe, can't access parent location
-      // Use same origin as fallback
+      // Cross-origin iframe, can't access parent location directly
+      // Use document.referrer as fallback to get parent's origin
+      if (document.referrer) {
+        try {
+          const referrerUrl = new URL(document.referrer);
+          return referrerUrl.origin;
+        } catch {
+          // Invalid referrer URL
+        }
+      }
     }
   }
-  
+
   // Standalone mode - no Open-ACE integration
   // Return empty string to use relative paths
   return "";
