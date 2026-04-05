@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import { useModel } from "../hooks/useModel";
 import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
 import { getSlashCommand } from "../utils/slashCommands";
 import { generateId } from "../utils/id";
+import { calculateTokenUsage } from "../utils/tokenUsage";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
 import { ConfirmModal } from "./ConfirmModal";
@@ -57,6 +58,21 @@ export function ChatPage() {
     setSelectedModel,
     loading: modelsLoading,
   } = useModel();
+
+  // Calculate model name for display (remove [Bailian Coding Plan] prefix)
+  const selectedModelConfig = useMemo(() => {
+    return models.find((m) => m.id === selectedModel);
+  }, [models, selectedModel]);
+
+  const selectedModelName = useMemo(() => {
+    if (!selectedModelConfig) return undefined;
+    // Remove [Bailian Coding Plan] prefix from model name for display
+    return selectedModelConfig.name.replace(/^\[Bailian Coding Plan\]\s*/, "");
+  }, [selectedModelConfig]);
+
+  const contextWindowSize = useMemo(() => {
+    return selectedModelConfig?.generationConfig?.contextWindowSize;
+  }, [selectedModelConfig]);
 
   // Extract and normalize working directory from URL
   const workingDirectory = (() => {
@@ -139,6 +155,11 @@ export function ChatPage() {
     initialSessionId: loadedSessionId || undefined,
   });
 
+  // Calculate token usage from messages
+  const tokenUsage = useMemo(() => {
+    return calculateTokenUsage(messages);
+  }, [messages]);
+
   const {
     allowedTools,
     permissionRequest,
@@ -192,6 +213,13 @@ export function ChatPage() {
     ) => {
       const content = messageContent || input.trim();
       if (!content || isLoading) return;
+
+      // Intercept /clear before sending to backend
+      if (content === "/clear") {
+        setShowClearConfirm(true);
+        if (!messageContent) clearInput();
+        return;
+      }
 
       const requestId = generateRequestId();
 
@@ -348,7 +376,9 @@ export function ChatPage() {
     setMessages([]);
     setCurrentSessionId(generateId());
     setHasShownInitMessage(false);
+    setHasReceivedInit(false);
     setShowClearConfirm(false);
+    navigate({ search: "" });
     // Add a system message to indicate context was cleared
     addMessage({
       type: "chat",
@@ -356,7 +386,7 @@ export function ChatPage() {
       content: t("slashCommands.contextCleared"),
       timestamp: Date.now(),
     });
-  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, addMessage, t]);
+  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, setHasReceivedInit, addMessage, t, navigate, generateId]);
 
   // Permission request handlers
   const handlePermissionAllow = useCallback(() => {
@@ -792,6 +822,9 @@ export function ChatPage() {
               permissionData={permissionData}
               planPermissionData={planPermissionData}
               onExecuteCommand={handleExecuteSlashCommand}
+              selectedModelName={selectedModelName}
+              contextWindowSize={contextWindowSize}
+              tokenUsage={tokenUsage}
             />
           </>
         )}

@@ -9,6 +9,8 @@ import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
 import type { PermissionMode } from "../../types";
 import type { SlashCommand, SubCommand } from "../../utils/slashCommands";
+import type { TokenUsageInfo } from "../../utils/tokenUsage";
+import { formatTokenRatio } from "../../utils/tokenUsage";
 
 interface PermissionData {
   patterns: string[];
@@ -57,6 +59,10 @@ interface ChatInputProps {
   planPermissionData?: PlanPermissionData;
   // Slash command execution callback
   onExecuteCommand?: (commandName: string) => void;
+  // Status bar props
+  selectedModelName?: string;
+  contextWindowSize?: number;
+  tokenUsage?: TokenUsageInfo;
 }
 
 export function ChatInput({
@@ -73,6 +79,9 @@ export function ChatInput({
   permissionData,
   planPermissionData,
   onExecuteCommand,
+  selectedModelName,
+  contextWindowSize,
+  tokenUsage,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -89,9 +98,10 @@ export function ChatInput({
     (command: SlashCommand | SubCommand, isSubCommand: boolean) => {
       if (!isSubCommand && (command as SlashCommand).name) {
         onExecuteCommand?.((command as SlashCommand).name);
+        onInputChange(""); // Clear input after command execution
       }
     },
-    [onExecuteCommand],
+    [onExecuteCommand, onInputChange],
   );
 
   const {
@@ -383,6 +393,22 @@ export function ChatInput({
         title={`Current: ${getPermissionModeName(permissionMode)} - Click to cycle (Ctrl/Cmd+Shift+Y)`}
       >
         {getPermissionModeIndicator(permissionMode)}
+        {selectedModelName && (
+          <span className="ml-2 text-slate-500 dark:text-slate-400">
+            {" | "}
+            <span className="text-slate-600 dark:text-slate-300">📖</span>
+            {" "}
+            {selectedModelName}
+          </span>
+        )}
+        {tokenUsage && tokenUsage.totalTokens > 0 && (
+          <span className="ml-2 text-slate-500 dark:text-slate-400">
+            {" | "}
+            <span className="text-slate-600 dark:text-slate-300">📊</span>
+            {" "}
+            {formatTokenRatio(tokenUsage.totalTokens, contextWindowSize)}
+          </span>
+        )}
         <span className="ml-2 text-slate-400 dark:text-slate-500 text-[10px]">
           - Click to cycle (Ctrl/Cmd+Shift+Y)
         </span>
