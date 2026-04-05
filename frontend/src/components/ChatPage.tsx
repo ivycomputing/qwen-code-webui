@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import type {
   ChatRequest,
   ChatMessage,
@@ -17,8 +18,10 @@ import { useSettings } from "../hooks/useSettings";
 import { useExpandThinking } from "../hooks/useSettings";
 import { useModel } from "../hooks/useModel";
 import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
+import { getSlashCommand } from "../utils/slashCommands";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
+import { ConfirmModal } from "./ConfirmModal";
 import { HistoryButton } from "./chat/HistoryButton";
 import { ProjectSwitchButton } from "./chat/ProjectSwitchButton";
 import { ExpandThinkingButton } from "./chat/ExpandThinkingButton";
@@ -37,12 +40,14 @@ export function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const { experimental } = useSettings();
   const { expandThinking, toggleExpandThinking } = useExpandThinking();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [quotaErrorStatus, setQuotaErrorStatus] = useState<any>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Model selection
   const {
@@ -117,6 +122,7 @@ export function ChatPage() {
     hasShownInitMessage,
     currentAssistantMessage,
     setInput,
+    setMessages,
     setCurrentSessionId,
     setHasShownInitMessage,
     setHasReceivedInit,
@@ -322,6 +328,32 @@ export function ChatPage() {
   const handleAbort = useCallback(() => {
     abortRequest(currentRequestId, isLoading, resetRequestState);
   }, [abortRequest, currentRequestId, isLoading, resetRequestState]);
+
+  // Slash command execution handler
+  const handleExecuteSlashCommand = useCallback(
+    (commandName: string) => {
+      const command = getSlashCommand(commandName);
+      if (command?.requiresConfirmation) {
+        setShowClearConfirm(true);
+      }
+    },
+    [],
+  );
+
+  // Clear conversation handler
+  const handleClearConversation = useCallback(() => {
+    setMessages([]);
+    setCurrentSessionId(null);
+    setHasShownInitMessage(false);
+    setShowClearConfirm(false);
+    // Add a system message to indicate context was cleared
+    addMessage({
+      type: "chat",
+      role: "assistant",
+      content: t("slashCommands.contextCleared"),
+      timestamp: Date.now(),
+    });
+  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, addMessage, t]);
 
   // Permission request handlers
   const handlePermissionAllow = useCallback(() => {
@@ -756,12 +788,25 @@ export function ChatPage() {
               showPermissions={isPermissionMode}
               permissionData={permissionData}
               planPermissionData={planPermissionData}
+              onExecuteCommand={handleExecuteSlashCommand}
             />
           </>
         )}
 
         {/* Settings Modal */}
         <SettingsModal isOpen={isSettingsOpen} onClose={handleSettingsClose} />
+
+        {/* Clear Conversation Confirmation Modal */}
+        <ConfirmModal
+          isOpen={showClearConfirm}
+          onClose={() => setShowClearConfirm(false)}
+          onConfirm={handleClearConversation}
+          title={t("slashCommands.clearConfirmTitle")}
+          message={t("slashCommands.clearConfirmMessage")}
+          confirmText={t("slashCommands.clearConfirmButton")}
+          cancelText={t("common.cancel")}
+          variant="warning"
+        />
 
         {/* Command Loop Detection Dialog */}
         {commandLoopRequest && (

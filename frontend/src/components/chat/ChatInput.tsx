@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { StopIcon } from "@heroicons/react/24/solid";
 import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
@@ -8,6 +8,7 @@ import { SlashCommandSuggestion } from "./SlashCommandSuggestion";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
 import type { PermissionMode } from "../../types";
+import type { SlashCommand, SubCommand } from "../../utils/slashCommands";
 
 interface PermissionData {
   patterns: string[];
@@ -54,6 +55,8 @@ interface ChatInputProps {
   showPermissions?: boolean;
   permissionData?: PermissionData;
   planPermissionData?: PlanPermissionData;
+  // Slash command execution callback
+  onExecuteCommand?: (commandName: string) => void;
 }
 
 export function ChatInput({
@@ -69,6 +72,7 @@ export function ChatInput({
   showPermissions = false,
   permissionData,
   planPermissionData,
+  onExecuteCommand,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -81,6 +85,15 @@ export function ChatInput({
   } = useInputHistory();
 
   // Slash command handling
+  const handleSlashCommandExecute = useCallback(
+    (command: SlashCommand | SubCommand, isSubCommand: boolean) => {
+      if (!isSubCommand && (command as SlashCommand).name) {
+        onExecuteCommand?.((command as SlashCommand).name);
+      }
+    },
+    [onExecuteCommand],
+  );
+
   const {
     isActive: isSlashActive,
     suggestions,
@@ -97,6 +110,7 @@ export function ChatInput({
     inputRef as React.RefObject<HTMLTextAreaElement>,
     input,
     onInputChange,
+    handleSlashCommandExecute,
   );
 
   // Focus input when not loading and not in permission mode

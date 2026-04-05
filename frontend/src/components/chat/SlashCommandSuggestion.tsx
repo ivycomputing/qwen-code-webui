@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { SlashCommand, SubCommand } from "../../utils/slashCommands";
 
 interface SlashCommandSuggestionProps {
@@ -16,6 +17,7 @@ export function SlashCommandSuggestion({
   position,
   isSubCommand = false,
 }: SlashCommandSuggestionProps) {
+  const { t } = useTranslation();
   const listRef = useRef<HTMLUListElement>(null);
 
   // Scroll selected item into view
@@ -58,7 +60,9 @@ export function SlashCommandSuggestion({
             {isSubCommand ? item.name : (item as SlashCommand).name}
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {item.description}
+            {isSubCommand
+              ? (item as SubCommand).description
+              : t((item as SlashCommand).descriptionKey)}
           </div>
         </li>
       ))}

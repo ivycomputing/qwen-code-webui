@@ -2,17 +2,23 @@
 
 export interface SlashCommand {
   name: string;
-  description: string;
+  descriptionKey: string; // i18n key for description
   action?: () => void | Promise<void>;
   hasSubCommands?: boolean;
+  requiresConfirmation?: boolean;
 }
 
 // Command registry
 const slashCommands: SlashCommand[] = [
   {
     name: "/skills",
-    description: "Show available skills",
+    descriptionKey: "slashCommands.skillsDescription",
     hasSubCommands: true,
+  },
+  {
+    name: "/clear",
+    descriptionKey: "slashCommands.clearDescription",
+    requiresConfirmation: true,
   },
   // Add more commands here in the future
 ];
