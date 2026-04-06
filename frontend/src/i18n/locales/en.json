@@ -63,7 +63,9 @@
     "loading": "Loading...",
     "selectModel": "Select model",
     "startConversation": "Start a conversation with Qwen",
-    "typeToBegin": "Type your message below to begin"
+    "typeToBegin": "Type your message below to begin",
+    "clickToCycle": "Click to cycle",
+    "clickToCycleShortcut": "Click to cycle (Ctrl/Cmd+Shift+Y)"
   },
   "quota": {
     "exceeded": "Quota Exceeded",

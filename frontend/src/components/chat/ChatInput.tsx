@@ -268,27 +268,13 @@ export function ChatInput({
   const getPermissionModeIndicator = (mode: PermissionMode): string => {
     switch (mode) {
       case "default":
-        return "🔧 normal mode";
+        return `🔧 ${t("chat.normalMode")}`;
       case "plan":
-        return "⏸ plan mode";
+        return `⏸ ${t("chat.planMode")}`;
       case "auto-edit":
-        return "⏵⏵ auto-edit";
+        return `⏵⏵ ${t("chat.autoEdit")}`;
       case "yolo":
-        return "🚀 yolo mode";
-    }
-  };
-
-  // Get clean permission mode name (without emoji)
-  const getPermissionModeName = (mode: PermissionMode): string => {
-    switch (mode) {
-      case "default":
-        return "normal mode";
-      case "plan":
-        return "plan mode";
-      case "auto-edit":
-        return "auto-edit";
-      case "yolo":
-        return "yolo mode";
+        return `🚀 ${t("chat.yoloMode")}`;
     }
   };
 
@@ -392,9 +378,12 @@ export function ChatInput({
           onPermissionModeChange(getNextPermissionMode(permissionMode))
         }
         className="w-full px-4 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-mono text-left transition-colors cursor-pointer"
-        title={`Current: ${getPermissionModeName(permissionMode)} - Click to cycle (Ctrl/Cmd+Shift+Y)`}
+        title={`${t("chat.clickToCycle")} (Ctrl/Cmd+Shift+Y)`}
       >
         {getPermissionModeIndicator(permissionMode)}
+        <span className="ml-2 text-slate-400 dark:text-slate-500 text-[10px]">
+          ({t("chat.clickToCycleShortcut")})
+        </span>
         {selectedModelName && (
           <span className="ml-2 text-slate-500 dark:text-slate-400">
             {" | "}
@@ -406,14 +395,11 @@ export function ChatInput({
         {tokenUsage && tokenUsage.totalTokens > 0 && (
           <span className="ml-2 text-slate-500 dark:text-slate-400">
             {" | "}
-            <span className="text-slate-600 dark:text-slate-300">📊</span>
+            <span className="text-slate-600 dark:text-slate-300">💾</span>
             {" "}
             {formatTokenRatio(tokenUsage.totalTokens, contextWindowSize)}
           </span>
         )}
-        <span className="ml-2 text-slate-400 dark:text-slate-500 text-[10px]">
-          - Click to cycle (Ctrl/Cmd+Shift+Y)
-        </span>
       </button>
     </div>
   );

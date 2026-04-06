@@ -6,6 +6,8 @@
 2. 检查状态栏是否显示当前选中的模型名称
 3. 选择模型后验证状态栏更新
 4. 发送消息后检查 token 使用量显示（如果有）
+5. 检查提示信息是否紧跟 mode 后面
+6. 检查国际化支持（中英文切换）
 """
 
 import sys
@@ -26,6 +28,38 @@ HEADLESS = os.environ.get("HEADLESS", "false").lower() == "true"
 # Screenshot directory
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "screenshots", "issues", "54")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+
+# Permission mode texts (English and Chinese)
+PERMISSION_MODE_TEXTS = {
+    "en": {
+        "normal": "normal mode",
+        "plan": "plan mode",
+        "auto-edit": "auto-edit",
+        "yolo": "yolo mode",
+        "click_to_cycle": "Click to cycle"
+    },
+    "zh-CN": {
+        "normal": "普通模式",
+        "plan": "计划模式",
+        "auto-edit": "自动编辑",
+        "yolo": "YOLO 模式",
+        "click_to_cycle": "点击切换"
+    }
+}
+
+
+def detect_language(page):
+    """检测当前语言设置"""
+    # Check localStorage for language setting
+    language = page.evaluate("localStorage.getItem('qwen-code-webui-language')")
+    if language:
+        try:
+            import json
+            lang = json.loads(language)
+            return lang
+        except:
+            pass
+    return "zh-CN"  # Default to Chinese
 
 
 def test_status_bar():
@@ -64,6 +98,10 @@ def test_status_bar():
             page.screenshot(path=os.path.join(SCREENSHOT_DIR, "01_chat_page.png"))
             print("  ✓ 聊天页面加载完成")
 
+            # Detect current language
+            current_lang = detect_language(page)
+            print(f"  当前语言: {current_lang}")
+
             # Step 2: Check status bar (permission mode indicator)
             print("\n步骤 2: 检查状态栏")
             # The status bar is in the ChatInput component, at the bottom
@@ -74,14 +112,19 @@ def test_status_bar():
 
             print(f"  找到 {len(status_bar_buttons)} 个 font-mono 按钮")
 
-            # Look for permission mode text
+            # Look for permission mode text (support both English and Chinese)
             permission_mode_found = False
             status_bar_text = ""
 
             for btn in status_bar_buttons:
                 try:
                     text = btn.inner_text()
-                    if "normal mode" in text.lower() or "plan mode" in text.lower() or "yolo" in text.lower() or "auto-edit" in text.lower():
+                    # Check for any permission mode text in either language
+                    mode_texts = []
+                    for lang_texts in PERMISSION_MODE_TEXTS.values():
+                        mode_texts.extend([lang_texts["normal"], lang_texts["plan"], lang_texts["auto-edit"], lang_texts["yolo"]])
+                    
+                    if any(mode_text in text for mode_text in mode_texts):
                         permission_mode_found = True
                         status_bar_text = text
                         print(f"  ✓ 状态栏内容: '{text}'")
@@ -91,6 +134,32 @@ def test_status_bar():
 
             if permission_mode_found:
                 print("  ✓ 权限模式指示器已显示")
+                
+                # Check if click-to-cycle text is next to mode (not at the end after model/token info)
+                click_texts = []
+                for lang_texts in PERMISSION_MODE_TEXTS.values():
+                    click_texts.append(lang_texts["click_to_cycle"])
+                
+                if any(click_text in status_bar_text for click_text in click_texts):
+                    print("  ✓ 提示信息已显示")
+                    
+                    # Parse to verify order: mode + click hint should come first
+                    # Expected format: "🔧 普通模式 (点击切换) | 📖 model | 📊 tokens"
+                    # or: "🔧 normal mode (Click to cycle) | 📖 model | 📊 tokens"
+                    parts = status_bar_text.split("|")
+                    first_part = parts[0].strip()
+                    print(f"  第一部分内容: '{first_part}'")
+                    
+                    # First part should contain both mode and click hint
+                    has_mode = any(mode_text in first_part for mode_text in mode_texts)
+                    has_click_hint = any(click_text in first_part for click_text in click_texts)
+                    
+                    if has_mode and has_click_hint:
+                        print("  ✓ 提示信息紧跟 mode 后面（布局正确）")
+                    else:
+                        print("  ! 提示信息位置可能有问题")
+                else:
+                    print("  ! 提示信息未找到")
             else:
                 print("  ! 权限模式指示器未找到，检查其他元素...")
                 # Take screenshot for debugging

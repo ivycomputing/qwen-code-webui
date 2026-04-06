@@ -63,7 +63,9 @@
     "loading": "加载中...",
     "selectModel": "选择模型",
     "startConversation": "开始与 Qwen 对话",
-    "typeToBegin": "在下方输入消息开始"
+    "typeToBegin": "在下方输入消息开始",
+    "clickToCycle": "点击切换",
+    "clickToCycleShortcut": "点击切换 (Ctrl/Cmd+Shift+Y)"
   },
   "quota": {
     "exceeded": "配额已超限",
