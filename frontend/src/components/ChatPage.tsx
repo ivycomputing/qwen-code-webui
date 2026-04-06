@@ -36,6 +36,7 @@ import { HistoryView } from "./HistoryView";
 import { getChatUrl, getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
 import { normalizeWindowsPath } from "../utils/pathUtils";
+import { isIntegratedMode } from "../api/openace";
 import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
 
 export function ChatPage() {
@@ -574,6 +575,13 @@ export function ChatPage() {
 
   const handleSettingsClose = useCallback(() => {
     setIsSettingsOpen(false);
+  }, []);
+
+  // Notify Open-ACE parent to enter fullscreen when user enters chat page
+  useEffect(() => {
+    if (isIntegratedMode() && window.parent !== window) {
+      window.parent.postMessage({ type: "openace-enter-chat" }, "*");
+    }
   }, []);
 
   // Load projects to get encodedName mapping
