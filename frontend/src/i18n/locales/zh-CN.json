@@ -74,6 +74,8 @@
     "noProjects": "暂无项目",
     "addFirstProject": "添加您的第一个项目",
     "pressEnter": "按回车键",
+    "navigate": "导航",
+    "select": "选择",
     "removeProject": "移除项目",
     "remove": "移除",
     "removeConfirmMessage": "确定要移除 \"{{name}}\" 吗？这将删除项目的聊天历史，但不会影响磁盘上的实际目录。"

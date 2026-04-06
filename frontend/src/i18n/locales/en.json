@@ -74,6 +74,8 @@
     "noProjects": "No projects yet",
     "addFirstProject": "Add Your First Project",
     "pressEnter": "Press Enter",
+    "navigate": "Navigate",
+    "select": "Select",
     "removeProject": "Remove Project",
     "remove": "Remove",
     "removeConfirmMessage": "Are you sure you want to remove \"{{name}}\"? This will delete the project's chat history but won't affect the actual directory on disk."

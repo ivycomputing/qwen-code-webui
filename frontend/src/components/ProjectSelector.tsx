@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FolderIcon,
@@ -72,6 +72,9 @@ export function ProjectSelector() {
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
+  // Ref for the project list container to enable keyboard focus
+  const projectListRef = useRef<HTMLDivElement>(null);
+
   const integrated = isIntegratedMode();
 
   const loadProjects = useCallback(async () => {
@@ -120,8 +123,34 @@ export function ProjectSelector() {
     loadProjects();
   }, [loadProjects]);
 
+  const handleProjectSelect = useCallback((projectPath: string) => {
+    localStorage.setItem(LAST_PROJECT_KEY, projectPath);
+
+    const normalizedPath = projectPath.startsWith("/")
+      ? projectPath
+      : `/${projectPath}`;
+    navigate(`/projects${normalizedPath}`);
+  }, [navigate]);
+
+  // Auto-focus the project list container when loaded to enable keyboard navigation
+  // This allows users to use arrow keys immediately without clicking
+  useEffect(() => {
+    if (!loading && projects.length > 0 && projectListRef.current) {
+      // Use setTimeout to ensure the DOM is ready
+      const timer = setTimeout(() => {
+        projectListRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, projects.length]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard events if modals are open
+      if (isSettingsOpen || isAddProjectOpen || deleteProject !== null) {
+        return;
+      }
+
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) => (prev + 1) % projects.length);
@@ -138,19 +167,18 @@ export function ProjectSelector() {
     };
 
     if (projects.length > 0) {
+      // Use projectListRef for keyboard events instead of window
+      // This ensures keyboard events are captured when the container is focused
+      const container = projectListRef.current;
+      if (container) {
+        container.addEventListener("keydown", handleKeyDown);
+        return () => container.removeEventListener("keydown", handleKeyDown);
+      }
+      // Fallback to window if container is not available yet
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
     }
-  }, [projects, selectedIndex]);
-
-  const handleProjectSelect = useCallback((projectPath: string) => {
-    localStorage.setItem(LAST_PROJECT_KEY, projectPath);
-
-    const normalizedPath = projectPath.startsWith("/")
-      ? projectPath
-      : `/${projectPath}`;
-    navigate(`/projects${normalizedPath}`);
-  }, [navigate]);
+  }, [projects, selectedIndex, isSettingsOpen, isAddProjectOpen, deleteProject, handleProjectSelect]);
 
   const handleSettingsClick = () => {
     setIsSettingsOpen(true);
@@ -250,12 +278,25 @@ export function ProjectSelector() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        {/* Project list container with tabIndex for keyboard focus */}
+        <div
+          ref={projectListRef}
+          tabIndex={0}
+          className="space-y-3 outline-none"
+        >
           {projects.length > 0 ? (
             <>
               <h2 className="text-slate-700 dark:text-slate-300 text-lg font-medium mb-4">
                 {integrated ? t("projectSelector.yourProjects") : t("projectSelector.recentProjects")}
               </h2>
+              {/* Keyboard navigation hint */}
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 rounded">↑</kbd>
+                <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 rounded">↓</kbd>
+                <span>{t("projectSelector.navigate") || "Navigate"}</span>
+                <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 rounded ml-2">Enter</kbd>
+                <span>{t("projectSelector.select") || "Select"}</span>
+              </div>
               {projects.map((project, index) => {
                 const aceProject = openAceProjects.find((p) => p.path === project.path);
                 const displayName = getProjectDisplayName(project);
