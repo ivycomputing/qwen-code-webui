@@ -7,28 +7,28 @@ format: format-frontend format-backend
 format-frontend:
 	cd frontend && npm run format
 format-backend:
-	cd backend && deno task format && npm run format
+	cd backend && npm run format
 
-# Format checking  
+# Format checking
 format-check: format-check-frontend format-check-backend
 format-check-frontend:
 	cd frontend && npm run format:check
 format-check-backend:
-	cd backend && deno task format:check && npm run format:check
+	cd backend && npm run format:check
 
 # Linting
 lint: lint-frontend lint-backend
 lint-frontend:
 	cd frontend && npm run lint
 lint-backend:
-	cd backend && deno task lint && npm run lint
+	cd backend && npm run lint
 
 # Type checking
 typecheck: typecheck-frontend typecheck-backend
 typecheck-frontend:
 	cd frontend && npm run typecheck
 typecheck-backend:
-	cd backend && deno task check && npm run typecheck
+	cd backend && npm run typecheck
 
 # Testing
 test: test-frontend test-backend
@@ -38,20 +38,17 @@ test-backend:
 	cd backend && npm run test
 
 # Building
-build: build-frontend copy-dist build-backend
+build: build-frontend build-backend
 build-frontend:
 	cd frontend && npm run build
-copy-dist:
-	rm -rf backend/dist
-	cp -r frontend/dist backend/dist
 build-backend:
-	cd backend && deno task build
+	cd backend && npm run build
 
 # Development
 dev-frontend:
 	cd frontend && npm run dev
 dev-backend:
-	cd backend && deno task dev
+	cd backend && npm run dev
 
 # Quality checks (run before commit)
 check: format-check lint typecheck test build-frontend
