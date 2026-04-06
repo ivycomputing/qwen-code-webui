@@ -59,7 +59,11 @@
     "normalMode": "normal mode",
     "planMode": "plan mode",
     "autoEdit": "auto-edit",
-    "yoloMode": "yolo mode"
+    "yoloMode": "yolo mode",
+    "loading": "Loading...",
+    "selectModel": "Select model",
+    "startConversation": "Start a conversation with Qwen",
+    "typeToBegin": "Type your message below to begin"
   },
   "quota": {
     "exceeded": "Quota Exceeded",

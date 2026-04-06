@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { StopIcon } from "@heroicons/react/24/solid";
+import { useTranslation } from "react-i18next";
 import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
 import { useInputHistory } from "../../hooks/useInputHistory";
@@ -83,6 +84,7 @@ export function ChatInput({
   contextWindowSize,
   tokenUsage,
 }: ChatInputProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const { enterBehavior } = useEnterBehavior();
@@ -340,7 +342,7 @@ export function ChatInput({
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           placeholder={
-            isLoading && currentRequestId ? "Processing..." : "Type message..."
+            isLoading && currentRequestId ? t("chat.processing") : t("chat.typeMessage")
           }
           rows={1}
           style={{ marginBottom: isSlashActive ? `${expandedHeight}px` : '0' }}
@@ -378,7 +380,7 @@ export function ChatInput({
             disabled={!input.trim() || isLoading || disabled}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
           >
-            {isLoading ? "..." : permissionMode === "plan" ? "Plan" : "Send"}
+            {isLoading ? "..." : permissionMode === "plan" ? t("chat.plan") : t("chat.send")}
           </button>
         </div>
       </form>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import type { ModelConfig } from "../../../../shared/types";
 
 interface ModelSelectorProps {
@@ -15,6 +16,7 @@ export function ModelSelector({
   onSelectModel,
   loading,
 }: ModelSelectorProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -26,7 +28,7 @@ export function ModelSelector({
   // Find selected model name (without prefix)
   const selectedModelName = models.find((m) => m.id === selectedModel)
     ? cleanModelName(models.find((m) => m.id === selectedModel)!.name)
-    : (loading ? "Loading..." : "Select model");
+    : (loading ? t("chat.loading") : t("chat.selectModel"));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -61,7 +63,7 @@ export function ModelSelector({
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md cursor-pointer max-w-[200px]"
-        aria-label="Select model"
+        aria-label={t("chat.selectModel")}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         disabled={loading}

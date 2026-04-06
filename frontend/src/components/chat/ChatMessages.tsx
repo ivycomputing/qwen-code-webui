@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { AllMessage } from "../../types";
 import {
   isChatMessage,
@@ -102,6 +103,7 @@ export function ChatMessages({ messages, isLoading, expandThinking }: ChatMessag
 }
 
 function EmptyState() {
+  const { t } = useTranslation();
   return (
     <div className="flex-1 flex items-center justify-center text-center text-slate-500 dark:text-slate-400">
       <div>
@@ -110,9 +112,9 @@ function EmptyState() {
             💬
           </span>
         </div>
-        <p className="text-lg font-medium">Start a conversation with Qwen</p>
+        <p className="text-lg font-medium">{t("chat.startConversation")}</p>
         <p className="text-sm mt-2 opacity-80">
-          Type your message below to begin
+          {t("chat.typeToBegin")}
         </p>
       </div>
     </div>

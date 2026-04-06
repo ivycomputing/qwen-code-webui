@@ -59,7 +59,11 @@
     "normalMode": "普通模式",
     "planMode": "计划模式",
     "autoEdit": "自动编辑",
-    "yoloMode": "YOLO 模式"
+    "yoloMode": "YOLO 模式",
+    "loading": "加载中...",
+    "selectModel": "选择模型",
+    "startConversation": "开始与 Qwen 对话",
+    "typeToBegin": "在下方输入消息开始"
   },
   "quota": {
     "exceeded": "配额已超限",
