@@ -53,6 +53,26 @@ export function useModel(): UseModelReturn {
     fetchModels();
   }, []);
 
+  // Set default model when models are loaded
+  useEffect(() => {
+    if (models.length === 0) return;
+
+    // Check if current selectedModel is valid
+    const isValidModel = selectedModel && models.some((m) => m.id === selectedModel);
+
+    if (!isValidModel) {
+      // Either no selection or saved model is no longer available
+      // Auto-select the first available model
+      const defaultModel = models[0].id;
+      setSelectedModelState(defaultModel);
+      try {
+        localStorage.setItem(STORAGE_KEY, defaultModel);
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+  }, [models, selectedModel]);
+
   // Set selected model and persist to localStorage
   const setSelectedModel = useCallback((modelId: string | null) => {
     setSelectedModelState(modelId);
