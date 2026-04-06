@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useRef } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
@@ -25,6 +25,8 @@ export function ConfirmModal({
   variant = "warning",
   isLoading = false,
 }: ConfirmModalProps) {
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
   const variantStyles = {
     danger: {
       icon: "text-red-600 dark:text-red-400",
@@ -44,7 +46,7 @@ export function ConfirmModal({
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-50" onClose={onClose} initialFocus={confirmButtonRef}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -97,14 +99,7 @@ export function ConfirmModal({
                 <div className="mt-6 flex justify-end gap-3">
                   <button
                     type="button"
-                    className="inline-flex justify-center rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    onClick={onClose}
-                    disabled={isLoading}
-                  >
-                    {cancelText}
-                  </button>
-                  <button
-                    type="button"
+                    ref={confirmButtonRef}
                     className={`inline-flex justify-center rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${styles.button}`}
                     onClick={onConfirm}
                     disabled={isLoading}
@@ -136,6 +131,14 @@ export function ConfirmModal({
                     ) : (
                       confirmText
                     )}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex justify-center rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    onClick={onClose}
+                    disabled={isLoading}
+                  >
+                    {cancelText}
                   </button>
                 </div>
               </Dialog.Panel>

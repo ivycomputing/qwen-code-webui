@@ -176,12 +176,18 @@ export function useSlashCommand(
             textarea.focus();
             textarea.setSelectionRange(newText.length, newText.length);
           }, 0);
+          
+          // For commands that require confirmation (like /clear), execute immediately
+          // This ensures the confirmation dialog shows when user presses Enter
+          if ((selected as SlashCommand).requiresConfirmation) {
+            onExecuteCommand?.(selected, false);
+          }
         }
       }
     }
     
     return true;
-  }, [state, input, inputRef, onInputChange]);
+  }, [state, input, inputRef, onInputChange, onExecuteCommand]);
 
   // Select a command
   const selectCommand = useCallback(
