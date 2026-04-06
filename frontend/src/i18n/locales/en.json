@@ -73,9 +73,8 @@
     "exceededLimits": "Exceeded Limits:"
   },
   "projectSelector": {
-    "title": "Select a Project",
+    "title": "Your Projects",
     "loadingProjects": "Loading projects...",
-    "yourProjects": "Your Projects",
     "recentProjects": "Recent Projects",
     "noProjects": "No projects yet",
     "addFirstProject": "Add Your First Project",

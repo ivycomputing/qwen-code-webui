@@ -286,11 +286,8 @@ export function ProjectSelector() {
         >
           {projects.length > 0 ? (
             <>
-              <h2 className="text-slate-700 dark:text-slate-300 text-lg font-medium mb-4">
-                {integrated ? t("projectSelector.yourProjects") : t("projectSelector.recentProjects")}
-              </h2>
               {/* Keyboard navigation hint */}
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mb-3">
                 <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 rounded">↑</kbd>
                 <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 rounded">↓</kbd>
                 <span>{t("projectSelector.navigate") || "Navigate"}</span>
