@@ -1,0 +1,25 @@
+# CodeQL Configuration for qwen-code-webui
+# Excludes false positives in demo/test files
+
+name: "CodeQL Config"
+
+paths-ignore:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+
+# Disable specific rules for demo/test files
+query-filters:
+  # Exclude insecure randomness warnings in mock/demo files
+  - exclude:
+      id: js/insecure-randomness
+    from:
+      - "**/mockResponseGenerator.ts"
+      - "**/DemoPage.tsx"
+  
+  # Exclude tainted format string warnings in demo files
+  - exclude:
+      id: js/tainted-format-string
+    from:
+      - "**/DemoPage.tsx"
