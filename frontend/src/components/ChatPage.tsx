@@ -18,6 +18,7 @@ import { useSettings } from "../hooks/useSettings";
 import { useExpandThinking } from "../hooks/useSettings";
 import { useModel } from "../hooks/useModel";
 import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
+import { useTabNotification } from "../hooks/useTabNotification";
 import { getSlashCommand } from "../utils/slashCommands";
 import { generateId } from "../utils/id";
 import { calculateTokenUsage } from "../utils/tokenUsage";
@@ -242,17 +243,28 @@ export function ChatPage() {
     !isHistoryView
   );
 
+  // Tab notification for multi-session awareness
+  const {
+    showPermissionNotification,
+    showPlanNotification,
+    clearNotification,
+  } = useTabNotification();
+
   const handlePermissionError = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
       // Check if this is an ExitPlanMode permission error
       if (patterns.includes("ExitPlanMode")) {
         // For ExitPlanMode, show plan permission interface instead of regular permission
         showPlanModeRequest(""); // Empty plan content since it was already displayed
+        // Show tab notification for plan approval
+        showPlanNotification();
       } else {
         showPermissionRequest(toolName, patterns, toolUseId);
+        // Show tab notification for permission request
+        showPermissionNotification();
       }
     },
-    [showPermissionRequest, showPlanModeRequest],
+    [showPermissionRequest, showPlanModeRequest, showPermissionNotification, showPlanNotification],
   );
 
   const sendMessage = useCallback(
@@ -446,6 +458,9 @@ export function ChatPage() {
     // Reset denial counter when user allows
     resetDenialCounter();
 
+    // Clear tab notification
+    clearNotification();
+
     // Add all patterns temporarily
     let updatedAllowedTools = allowedTools;
     permissionRequest.patterns.forEach((pattern) => {
@@ -465,6 +480,7 @@ export function ChatPage() {
     allowToolTemporary,
     closePermissionRequest,
     resetDenialCounter,
+    clearNotification,
   ]);
 
   const handlePermissionAllowPermanent = useCallback(() => {
@@ -472,6 +488,9 @@ export function ChatPage() {
 
     // Reset denial counter when user allows
     resetDenialCounter();
+
+    // Clear tab notification
+    clearNotification();
 
     // Add all patterns permanently
     let updatedAllowedTools = allowedTools;
@@ -492,6 +511,7 @@ export function ChatPage() {
     allowToolPermanent,
     closePermissionRequest,
     resetDenialCounter,
+    clearNotification,
   ]);
 
   const handlePermissionDeny = useCallback(() => {
@@ -501,6 +521,9 @@ export function ChatPage() {
 
     // Record denial and check for loop
     const loopMessage = recordDenial(toolName);
+
+    // Clear tab notification
+    clearNotification();
 
     closePermissionRequest();
 
@@ -524,11 +547,13 @@ export function ChatPage() {
     allowedTools,
     closePermissionRequest,
     recordDenial,
+    clearNotification,
   ]);
 
   // Plan mode request handlers
   const handlePlanAcceptWithEdits = useCallback(() => {
     updatePermissionMode("auto-edit");
+    clearNotification();
     closePlanModeRequest();
     if (currentSessionId) {
       sendMessage("accept", allowedTools, true, "auto-edit");
@@ -539,10 +564,12 @@ export function ChatPage() {
     currentSessionId,
     sendMessage,
     allowedTools,
+    clearNotification,
   ]);
 
   const handlePlanAcceptDefault = useCallback(() => {
     updatePermissionMode("default");
+    clearNotification();
     closePlanModeRequest();
     if (currentSessionId) {
       sendMessage("accept", allowedTools, true, "default");
@@ -553,12 +580,14 @@ export function ChatPage() {
     currentSessionId,
     sendMessage,
     allowedTools,
+    clearNotification,
   ]);
 
   const handlePlanKeepPlanning = useCallback(() => {
     updatePermissionMode("plan");
+    clearNotification();
     closePlanModeRequest();
-  }, [updatePermissionMode, closePlanModeRequest]);
+  }, [updatePermissionMode, closePlanModeRequest, clearNotification]);
 
   // Command loop detection handlers
   const handleCommandLoopAbort = useCallback(() => {
