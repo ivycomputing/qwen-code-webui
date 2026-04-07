@@ -17,6 +17,7 @@ import {
   isIntegratedMode,
   fetchOpenAceProjects,
   deleteOpenAceProject,
+  deleteLocalProject,
   type OpenAceProject,
 } from "../api/openace";
 
@@ -68,7 +69,7 @@ export function ProjectSelector() {
   const [error, setError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
-  const [deleteProject, setDeleteProject] = useState<OpenAceProject | null>(null);
+  const [deleteProject, setDeleteProject] = useState<OpenAceProject | ProjectInfo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
@@ -198,7 +199,7 @@ export function ProjectSelector() {
     setIsAddProjectOpen(false);
   };
 
-  const handleDeleteClick = (project: OpenAceProject, e: React.MouseEvent) => {
+  const handleDeleteClick = (project: ProjectInfo, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeleteProject(project);
   };
@@ -208,7 +209,15 @@ export function ProjectSelector() {
 
     setIsDeleting(true);
     try {
-      await deleteOpenAceProject(deleteProject.id);
+      if (integrated) {
+        // Open-ACE mode - use project id
+        const aceProject = deleteProject as OpenAceProject;
+        await deleteOpenAceProject(aceProject.id);
+      } else {
+        // Local mode - use encoded name
+        const localProject = deleteProject as ProjectInfo;
+        await deleteLocalProject(localProject.encodedName);
+      }
       // Reload projects
       await loadProjects();
       setDeleteProject(null);
@@ -223,12 +232,20 @@ export function ProjectSelector() {
   // Get display name for Open-ACE project
   const getProjectDisplayName = (project: ProjectInfo): string => {
     if (!integrated) return project.path;
-    
+
     const aceProject = openAceProjects.find((p) => p.path === project.path);
     if (aceProject?.name) return aceProject.name;
-    
+
     // Extract last segment of path
     return project.path.split(/[/\\]/).filter(Boolean).pop() || project.path;
+  };
+
+  // Get display name for delete confirmation
+  const getDeleteConfirmName = (project: OpenAceProject | ProjectInfo): string => {
+    if (integrated && 'name' in project && project.name) {
+      return project.name;
+    }
+    return project.path;
   };
 
   if (loading) {
@@ -334,18 +351,16 @@ export function ProjectSelector() {
                         </div>
                       )}
                     </div>
-                    
-                    {/* Delete button for integrated mode */}
-                    {integrated && aceProject && (
-                      <button
-                        onClick={(e) => handleDeleteClick(aceProject, e)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remove project"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                    
+
+                    {/* Delete button - shows for both integrated and local modes */}
+                    <button
+                      onClick={(e) => handleDeleteClick(project, e)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      title={integrated ? "Remove project" : t("projectSelector.removeProject") || "Remove project"}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+
                     {index === selectedIndex && (
                       <span className="text-xs text-slate-500 dark:text-slate-400">
                         {t("projectSelector.pressEnter")}
@@ -390,7 +405,9 @@ export function ProjectSelector() {
           onClose={() => setDeleteProject(null)}
           onConfirm={handleConfirmDelete}
           title={t("projectSelector.removeProject")}
-          message={t("projectSelector.removeConfirmMessage", { name: deleteProject?.name || deleteProject?.path })}
+          message={t("projectSelector.removeConfirmMessage", { 
+            name: deleteProject ? getDeleteConfirmName(deleteProject) : ''
+          })}
           confirmText={t("projectSelector.remove")}
           variant="danger"
           isLoading={isDeleting}

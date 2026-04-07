@@ -1,9 +1,9 @@
 import { Context } from "hono";
 import type { ProjectInfo, ProjectsResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
-import { readDir, stat } from "../utils/fs.ts";
+import { readDir, stat, remove } from "../utils/fs.ts";
 import { getHomeDir } from "../utils/os.ts";
-import { decodeProjectPath } from "../utils/projectMapping.ts";
+import { decodeProjectPath, encodeProjectPath } from "../utils/projectMapping.ts";
 
 /**
  * Handles GET /api/projects requests
@@ -136,4 +136,50 @@ function simpleDecodeProjectPath(encodedName: string): string {
   decoded = "/" + decoded;
 
   return decoded;
+}
+
+/**
+ * Handles DELETE /api/projects/:encodedProjectName requests
+ * Deletes a project directory from ~/.qwen/projects
+ * Note: This only removes Qwen Code's project configuration and history,
+ * not the actual project source code.
+ * @param c - Hono context object
+ * @returns JSON response with success status
+ */
+export async function handleDeleteProjectRequest(c: Context) {
+  try {
+    const encodedProjectName = c.req.param("encodedProjectName");
+
+    if (!encodedProjectName) {
+      return c.json({ error: "Project name is required" }, 400);
+    }
+
+    const homeDir = getHomeDir();
+    if (!homeDir) {
+      return c.json({ error: "Home directory not found" }, 500);
+    }
+
+    const projectsDir = `${homeDir}/.qwen/projects`;
+    const projectPath = `${projectsDir}/${encodedProjectName}`;
+
+    // Check if project directory exists
+    try {
+      const dirInfo = await stat(projectPath);
+      if (!dirInfo.isDirectory) {
+        return c.json({ error: "Project not found" }, 404);
+      }
+    } catch (error) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+
+    // Delete the project directory
+    await remove(projectPath);
+
+    logger.api.info("Deleted project: {encodedProjectName}", { encodedProjectName });
+
+    return c.json({ success: true, message: "Project deleted successfully" });
+  } catch (error) {
+    logger.api.error("Error deleting project: {error}", { error });
+    return c.json({ error: "Failed to delete project" }, 500);
+  }
 }

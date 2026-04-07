@@ -267,6 +267,28 @@ export function isIntegratedMode(): boolean {
 }
 
 /**
+ * Delete a local project (non-Open-ACE mode)
+ * Calls DELETE /api/projects/:encodedProjectName
+ */
+export async function deleteLocalProject(encodedProjectName: string): Promise<{ success: boolean; message: string }> {
+  const url = `/api/projects/${encodeURIComponent(encodedProjectName)}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete project: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Get Open-ACE session API URL for tracking work duration
  */
 export function getOpenAceSessionApi(): string {

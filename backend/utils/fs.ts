@@ -102,6 +102,13 @@ export async function* readDir(path: string): AsyncIterable<DirectoryEntry> {
 }
 
 /**
+ * Remove a file or directory recursively
+ */
+export async function remove(path: string): Promise<void> {
+  await fs.rm(path, { recursive: true, force: true });
+}
+
+/**
  * Execute callback with a temporary directory that gets cleaned up
  */
 export async function withTempDir<T>(
