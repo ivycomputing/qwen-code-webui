@@ -13,6 +13,7 @@ export async function handleConversationRequest(c: Context) {
   try {
     const encodedProjectName = c.req.param("encodedProjectName");
     const sessionId = c.req.param("sessionId");
+    const toolName = c.req.query("toolName");
 
     if (!encodedProjectName) {
       return c.json({ error: "Encoded project name is required" }, 400);
@@ -27,13 +28,14 @@ export async function handleConversationRequest(c: Context) {
     }
 
     logger.history.debug(
-      `Fetching conversation details for project: ${encodedProjectName}, session: ${sessionId}`,
+      `Fetching conversation details for project: ${encodedProjectName}, session: ${sessionId}, tool: ${toolName || "auto"}`,
     );
 
     // Load the specific conversation (already returns processed ConversationHistory)
     const conversationHistory = await loadConversation(
       encodedProjectName,
       sessionId,
+      toolName,
     );
 
     if (!conversationHistory) {

@@ -44,11 +44,15 @@ export const getHistoriesUrl = (projectPath: string) => {
 // Helper function to get conversation URL
 export const getConversationUrl = (
   encodedProjectName: string,
-  sessionId: string
+  sessionId: string,
+  toolName?: string
 ) => {
-  return addTokenToUrl(
-    `${API_CONFIG.ENDPOINTS.CONVERSATIONS}/${encodedProjectName}/histories/${sessionId}`
-  );
+  let url = `${API_CONFIG.ENDPOINTS.CONVERSATIONS}/${encodedProjectName}/histories/${sessionId}`;
+  if (toolName) {
+    url = `${url}?toolName=${encodeURIComponent(toolName)}`;
+    return addTokenToUrl(url);
+  }
+  return addTokenToUrl(url);
 };
 
 // Helper function to get models URL

@@ -12,7 +12,7 @@ interface HistoryLoaderState {
 }
 
 interface HistoryLoaderResult extends HistoryLoaderState {
-  loadHistory: (projectPath: string, sessionId: string) => Promise<void>;
+  loadHistory: (projectPath: string, sessionId: string, toolName?: string) => Promise<void>;
   clearHistory: () => void;
 }
 
@@ -43,7 +43,7 @@ export function useHistoryLoader(): HistoryLoaderResult {
   const { convertConversationHistory } = useMessageConverter();
 
   const loadHistory = useCallback(
-    async (encodedProjectName: string, sessionId: string) => {
+    async (encodedProjectName: string, sessionId: string, toolName?: string) => {
       if (!encodedProjectName || !sessionId) {
         setState((prev) => ({
           ...prev,
@@ -59,17 +59,22 @@ export function useHistoryLoader(): HistoryLoaderResult {
           error: null,
         }));
 
-        const response = await fetch(
-          getConversationUrl(encodedProjectName, sessionId),
-        );
+        const url = getConversationUrl(encodedProjectName, sessionId, toolName);
+        console.log("[HistoryLoader] Loading history:", { encodedProjectName, sessionId, toolName, url });
+
+        const response = await fetch(url);
+        console.log("[HistoryLoader] Response:", response.status, response.statusText);
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("[HistoryLoader] Error response:", errorText);
           throw new Error(
             `Failed to load conversation: ${response.status} ${response.statusText}`,
           );
         }
 
         const conversationHistory: ConversationHistory = await response.json();
+        console.log("[HistoryLoader] Loaded messages count:", conversationHistory.messages?.length);
 
         // Validate the response structure
         if (
@@ -137,18 +142,19 @@ export function useHistoryLoader(): HistoryLoaderResult {
 export function useAutoHistoryLoader(
   encodedProjectName?: string,
   sessionId?: string,
+  toolName?: string,
 ): HistoryLoaderResult {
   const historyLoader = useHistoryLoader();
 
   useEffect(() => {
     if (encodedProjectName && sessionId) {
-      historyLoader.loadHistory(encodedProjectName, sessionId);
+      historyLoader.loadHistory(encodedProjectName, sessionId, toolName);
     } else if (!sessionId) {
       // Only clear if there's no sessionId - don't clear while waiting for encodedProjectName
       historyLoader.clearHistory();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encodedProjectName, sessionId]);
+  }, [encodedProjectName, sessionId, toolName]);
 
   return historyLoader;
 }

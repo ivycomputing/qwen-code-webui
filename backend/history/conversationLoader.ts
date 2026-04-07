@@ -17,6 +17,7 @@ import { getHomeDir } from "../utils/os.ts";
 export async function loadConversation(
   encodedProjectName: string,
   sessionId: string,
+  toolName?: string,
 ): Promise<ConversationHistory | null> {
   // Validate inputs
   if (!validateEncodedProjectName(encodedProjectName)) {
@@ -33,9 +34,22 @@ export async function loadConversation(
     throw new Error("Home directory not found");
   }
 
-  // Build file path
-  const historyDir = `${homeDir}/.qwen/projects/${encodedProjectName}`;
-  const filePath = `${historyDir}/${sessionId}.jsonl`;
+  // Build file path based on tool name
+  let filePath: string;
+  if (toolName === "claude" || toolName === "claude-code") {
+    // Claude stores conversations directly in project directory
+    const historyDir = `${homeDir}/.claude/projects/${encodedProjectName}`;
+    filePath = `${historyDir}/${sessionId}.jsonl`;
+  } else if (toolName === "openclaw") {
+    // OpenClaw stores conversations in agents/{agentName}/sessions/
+    // encodedProjectName is actually the agent name for openclaw
+    const historyDir = `${homeDir}/.openclaw/agents/${encodedProjectName}/sessions`;
+    filePath = `${historyDir}/${sessionId}.jsonl`;
+  } else {
+    // qwen-code-webui stores conversations in chats/ subdirectory
+    const historyDir = `${homeDir}/.qwen/projects/${encodedProjectName}`;
+    filePath = `${historyDir}/chats/${sessionId}.jsonl`;
+  }
 
   // Check if file exists before trying to read it
   if (!(await exists(filePath))) {

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useSearchParams } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { ProjectSelector } from "./components/ProjectSelector";
 import { ChatPage } from "./components/ChatPage";
@@ -14,12 +14,26 @@ const DemoPage = isDevelopment()
     )
   : null;
 
+// Wrapper component to redirect to ChatPage if sessionId is in URL params
+function RootRedirect() {
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("sessionId");
+  
+  // If sessionId is present, render ChatPage directly
+  if (sessionId) {
+    return <ChatPage />;
+  }
+  
+  // Otherwise show project selector
+  return <ProjectSelector />;
+}
+
 function App() {
   return (
     <SettingsProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<ProjectSelector />} />
+          <Route path="/" element={<RootRedirect />} />
           <Route path="/projects/*" element={<ChatPage />} />
           {DemoPage && (
             <Route
