@@ -118,7 +118,5 @@ export function useTabNotification() {
     showPlanNotification,
     showInputNotification,
     clearNotification,
-    isWaiting: stateRef.current.isWaiting,
-    waitingType: stateRef.current.waitingType,
   };
 }

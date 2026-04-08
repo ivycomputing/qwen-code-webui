@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useMemo } from "react";
+import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
@@ -247,11 +247,17 @@ export function ChatPage() {
   const {
     showPermissionNotification,
     showPlanNotification,
+    showInputNotification,
     clearNotification,
   } = useTabNotification();
 
+  // Ref to track whether a permission/plan/command-loop notification was triggered
+  // during the current streaming session (used to decide if input notification should fire)
+  const notificationTriggeredRef = useRef(false);
+
   const handlePermissionError = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
+      notificationTriggeredRef.current = true;
       // Check if this is an ExitPlanMode permission error
       if (patterns.includes("ExitPlanMode")) {
         // For ExitPlanMode, show plan permission interface instead of regular permission
@@ -300,6 +306,10 @@ export function ChatPage() {
       if (!messageContent) clearInput();
       startRequest();
 
+      // Local state for this streaming session
+      let localHasReceivedInit = false;
+      let shouldAbort = false;
+
       try {
         const response = await fetch(getChatUrl(), {
           method: "POST",
@@ -333,10 +343,6 @@ export function ChatPage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
-        // Local state for this streaming session
-        let localHasReceivedInit = false;
-        let shouldAbort = false;
-
         const streamingContext: StreamingContext = {
           currentAssistantMessage,
           setCurrentAssistantMessage,
@@ -360,6 +366,7 @@ export function ChatPage() {
           // Command result loop detection
           onCommandResultLoop: checkCommandResultLoop,
           onShowCommandLoopRequest: (request) => {
+            notificationTriggeredRef.current = true;
             shouldAbort = true;
             showCommandLoopRequest(request);
           },
@@ -388,6 +395,12 @@ export function ChatPage() {
           timestamp: Date.now(),
         });
       } finally {
+        // Show input notification if no permission/plan/command-loop notification was triggered
+        // and the request wasn't aborted (e.g. user switched away mid-stream)
+        if (!notificationTriggeredRef.current && !shouldAbort) {
+          showInputNotification();
+        }
+        notificationTriggeredRef.current = false;
         resetRequestState();
       }
     },
@@ -414,6 +427,7 @@ export function ChatPage() {
       processStreamLine,
       handlePermissionError,
       createAbortHandler,
+      showInputNotification,
     ],
   );
 
