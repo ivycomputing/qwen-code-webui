@@ -725,6 +725,28 @@ export function ChatPage() {
         const currentIndex = modes.indexOf(permissionMode);
         setPermissionMode(modes[(currentIndex + 1) % modes.length]);
       }
+
+      // Tab switching shortcut: Cmd/Ctrl+Shift+,/. (Issue #68)
+      // Send message to parent window (Open ACE) to switch workspace tabs
+      // Shift+, (<) = previous tab, Shift+. (>) = next tab
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierPressed = isMac ? (e.metaKey && e.shiftKey) : (e.ctrlKey && e.shiftKey);
+
+      if (modifierPressed && (e.key === "," || e.key === ".")) {
+        // Check if we're in integrated mode (embedded in iframe)
+        if (isIntegratedMode() && window.parent !== window) {
+          e.preventDefault();
+          const direction = e.key === "," ? "prev" : "next";
+          window.parent.postMessage(
+            {
+              type: "qwen-code-tab-switch-request",
+              direction,
+              shortcut: `${e.ctrlKey ? "Ctrl" : "Cmd"}+Shift+${e.key}`,
+            },
+            "*"
+          );
+        }
+      }
     };
 
     document.addEventListener("keydown", handleGlobalKeyDown);
