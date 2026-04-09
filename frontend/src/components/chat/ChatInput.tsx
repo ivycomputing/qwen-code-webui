@@ -139,23 +139,9 @@ export function ChatInput({
 
     const handleFocusMessage = (event: MessageEvent) => {
       if (event.data?.type === 'openace-focus-input') {
-        if (!isLoading) {
-          if (showPermissions) {
-            // When permission panel is shown, focus the confirm button so Enter works
-            // Use setTimeout to ensure the panel is rendered
-            setTimeout(() => {
-              // Try to find either permission button type
-              const allowBtn = document.querySelector('[data-permission-action="allow"]') as HTMLButtonElement;
-              const acceptBtn = document.querySelector('[data-permission-action="acceptWithEdits"]') as HTMLButtonElement;
-              if (allowBtn) {
-                allowBtn.focus();
-              } else if (acceptBtn) {
-                acceptBtn.focus();
-              }
-            }, 100);
-          } else if (inputRef.current) {
-            inputRef.current.focus();
-          }
+        // Focus input when not loading and not in permission mode
+        if (!isLoading && !showPermissions && inputRef.current) {
+          inputRef.current.focus();
         }
       }
     };

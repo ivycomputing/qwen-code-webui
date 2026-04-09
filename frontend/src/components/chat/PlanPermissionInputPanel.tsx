@@ -113,7 +113,6 @@ export function PlanPermissionInputPanel({
       {/* Permission options with selection state */}
       <div className="space-y-2">
         <button
-          data-permission-action="acceptWithEdits"
           onClick={() => {
             updateSelectedOption("acceptWithEdits");
             onAcceptWithEdits();

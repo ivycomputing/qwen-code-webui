@@ -191,7 +191,6 @@ export function PermissionInputPanel({
       {/* Direct-click permission options with selection state */}
       <div className="space-y-2">
         <button
-          data-permission-action="allow"
           onClick={() => {
             updateSelectedOption("allow");
             onAllow();
