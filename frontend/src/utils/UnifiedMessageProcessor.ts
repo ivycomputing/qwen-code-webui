@@ -423,8 +423,33 @@ export class UnifiedMessageProcessor {
     let assistantContent = "";
     const thinkingMessages: ThinkingMessage[] = [];
 
-    // Check if message.content exists and is an array
-    if (message.message?.content && Array.isArray(message.message.content)) {
+    // Qwen SDK uses 'parts' instead of 'content'
+    const messageParts = (message.message as { parts?: unknown }).parts;
+    
+    // Check if message.parts exists (Qwen SDK format)
+    if (Array.isArray(messageParts)) {
+      for (const partItem of messageParts) {
+        const part = partItem as { text?: string; thought?: boolean; type?: string };
+        if (part.thought && part.text) {
+          // Thinking/reasoning content
+          const thinkingMessage = createThinkingMessage(part.text, timestamp);
+          if (options.isStreaming) {
+            context.addMessage(thinkingMessage);
+          } else {
+            thinkingMessages.push(thinkingMessage);
+          }
+        } else if (part.text) {
+          // Regular text content
+          if (options.isStreaming) {
+            this.handleAssistantText({ text: part.text } as { type: "text"; text: string }, context, options);
+          } else {
+            assistantContent += part.text;
+          }
+        }
+      }
+    }
+    // Check if message.content exists and is an array (Claude/other format)
+    else if (message.message?.content && Array.isArray(message.message.content)) {
       for (const item of message.message.content) {
         if (item.type === "text") {
           if (options.isStreaming) {
@@ -514,8 +539,25 @@ export class UnifiedMessageProcessor {
         };
 
     const messageContent = message.message.content;
+    // Qwen SDK uses 'parts' instead of 'content'
+    const messageParts = (message.message as { parts?: unknown }).parts;
 
-    if (Array.isArray(messageContent)) {
+    if (Array.isArray(messageParts)) {
+      // Qwen SDK format: message.parts array
+      for (const partItem of messageParts) {
+        const part = partItem as { type?: string; text?: string };
+        if (part.text) {
+          // Text content in parts
+          const userMessage: ChatMessage = {
+            type: "chat",
+            role: "user",
+            content: part.text,
+            timestamp,
+          };
+          localContext.addMessage(userMessage);
+        }
+      }
+    } else if (Array.isArray(messageContent)) {
       for (const contentItem of messageContent) {
         if (contentItem.type === "tool_result") {
           // Extract toolUseResult from message if it exists
