@@ -678,18 +678,25 @@ export function ChatPage() {
   }, []);
 
   // Notify Open-ACE parent about session ID for workspace state persistence (Issue #65)
+  // Use getEncodedName() to get the correct encodedProjectName, which may come from
+  // URL parameter or be derived from workingDirectory after projects are loaded
   useEffect(() => {
     if (isIntegratedMode() && window.parent !== window && currentSessionId) {
-      window.parent.postMessage({
-        type: "qwen-code-session-update",
-        sessionId: currentSessionId,
-        encodedProjectName: urlEncodedProjectName || undefined,
-        toolName: toolName || undefined,
-        title: undefined, // Title can be set later if needed
-        timestamp: Date.now(),
-      }, "*");
+      const encodedName = getEncodedName();
+      // Only send update if we have the encodedProjectName
+      // This ensures tab state is properly saved for workspace restoration
+      if (encodedName) {
+        window.parent.postMessage({
+          type: "qwen-code-session-update",
+          sessionId: currentSessionId,
+          encodedProjectName: encodedName,
+          toolName: toolName || undefined,
+          title: undefined, // Title can be set later if needed
+          timestamp: Date.now(),
+        }, "*");
+      }
     }
-  }, [currentSessionId, urlEncodedProjectName, toolName]);
+  }, [currentSessionId, getEncodedName, toolName]);
 
   // Load projects to get encodedName mapping
   useEffect(() => {
