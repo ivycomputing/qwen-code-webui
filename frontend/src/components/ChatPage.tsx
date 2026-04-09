@@ -61,12 +61,17 @@ export function ChatPage() {
   const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
-  const { experimental } = useSettings();
+  const { experimental, updateSettings } = useSettings();
   const { expandThinking, toggleExpandThinking } = useExpandThinking();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [quotaErrorStatus, setQuotaErrorStatus] = useState<QuotaStatus | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Get settings from URL parameters (for workspace restoration)
+  const urlModel = searchParams.get("model");
+  const urlUseWebUI = searchParams.get("useWebUI");
+  const urlPermissionMode = searchParams.get("permissionMode");
 
   // Model selection
   const {
@@ -75,6 +80,29 @@ export function ChatPage() {
     setSelectedModel,
     loading: modelsLoading,
   } = useModel();
+
+  // Apply URL settings on mount (Issue #70: Workspace restoration)
+  useEffect(() => {
+    // Apply model from URL if specified and valid
+    if (urlModel && models.some(m => m.id === urlModel)) {
+      setSelectedModel(urlModel);
+    }
+  }, [urlModel, models, setSelectedModel]);
+
+  // Apply experimental settings from URL
+  useEffect(() => {
+    if (urlUseWebUI !== null) {
+      const useWebUI = urlUseWebUI === "true";
+      if (experimental.useWebUIComponents !== useWebUI) {
+        updateSettings({
+          experimental: {
+            ...experimental,
+            useWebUIComponents: useWebUI,
+          },
+        });
+      }
+    }
+  }, [urlUseWebUI, experimental, updateSettings]);
 
   // Calculate model name for display (remove [Bailian Coding Plan] prefix)
   const selectedModelConfig = useMemo(() => {
@@ -141,6 +169,16 @@ export function ChatPage() {
 
   // Permission mode state management
   const { permissionMode, setPermissionMode } = usePermissionMode();
+
+  // Apply permission mode from URL parameter (Issue #70: Workspace restoration)
+  useEffect(() => {
+    if (urlPermissionMode) {
+      const validModes = ["default", "plan", "auto-edit", "yolo"];
+      if (validModes.includes(urlPermissionMode)) {
+        setPermissionMode(urlPermissionMode as PermissionMode);
+      }
+    }
+  }, [urlPermissionMode, setPermissionMode]);
 
   // Get encoded name for current working directory
   // For URL parameter mode, use the encoded name directly
@@ -681,6 +719,7 @@ export function ChatPage() {
   // Use getEncodedName() to get the correct encodedProjectName, which may come from
   // URL parameter or be derived from workingDirectory after projects are loaded
   // Also depend on projects.length to trigger when projects are loaded (Issue #70)
+  // Include settings for tab restoration (Issue #70)
   useEffect(() => {
     if (isIntegratedMode() && window.parent !== window && currentSessionId) {
       const encodedName = getEncodedName();
@@ -693,11 +732,17 @@ export function ChatPage() {
           encodedProjectName: encodedName,
           toolName: toolName || undefined,
           title: undefined, // Title can be set later if needed
+          // Include settings for workspace restoration
+          settings: {
+            model: selectedModel || undefined,
+            useWebUI: experimental.useWebUIComponents,
+            permissionMode: permissionMode,
+          },
           timestamp: Date.now(),
         }, "*");
       }
     }
-  }, [currentSessionId, getEncodedName, toolName, projects.length]);
+  }, [currentSessionId, getEncodedName, toolName, projects.length, selectedModel, experimental.useWebUIComponents, permissionMode]);
 
   // Load projects to get encodedName mapping
   useEffect(() => {
