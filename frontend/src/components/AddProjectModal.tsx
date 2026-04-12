@@ -126,11 +126,11 @@ export function AddProjectModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25 dark:bg-black/50 pointer-events-none" />
+          <div className="fixed inset-0 bg-black/25 dark:bg-black/50" />
         </Transition.Child>
 
-        <div className="fixed inset-0 overflow-y-auto pointer-events-none">
-          <div className="flex min-h-full items-center justify-center p-4 pointer-events-none">
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
@@ -140,7 +140,7 @@ export function AddProjectModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-all pointer-events-auto">
+              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-all">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
                   <Dialog.Title
