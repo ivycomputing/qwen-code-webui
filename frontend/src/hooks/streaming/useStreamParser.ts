@@ -46,6 +46,9 @@ export function useStreamParser() {
         // Permission/Error handling
         onPermissionError: context.onPermissionError,
         onAbortRequest: context.onAbortRequest,
+
+        // Stats update for Open-ACE integration
+        onStatsUpdate: context.onStatsUpdate,
       };
     },
     [],

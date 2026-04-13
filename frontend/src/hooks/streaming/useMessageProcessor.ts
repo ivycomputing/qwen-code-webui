@@ -25,6 +25,15 @@ export interface StreamingContext {
     result: { exitCode?: number; output: string }
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
+  // Stats update for Open-ACE integration
+  onStatsUpdate?: (
+    usageMetadata: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      totalTokenCount?: number;
+    },
+    model?: string
+  ) => void;
 }
 
 /**

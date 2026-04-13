@@ -294,3 +294,33 @@ export async function deleteLocalProject(encodedProjectName: string): Promise<{ 
 export function getOpenAceSessionApi(): string {
   return buildOpenAceUrl("/api/workspace/sessions");
 }
+
+/**
+ * Update session statistics (tokens, message count, etc.)
+ * Called during conversation to sync usage stats for session list display.
+ */
+export async function updateSessionStats(
+  sessionId: string,
+  stats: {
+    total_tokens?: number;
+    total_input_tokens?: number;
+    total_output_tokens?: number;
+    message_count?: number;
+    request_count?: number;
+    model?: string;
+  }
+): Promise<{ success: boolean }> {
+  const url = `${getOpenAceSessionApi()}/${sessionId}/stats`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(stats),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update session stats: ${response.statusText}`);
+  }
+
+  return response.json();
+}

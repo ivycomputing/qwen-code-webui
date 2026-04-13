@@ -61,6 +61,16 @@ export interface ProcessingContext {
     result: { exitCode?: number; output: string }
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
+
+  // Stats update for Open-ACE integration
+  onStatsUpdate?: (
+    usageMetadata: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      totalTokenCount?: number;
+    },
+    model?: string
+  ) => void;
 }
 
 /**
@@ -495,6 +505,21 @@ export class UnifiedMessageProcessor {
       }
 
       return orderedMessages;
+    }
+
+    // Extract usageMetadata and call onStatsUpdate for streaming mode
+    if (options.isStreaming && context.onStatsUpdate) {
+      const msgWithMetadata = message as {
+        usageMetadata?: {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+          totalTokenCount?: number;
+        };
+        model?: string;
+      };
+      if (msgWithMetadata.usageMetadata) {
+        context.onStatsUpdate(msgWithMetadata.usageMetadata, msgWithMetadata.model);
+      }
     }
 
     return messages;
