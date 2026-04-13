@@ -1,6 +1,6 @@
 {
   "name": "qwen-code-webui",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "type": "module",
   "description": "Web-based interface for the Qwen Code CLI with streaming chat interface",
   "keywords": [

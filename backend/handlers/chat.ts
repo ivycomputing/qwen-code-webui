@@ -1,5 +1,5 @@
 import { Context } from "hono";
-import { query, type PermissionMode } from "@qwen-code/sdk";
+import { query, type PermissionMode, type AuthType } from "@qwen-code/sdk";
 import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 
@@ -39,7 +39,7 @@ async function* executeQwenCommand(
   workingDirectory?: string,
   permissionMode?: string,
   model?: string,
-  authType?: string,
+  authType?: AuthType,
 ): AsyncGenerator<StreamResponse> {
   let abortController: AbortController;
 
@@ -117,7 +117,7 @@ export async function handleChatRequest(
   requestAbortControllers: Map<string, AbortController>,
 ) {
   const chatRequest: ChatRequest = await c.req.json();
-  const { cliPath, authType } = c.var.config;
+  const { cliPath, authType } = c.var.config as { cliPath: string; authType?: AuthType };
 
   logger.chat.debug(
     "Received chat request {*}",
