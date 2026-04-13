@@ -199,7 +199,7 @@ export function ProjectSelector() {
     setIsAddProjectOpen(false);
   };
 
-  const handleDeleteClick = (project: ProjectInfo, e: React.MouseEvent) => {
+  const handleDeleteClick = (project: ProjectInfo | OpenAceProject, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeleteProject(project);
   };
@@ -318,7 +318,7 @@ export function ProjectSelector() {
                 return (
                   <div
                     key={project.path}
-                    className={`flex items-center gap-3 p-4 border rounded-lg transition-colors cursor-pointer ${
+                    className={`group flex items-center gap-3 p-4 border rounded-lg transition-colors cursor-pointer ${
                       index === selectedIndex
                         ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 ring-2 ring-blue-500"
                         : "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700"
@@ -354,7 +354,7 @@ export function ProjectSelector() {
 
                     {/* Delete button - shows for both integrated and local modes */}
                     <button
-                      onClick={(e) => handleDeleteClick(project, e)}
+                      onClick={(e) => handleDeleteClick(integrated ? (aceProject || project) : project, e)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                       title={integrated ? "Remove project" : t("projectSelector.removeProject") || "Remove project"}
                     >
