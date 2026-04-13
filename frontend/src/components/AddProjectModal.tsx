@@ -126,11 +126,11 @@ export function AddProjectModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25 dark:bg-black/50" />
+          <div className="fixed inset-0 bg-black/25 dark:bg-black/50" style={{ pointerEvents: 'none' }} />
         </Transition.Child>
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
+        <div className="fixed inset-0 overflow-y-auto" style={{ pointerEvents: 'none' }}>
+          <div className="flex min-h-full items-center justify-center p-4" style={{ pointerEvents: 'none' }}>
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
@@ -140,7 +140,17 @@ export function AddProjectModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel 
+                className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-all"
+                style={{ pointerEvents: 'auto' }}
+                onKeyDown={(e) => {
+                  // Handle Enter key for details step
+                  if (e.key === "Enter" && step === "details") {
+                    e.preventDefault();
+                    handleCreateProject();
+                  }
+                }}
+              >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
                   <Dialog.Title
@@ -161,6 +171,7 @@ export function AddProjectModal({
                 {step === "browse" && (
                   <div 
                     className="p-4"
+                    style={{ pointerEvents: 'auto' }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -179,13 +190,7 @@ export function AddProjectModal({
                 )}
 
                 {step === "details" && (
-                  <form
-                    className="p-6 space-y-4"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleCreateProject();
-                    }}
-                  >
+                  <div className="p-6 space-y-4" style={{ pointerEvents: 'auto' }}>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         {t("project.projectPath")}
@@ -280,13 +285,14 @@ export function AddProjectModal({
                         {t("common.back")}
                       </button>
                       <button
-                        type="submit"
+                        type="button"
+                        onClick={handleCreateProject}
                         className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
                       >
                         {t("project.addProject")}
                       </button>
                     </div>
-                  </form>
+                  </div>
                 )}
 
                 {step === "creating" && (
