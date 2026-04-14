@@ -290,9 +290,18 @@ export async function deleteLocalProject(encodedProjectName: string): Promise<{ 
 
 /**
  * Get Open-ACE session API URL for tracking work duration
+ * @param sessionId - Optional session ID to append to the URL
+ * @param action - Optional action to append (e.g., 'stats', 'complete')
  */
-export function getOpenAceSessionApi(): string {
-  return buildOpenAceUrl("/api/workspace/sessions");
+export function getOpenAceSessionApi(sessionId?: string, action?: string): string {
+  let endpoint = "/api/workspace/sessions";
+  if (sessionId) {
+    endpoint += `/${sessionId}`;
+  }
+  if (action) {
+    endpoint += `/${action}`;
+  }
+  return buildOpenAceUrl(endpoint);
 }
 
 /**
@@ -310,7 +319,7 @@ export async function updateSessionStats(
     model?: string;
   }
 ): Promise<{ success: boolean }> {
-  const url = `${getOpenAceSessionApi()}/${sessionId}/stats`;
+  const url = getOpenAceSessionApi(sessionId, "stats");
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

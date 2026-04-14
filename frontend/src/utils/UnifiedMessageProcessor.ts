@@ -541,6 +541,29 @@ export class UnifiedMessageProcessor {
     if (options.isStreaming) {
       context.setCurrentAssistantMessage?.(null);
     }
+
+    // Extract usage data and call onStatsUpdate for OpenAI/Claude format
+    // The usage field contains input_tokens and output_tokens
+    if (options.isStreaming && context.onStatsUpdate) {
+      const msgWithUsage = message as {
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+          total_tokens?: number;
+        };
+        model?: string;
+      };
+      if (msgWithUsage.usage) {
+        const usage = msgWithUsage.usage;
+        // Convert to usageMetadata format expected by onStatsUpdate
+        const usageMetadata = {
+          promptTokenCount: usage.input_tokens,
+          candidatesTokenCount: usage.output_tokens,
+          totalTokenCount: usage.total_tokens || (usage.input_tokens || 0) + (usage.output_tokens || 0),
+        };
+        context.onStatsUpdate(usageMetadata, msgWithUsage.model);
+      }
+    }
   }
 
   /**

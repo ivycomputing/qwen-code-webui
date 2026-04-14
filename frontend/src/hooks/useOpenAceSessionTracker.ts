@@ -97,7 +97,7 @@ export function useOpenAceSessionTracker(
     const sessionId = openAceSessionIdRef.current;
 
     try {
-      await fetch(`${getOpenAceSessionApi()}/${sessionId}/complete`, {
+      await fetch(getOpenAceSessionApi(sessionId, "complete"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -179,7 +179,7 @@ export function useOpenAceSessionTracker(
       if (openAceSessionIdRef.current) {
         // Use navigator.sendBeacon for reliable cleanup on page unload
         const sessionId = openAceSessionIdRef.current;
-        const url = `${getOpenAceSessionApi()}/${sessionId}/complete`;
+        const url = getOpenAceSessionApi(sessionId, "complete");
         
         if (navigator.sendBeacon) {
           navigator.sendBeacon(url);
@@ -195,7 +195,7 @@ export function useOpenAceSessionTracker(
     const handleBeforeUnload = () => {
       if (openAceSessionIdRef.current) {
         const sessionId = openAceSessionIdRef.current;
-        const url = `${getOpenAceSessionApi()}/${sessionId}/complete`;
+        const url = getOpenAceSessionApi(sessionId, "complete");
         navigator.sendBeacon(url);
       }
     };
