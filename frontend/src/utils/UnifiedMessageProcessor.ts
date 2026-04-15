@@ -61,16 +61,6 @@ export interface ProcessingContext {
     result: { exitCode?: number; output: string }
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
-
-  // Stats update for Open-ACE integration
-  onStatsUpdate?: (
-    usageMetadata: {
-      promptTokenCount?: number;
-      candidatesTokenCount?: number;
-      totalTokenCount?: number;
-    },
-    model?: string
-  ) => void;
 }
 
 /**
@@ -507,21 +497,6 @@ export class UnifiedMessageProcessor {
       return orderedMessages;
     }
 
-    // Extract usageMetadata and call onStatsUpdate for streaming mode
-    if (options.isStreaming && context.onStatsUpdate) {
-      const msgWithMetadata = message as {
-        usageMetadata?: {
-          promptTokenCount?: number;
-          candidatesTokenCount?: number;
-          totalTokenCount?: number;
-        };
-        model?: string;
-      };
-      if (msgWithMetadata.usageMetadata) {
-        context.onStatsUpdate(msgWithMetadata.usageMetadata, msgWithMetadata.model);
-      }
-    }
-
     return messages;
   }
 
@@ -540,29 +515,6 @@ export class UnifiedMessageProcessor {
     // Clear current assistant message (streaming only)
     if (options.isStreaming) {
       context.setCurrentAssistantMessage?.(null);
-    }
-
-    // Extract usage data and call onStatsUpdate for OpenAI/Claude format
-    // The usage field contains input_tokens and output_tokens
-    if (options.isStreaming && context.onStatsUpdate) {
-      const msgWithUsage = message as {
-        usage?: {
-          input_tokens?: number;
-          output_tokens?: number;
-          total_tokens?: number;
-        };
-        model?: string;
-      };
-      if (msgWithUsage.usage) {
-        const usage = msgWithUsage.usage;
-        // Convert to usageMetadata format expected by onStatsUpdate
-        const usageMetadata = {
-          promptTokenCount: usage.input_tokens,
-          candidatesTokenCount: usage.output_tokens,
-          totalTokenCount: usage.total_tokens || (usage.input_tokens || 0) + (usage.output_tokens || 0),
-        };
-        context.onStatsUpdate(usageMetadata, msgWithUsage.model);
-      }
     }
   }
 

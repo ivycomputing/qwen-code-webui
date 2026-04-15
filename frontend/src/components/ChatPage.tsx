@@ -275,7 +275,7 @@ export function ChatPage() {
   });
 
   // Track session with Open-ACE for work duration statistics
-  const { updateStats } = useOpenAceSessionTracker(
+  useOpenAceSessionTracker(
     currentSessionId || null,
     workingDirectory || null,
     !isHistoryView
@@ -433,8 +433,6 @@ export function ChatPage() {
             shouldAbort = true;
             showCommandLoopRequest(request);
           },
-          // Stats update for Open-ACE integration
-          onStatsUpdate: updateStats,
         };
 
         while (true) {

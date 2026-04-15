@@ -4,29 +4,21 @@
  * When running in integrated mode (inside Open-ACE iframe),
  * this hook notifies Open-ACE about session start/end for
  * project statistics tracking.
- * Also syncs usage statistics during conversation for session list display.
+ *
+ * Note: Real-time stats sync has been removed. All session statistics
+ * are now extracted from JSONL files by fetch_qwen.py script.
  */
 
 import { useEffect, useRef, useCallback } from "react";
 import {
   isIntegratedMode,
   getOpenAceSessionApi,
-  updateSessionStats,
 } from "../api/openace";
 
 interface SessionTracker {
   sessionId: string | null;
   projectPath: string | null;
   startTime: Date | null;
-}
-
-// Track cumulative stats for the session
-interface CumulativeStats {
-  totalTokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  messageCount: number;
-  requestCount: number;
 }
 
 export function useOpenAceSessionTracker(
@@ -40,13 +32,6 @@ export function useOpenAceSessionTracker(
     startTime: null,
   });
   const openAceSessionIdRef = useRef<string | null>(null);
-  const cumulativeStatsRef = useRef<CumulativeStats>({
-    totalTokens: 0,
-    inputTokens: 0,
-    outputTokens: 0,
-    messageCount: 0,
-    requestCount: 0,
-  });
 
   const integrated = isIntegratedMode();
 
@@ -112,59 +97,8 @@ export function useOpenAceSessionTracker(
         projectPath: null,
         startTime: null,
       };
-      // Reset cumulative stats
-      cumulativeStatsRef.current = {
-        totalTokens: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        messageCount: 0,
-        requestCount: 0,
-      };
     }
   }, [integrated]);
-
-  // Update session statistics (called when receiving usageMetadata from assistant message)
-  const updateStats = useCallback(async (
-    usageMetadata: {
-      promptTokenCount?: number;
-      candidatesTokenCount?: number;
-      totalTokenCount?: number;
-    },
-    model?: string
-  ) => {
-    if (!integrated || !currentSessionId) return;
-
-    // Accumulate stats
-    const stats = cumulativeStatsRef.current;
-    if (usageMetadata.totalTokenCount) {
-      stats.totalTokens += usageMetadata.totalTokenCount;
-    }
-    if (usageMetadata.promptTokenCount) {
-      stats.inputTokens += usageMetadata.promptTokenCount;
-    }
-    if (usageMetadata.candidatesTokenCount) {
-      stats.outputTokens += usageMetadata.candidatesTokenCount;
-    }
-    stats.requestCount += 1;  // Each assistant message is one request
-
-    // Sync to Open-ACE (debounced - only sync every 5 seconds or on significant change)
-    try {
-      await updateSessionStats(currentSessionId, {
-        total_tokens: stats.totalTokens,
-        total_input_tokens: stats.inputTokens,
-        total_output_tokens: stats.outputTokens,
-        request_count: stats.requestCount,
-        model: model,
-      });
-      console.log("[Open-ACE] Updated session stats:", {
-        sessionId: currentSessionId,
-        totalTokens: stats.totalTokens,
-        requestCount: stats.requestCount,
-      });
-    } catch (error) {
-      console.error("[Open-ACE] Failed to update session stats:", error);
-    }
-  }, [integrated, currentSessionId]);
 
   // Track session changes
   useEffect(() => {
@@ -209,7 +143,6 @@ export function useOpenAceSessionTracker(
   return {
     startTracking,
     endTracking,
-    updateStats,
     isTracking: !!openAceSessionIdRef.current,
     openAceSessionId: openAceSessionIdRef.current,
   };
