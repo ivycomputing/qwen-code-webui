@@ -46,14 +46,6 @@ export function calculateTokenUsage(messages: AllMessage[]): TokenUsageInfo {
       promptTokens = usage.input_tokens || 0;
       outputTokens = usage.output_tokens || 0;
 
-      // Also count cache tokens as part of prompt
-      if (usage.cache_creation_input_tokens) {
-        promptTokens += usage.cache_creation_input_tokens;
-      }
-      if (usage.cache_read_input_tokens) {
-        promptTokens += usage.cache_read_input_tokens;
-      }
-
       break; // Only use the latest result message
     }
   }
