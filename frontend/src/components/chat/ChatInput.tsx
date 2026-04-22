@@ -12,7 +12,7 @@ import { isIntegratedMode } from "../../api/openace";
 import type { PermissionMode } from "../../types";
 import type { SlashCommand, SubCommand } from "../../utils/slashCommands";
 import type { TokenUsageInfo } from "../../utils/tokenUsage";
-import { formatTokenRatio } from "../../utils/tokenUsage";
+import { formatTokenCount } from "../../utils/tokenUsage";
 
 interface PermissionData {
   patterns: string[];
@@ -403,35 +403,49 @@ export function ChatInput({
       </form>
 
       {/* Permission mode status bar */}
-      <button
-        type="button"
-        onClick={() =>
-          onPermissionModeChange(getNextPermissionMode(permissionMode))
-        }
-        className="w-full px-4 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-mono text-left transition-colors cursor-pointer"
-        title={`${t("chat.clickToCycle")} (Ctrl/Cmd+Shift+Y)`}
-      >
-        {getPermissionModeIndicator(permissionMode)}
-        <span className="ml-2 text-slate-400 dark:text-slate-500 text-[10px]">
-          ({t("chat.clickToCycleShortcut")})
-        </span>
+      <div className="w-full px-4 py-1 text-xs text-slate-600 dark:text-slate-400 font-mono text-left flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            onPermissionModeChange(getNextPermissionMode(permissionMode))
+          }
+          className="inline-flex items-center hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+          title={`${t("chat.clickToCycle")} (Ctrl/Cmd+Shift+Y)`}
+        >
+          {getPermissionModeIndicator(permissionMode)}
+        </button>
         {selectedModelName && (
-          <span className="ml-2 text-slate-500 dark:text-slate-400">
-            {" | "}
+          <span className="text-slate-500 dark:text-slate-400">
             <span className="text-slate-600 dark:text-slate-300">📖</span>
             {" "}
             {selectedModelName}
           </span>
         )}
         {tokenUsage && tokenUsage.promptTokens > 0 && (
-          <span className="ml-2 text-slate-500 dark:text-slate-400">
-            {" | "}
-            <span className="text-slate-600 dark:text-slate-300">💾</span>
-            {" "}
-            {formatTokenRatio(tokenUsage.promptTokens, contextWindowSize)}
+          <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
+            <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0">
+              <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+              <circle
+                cx="7" cy="7" r="6"
+                fill="none"
+                stroke={(() => {
+                  const pct = contextWindowSize ? (tokenUsage.promptTokens / contextWindowSize) * 100 : 0;
+                  if (pct > 80) return "#ef4444";
+                  if (pct > 50) return "#f59e0b";
+                  return "#22c55e";
+                })()}
+                strokeWidth="1.5"
+                strokeDasharray={`${((tokenUsage.promptTokens / (contextWindowSize || tokenUsage.promptTokens)) * 37.7).toFixed(1)} 37.7`}
+                strokeLinecap="round"
+                transform="rotate(-90 7 7)"
+              />
+            </svg>
+            {contextWindowSize
+              ? `${((tokenUsage.promptTokens / contextWindowSize) * 100).toFixed(1)}%`
+              : formatTokenCount(tokenUsage.promptTokens)}
           </span>
         )}
-      </button>
+      </div>
     </div>
   );
 }
