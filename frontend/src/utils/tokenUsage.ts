@@ -1,4 +1,11 @@
-import type { AllMessage, SystemMessage } from "../types";
+import type {
+  AllMessage,
+  ChatMessage,
+  SystemMessage,
+  ToolMessage,
+  ToolResultMessage,
+  ThinkingMessage,
+} from "../types";
 import type { ExtendedUsage } from "@qwen-code/sdk";
 
 /**
@@ -9,6 +16,135 @@ export interface TokenUsageInfo {
   promptTokens: number;
   outputTokens: number;
   totalTokens: number;
+}
+
+/** Per-category token breakdown */
+export interface ContextCategoryBreakdown {
+  overhead: number;
+  messages: number;
+  freeSpace: number;
+  autocompactBuffer: number;
+}
+
+/** Message sub-category breakdown */
+export interface MessageBreakdown {
+  userMessages: number;
+  assistantMessages: number;
+  toolCalls: number;
+  thinking: number;
+}
+
+/** Complete context usage data for the panel */
+export interface ContextUsageData {
+  totalTokens: number;
+  contextWindowSize: number;
+  modelName: string;
+  percentage: number;
+  breakdown: ContextCategoryBreakdown;
+  messageBreakdown: MessageBreakdown;
+  hasCacheData: boolean;
+}
+
+/**
+ * Estimate token count using character-based heuristic.
+ * ASCII: ~4 chars/token, non-ASCII (CJK etc): ~1.5 tokens/char.
+ * Same algorithm as the CLI's contextCommand.ts.
+ */
+export function estimateTokens(text: string): number {
+  if (!text || text.length === 0) return 0;
+  let asciiChars = 0;
+  let nonAsciiChars = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) < 128) {
+      asciiChars++;
+    } else {
+      nonAsciiChars++;
+    }
+  }
+  return Math.ceil(asciiChars / 4 + nonAsciiChars * 1.5);
+}
+
+/**
+ * Calculate full context usage breakdown from messages and token data.
+ */
+export function calculateContextBreakdown(
+  messages: AllMessage[],
+  promptTokens: number,
+  contextWindowSize: number,
+  modelName: string,
+  cacheReadInputTokens?: number,
+): ContextUsageData {
+  const COMPRESSION_THRESHOLD = 0.7;
+  const autocompactBuffer = Math.round(
+    (1 - COMPRESSION_THRESHOLD) * contextWindowSize,
+  );
+
+  // Estimate message tokens by category
+  const messageBreakdown: MessageBreakdown = {
+    userMessages: 0,
+    assistantMessages: 0,
+    toolCalls: 0,
+    thinking: 0,
+  };
+
+  for (const msg of messages) {
+    if (msg.type === "chat" && (msg as ChatMessage).role === "user") {
+      messageBreakdown.userMessages += estimateTokens(
+        (msg as ChatMessage).content,
+      );
+    } else if (msg.type === "chat" && (msg as ChatMessage).role === "assistant") {
+      messageBreakdown.assistantMessages += estimateTokens(
+        (msg as ChatMessage).content,
+      );
+    } else if (msg.type === "tool" || msg.type === "tool_result") {
+      messageBreakdown.toolCalls += estimateTokens(
+        (msg as ToolMessage | ToolResultMessage).content,
+      );
+    } else if (msg.type === "thinking") {
+      messageBreakdown.thinking += estimateTokens(
+        (msg as ThinkingMessage).content,
+      );
+    }
+  }
+
+  const estimatedMessages =
+    messageBreakdown.userMessages +
+    messageBreakdown.assistantMessages +
+    messageBreakdown.toolCalls +
+    messageBreakdown.thinking;
+
+  // Use cache data if available for more accurate overhead
+  const hasCacheData =
+    cacheReadInputTokens !== undefined && cacheReadInputTokens > 0;
+  const overhead = hasCacheData
+    ? cacheReadInputTokens!
+    : Math.max(0, promptTokens - estimatedMessages);
+  const msgTokens = hasCacheData
+    ? Math.max(0, promptTokens - cacheReadInputTokens!)
+    : estimatedMessages;
+
+  const freeSpace = Math.max(
+    0,
+    contextWindowSize - promptTokens - autocompactBuffer,
+  );
+
+  const percentage =
+    contextWindowSize > 0 ? (promptTokens / contextWindowSize) * 100 : 0;
+
+  return {
+    totalTokens: promptTokens,
+    contextWindowSize,
+    modelName,
+    percentage,
+    breakdown: {
+      overhead,
+      messages: msgTokens,
+      freeSpace,
+      autocompactBuffer,
+    },
+    messageBreakdown,
+    hasCacheData,
+  };
 }
 
 /**

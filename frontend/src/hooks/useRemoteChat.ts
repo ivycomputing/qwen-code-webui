@@ -6,6 +6,7 @@ import {
   getRemoteSessionStatus,
   createRemoteSessionStream,
   sendPermissionResponse,
+  switchRemoteModel,
   type RemoteSession,
 } from "../api/openace";
 import type { StreamingContext } from "./streaming/useMessageProcessor";
@@ -289,6 +290,19 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     [session]
   );
 
+  const switchModel = useCallback(
+    async (model: string) => {
+      if (!session) return;
+      try {
+        await switchRemoteModel(session.session_id, model);
+        setSession((prev) => prev ? { ...prev, model } : null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to switch model");
+      }
+    },
+    [session]
+  );
+
   return {
     session,
     isLoading,
@@ -297,6 +311,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     connectSession,
     stopSession: stopSessionHandler,
     resetSession,
+    switchModel,
     sendPermissionResponse: handlePermissionResponse,
     error,
   };

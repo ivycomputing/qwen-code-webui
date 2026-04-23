@@ -431,6 +431,33 @@ export async function sendRemoteMessage(
 }
 
 /**
+ * Switch the model of an active remote session
+ */
+export async function switchRemoteModel(
+  sessionId: string,
+  model: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/model`);
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ model }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || `Failed to switch model: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
  * Get the current status / output of a remote session
  */
 export async function getRemoteSessionStatus(

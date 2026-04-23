@@ -21,7 +21,9 @@ import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
 import { useTabNotification } from "../hooks/useTabNotification";
 import { getSlashCommand } from "../utils/slashCommands";
 import { generateId } from "../utils/id";
-import { calculateTokenUsage } from "../utils/tokenUsage";
+import { calculateTokenUsage, calculateContextBreakdown } from "../utils/tokenUsage";
+import type { ContextUsageData } from "../utils/tokenUsage";
+import { ContextUsagePanel } from "./chat/ContextUsagePanel";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
 import { ConfirmModal } from "./ConfirmModal";
@@ -68,6 +70,7 @@ export function ChatPage() {
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [quotaErrorStatus, setQuotaErrorStatus] = useState<QuotaStatus | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showContextPanel, setShowContextPanel] = useState(false);
 
   // Get settings from URL parameters (for workspace restoration)
   const urlModel = searchParams.get("model");
@@ -312,30 +315,53 @@ export function ChatPage() {
   // Track the model used when the remote session was created
   const remoteSessionModelRef = useRef<string | null>(null);
 
-  // Handle model change in remote mode — stop current session and restart with new model
+  // Handle model change in remote mode — switch model without restarting session
   useEffect(() => {
     if (!isRemoteWorkspace || !remoteChat.session || remoteChat.session.status !== "active") return;
 
-    // First active session — record the model, don't restart
     if (remoteSessionModelRef.current === null) {
       remoteSessionModelRef.current = selectedModel;
       return;
     }
     if (remoteSessionModelRef.current === selectedModel) return;
 
-    // Model changed — stop old session, clear state, auto-start effect will create new one
     remoteSessionModelRef.current = selectedModel;
-    remoteChat.resetSession();
-    setMessages([]);
-    setCurrentSessionId(generateId());
-    setHasShownInitMessage(false);
-    setHasReceivedInit(false);
+    remoteChat.switchModel(selectedModel || "");
   }, [selectedModel, isRemoteWorkspace, remoteChat]);
 
   // Calculate token usage from messages
   const tokenUsage = useMemo(() => {
     return calculateTokenUsage(messages);
   }, [messages]);
+
+  // Calculate context breakdown data for the /context panel
+  const contextPanelData = useMemo((): ContextUsageData | null => {
+    if (!tokenUsage.promptTokens || !contextWindowSize || !selectedModelName) {
+      return null;
+    }
+    // Extract cache_read_input_tokens from the latest result message
+    let cacheReadInputTokens: number | undefined;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (
+        msg.type === "result" &&
+        "usage" in msg &&
+        typeof msg.usage === "object" &&
+        msg.usage !== null
+      ) {
+        const usage = msg.usage as unknown as Record<string, unknown>;
+        cacheReadInputTokens = usage.cache_read_input_tokens as number | undefined;
+        break;
+      }
+    }
+    return calculateContextBreakdown(
+      messages,
+      tokenUsage.promptTokens,
+      contextWindowSize,
+      selectedModelName,
+      cacheReadInputTokens,
+    );
+  }, [messages, tokenUsage, contextWindowSize, selectedModelName]);
 
   // Unified messages for display — remote sessions now go through processStreamLine
   // which populates the same messages array, so no conversion is needed.
@@ -452,6 +478,13 @@ export function ChatPage() {
       // Intercept /clear before sending to backend
       if (content === "/clear") {
         setShowClearConfirm(true);
+        if (!messageContent) clearInput();
+        return;
+      }
+
+      // Intercept /context before sending to backend
+      if (content === "/context") {
+        setShowContextPanel(true);
         if (!messageContent) clearInput();
         return;
       }
@@ -1244,6 +1277,14 @@ export function ChatPage() {
                 messages={displayMessages}
                 isLoading={effectiveIsLoading}
                 expandThinking={expandThinking}
+              />
+            )}
+
+            {/* Context Usage Panel */}
+            {showContextPanel && contextPanelData && (
+              <ContextUsagePanel
+                data={contextPanelData}
+                onClose={() => setShowContextPanel(false)}
               />
             )}
 

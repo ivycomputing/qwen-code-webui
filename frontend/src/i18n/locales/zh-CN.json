@@ -99,9 +99,29 @@
   "slashCommands": {
     "skillsDescription": "显示可用技能",
     "clearDescription": "清空对话上下文",
+    "contextDescription": "显示上下文窗口使用详情",
     "clearConfirmTitle": "清空对话",
     "clearConfirmMessage": "确定要清空对话历史吗？此操作无法撤销。",
     "clearConfirmButton": "清空",
     "contextCleared": "对话上下文已清空。"
+  },
+  "contextPanel": {
+    "title": "上下文使用情况",
+    "contextWindow": "上下文窗口",
+    "tokens": "tokens",
+    "used": "已使用",
+    "free": "空闲",
+    "autocompactBuffer": "自动压缩缓冲区",
+    "usageByCategory": "按类别分解",
+    "overhead": "系统开销（提示词 + 工具）",
+    "messages": "消息",
+    "userMessages": "用户消息",
+    "assistantMessages": "助手消息",
+    "toolCalls": "工具调用 + 结果",
+    "thinking": "思考过程",
+    "noApiData": "尚未收到 API 响应，发送消息后可查看实际使用情况。",
+    "estimatedInfo": "分解数据基于消息内容估算。系统开销包括系统提示词、工具定义、记忆文件和技能。",
+    "cacheInfo": "系统开销基于 API 缓存数据（更准确）。",
+    "autoCompressInfo": "自动压缩在 70% 时触发"
   }
 }

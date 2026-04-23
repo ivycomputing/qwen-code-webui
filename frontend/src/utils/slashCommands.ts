@@ -20,6 +20,10 @@ const slashCommands: SlashCommand[] = [
     descriptionKey: "slashCommands.clearDescription",
     requiresConfirmation: true,
   },
+  {
+    name: "/context",
+    descriptionKey: "slashCommands.contextDescription",
+  },
   // Add more commands here in the future
 ];
 

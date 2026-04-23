@@ -99,9 +99,29 @@
   "slashCommands": {
     "skillsDescription": "Show available skills",
     "clearDescription": "Clear conversation context",
+    "contextDescription": "Show context window usage breakdown",
     "clearConfirmTitle": "Clear Conversation",
     "clearConfirmMessage": "Are you sure you want to clear the conversation history? This action cannot be undone.",
     "clearConfirmButton": "Clear",
     "contextCleared": "Conversation context has been cleared."
+  },
+  "contextPanel": {
+    "title": "Context Usage",
+    "contextWindow": "Context window",
+    "tokens": "tokens",
+    "used": "Used",
+    "free": "Free",
+    "autocompactBuffer": "Autocompact buffer",
+    "usageByCategory": "Usage by category",
+    "overhead": "Overhead (system + tools)",
+    "messages": "Messages",
+    "userMessages": "User messages",
+    "assistantMessages": "Assistant messages",
+    "toolCalls": "Tool calls + results",
+    "thinking": "Thinking",
+    "noApiData": "No API response yet. Send a message to see actual usage.",
+    "estimatedInfo": "Breakdown is estimated from message content. Overhead includes system prompt, tool definitions, memory files, and skills.",
+    "cacheInfo": "Overhead is based on cache data from the API (more accurate).",
+    "autoCompressInfo": "Auto-compress triggers at 70%"
   }
 }
