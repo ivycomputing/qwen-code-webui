@@ -120,8 +120,8 @@
     "toolCalls": "工具调用 + 结果",
     "thinking": "思考过程",
     "noApiData": "尚未收到 API 响应，发送消息后可查看实际使用情况。",
-    "estimatedInfo": "分解数据基于消息内容估算。系统开销包括系统提示词、工具定义、记忆文件和技能。",
-    "cacheInfo": "系统开销基于 API 缓存数据（更准确）。",
+    "estimatedInfo": "子分类基于可见消息按比例估算，实际分布可能不同。",
+    "cacheInfo": "系统开销基于 API 缓存数据（更准确）。子分类已按比例缩放。",
     "autoCompressInfo": "自动压缩在 70% 时触发"
   }
 }

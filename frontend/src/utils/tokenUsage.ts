@@ -32,6 +32,13 @@ export interface MessageBreakdown {
   assistantMessages: number;
   toolCalls: number;
   thinking: number;
+  /** Number of messages per category */
+  counts: {
+    user: number;
+    assistant: number;
+    tool: number;
+    thinking: number;
+  };
 }
 
 /** Complete context usage data for the panel */
@@ -79,12 +86,13 @@ export function calculateContextBreakdown(
     (1 - COMPRESSION_THRESHOLD) * contextWindowSize,
   );
 
-  // Estimate message tokens by category
+  // Estimate message tokens by category and count messages
   const messageBreakdown: MessageBreakdown = {
     userMessages: 0,
     assistantMessages: 0,
     toolCalls: 0,
     thinking: 0,
+    counts: { user: 0, assistant: 0, tool: 0, thinking: 0 },
   };
 
   for (const msg of messages) {
@@ -92,18 +100,22 @@ export function calculateContextBreakdown(
       messageBreakdown.userMessages += estimateTokens(
         (msg as ChatMessage).content,
       );
+      messageBreakdown.counts.user++;
     } else if (msg.type === "chat" && (msg as ChatMessage).role === "assistant") {
       messageBreakdown.assistantMessages += estimateTokens(
         (msg as ChatMessage).content,
       );
+      messageBreakdown.counts.assistant++;
     } else if (msg.type === "tool" || msg.type === "tool_result") {
       messageBreakdown.toolCalls += estimateTokens(
         (msg as ToolMessage | ToolResultMessage).content,
       );
+      messageBreakdown.counts.tool++;
     } else if (msg.type === "thinking") {
       messageBreakdown.thinking += estimateTokens(
         (msg as ThinkingMessage).content,
       );
+      messageBreakdown.counts.thinking++;
     }
   }
 
@@ -122,6 +134,43 @@ export function calculateContextBreakdown(
   const msgTokens = hasCacheData
     ? Math.max(0, promptTokens - cacheReadInputTokens!)
     : estimatedMessages;
+
+  // Scale sub-categories proportionally so they sum to the accurate msgTokens
+  if (hasCacheData && estimatedMessages > 0 && msgTokens !== estimatedMessages) {
+    const scaleFactor = msgTokens / estimatedMessages;
+    messageBreakdown.userMessages = Math.round(
+      messageBreakdown.userMessages * scaleFactor,
+    );
+    messageBreakdown.assistantMessages = Math.round(
+      messageBreakdown.assistantMessages * scaleFactor,
+    );
+    messageBreakdown.toolCalls = Math.round(
+      messageBreakdown.toolCalls * scaleFactor,
+    );
+    messageBreakdown.thinking = Math.round(
+      messageBreakdown.thinking * scaleFactor,
+    );
+
+    // Fix rounding error: adjust the largest category
+    const scaledSum =
+      messageBreakdown.userMessages +
+      messageBreakdown.assistantMessages +
+      messageBreakdown.toolCalls +
+      messageBreakdown.thinking;
+    const diff = Math.round(msgTokens) - scaledSum;
+    if (diff !== 0) {
+      const categories: (keyof Omit<MessageBreakdown, "counts">)[] = [
+        "userMessages",
+        "assistantMessages",
+        "toolCalls",
+        "thinking",
+      ];
+      const largest = categories.reduce((a, b) =>
+        messageBreakdown[a] >= messageBreakdown[b] ? a : b,
+      );
+      messageBreakdown[largest] += diff;
+    }
+  }
 
   const freeSpace = Math.max(
     0,

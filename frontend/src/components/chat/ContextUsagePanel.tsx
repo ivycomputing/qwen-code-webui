@@ -37,18 +37,20 @@ const CategoryRow: React.FC<{
   contextWindowSize: number;
   color?: string;
   indent?: boolean;
-}> = ({ label, tokens, contextWindowSize, color, indent }) => {
+  count?: number;
+}> = ({ label, tokens, contextWindowSize, color, indent, count }) => {
   const pct = contextWindowSize > 0 ? ((tokens / contextWindowSize) * 100).toFixed(1) : "0.0";
+  const displayLabel = count !== undefined ? `${label} (${count})` : label;
   return (
     <div className={`flex justify-between text-xs font-mono ${indent ? "pl-6" : ""}`}>
       <span className="flex items-center gap-1.5">
         {color && (
           <span className={`inline-block w-2 h-2 rounded-sm ${color}`} />
         )}
-        <span className="text-slate-600 dark:text-slate-400">{label}</span>
+        <span className="text-slate-600 dark:text-slate-400">{displayLabel}</span>
       </span>
       <span className="text-slate-500 dark:text-slate-400">
-        {formatTokens(tokens)} ({pct}%)
+        {formatTokens(tokens)} tokens ({pct}%)
       </span>
     </div>
   );
@@ -151,27 +153,29 @@ export const ContextUsagePanel: React.FC<ContextUsagePanelProps> = ({
             tokens={messageBreakdown.userMessages}
             contextWindowSize={contextWindowSize}
             indent
+            count={messageBreakdown.counts.user}
           />
           <CategoryRow
             label={t("contextPanel.assistantMessages")}
             tokens={messageBreakdown.assistantMessages}
             contextWindowSize={contextWindowSize}
             indent
+            count={messageBreakdown.counts.assistant}
           />
           <CategoryRow
             label={t("contextPanel.toolCalls")}
             tokens={messageBreakdown.toolCalls}
             contextWindowSize={contextWindowSize}
             indent
+            count={messageBreakdown.counts.tool}
           />
-          {messageBreakdown.thinking > 0 && (
-            <CategoryRow
-              label={t("contextPanel.thinking")}
-              tokens={messageBreakdown.thinking}
-              contextWindowSize={contextWindowSize}
-              indent
-            />
-          )}
+          <CategoryRow
+            label={t("contextPanel.thinking")}
+            tokens={messageBreakdown.thinking}
+            contextWindowSize={contextWindowSize}
+            indent
+            count={messageBreakdown.counts.thinking}
+          />
         </div>
       </div>
 

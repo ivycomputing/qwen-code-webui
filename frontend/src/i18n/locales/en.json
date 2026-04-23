@@ -120,8 +120,8 @@
     "toolCalls": "Tool calls + results",
     "thinking": "Thinking",
     "noApiData": "No API response yet. Send a message to see actual usage.",
-    "estimatedInfo": "Breakdown is estimated from message content. Overhead includes system prompt, tool definitions, memory files, and skills.",
-    "cacheInfo": "Overhead is based on cache data from the API (more accurate).",
+    "estimatedInfo": "Sub-categories are proportionally estimated from visible messages. Actual distribution may vary.",
+    "cacheInfo": "Overhead is based on API cache data (more accurate). Sub-categories are proportionally scaled to match.",
     "autoCompressInfo": "Auto-compress triggers at 70%"
   }
 }
