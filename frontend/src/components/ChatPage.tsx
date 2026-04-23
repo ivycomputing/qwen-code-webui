@@ -307,7 +307,7 @@ export function ChatPage() {
       // No existing session — create a new one
       remoteChat.startSession(remoteMachineId, workingDirectory, selectedModel || undefined, undefined, remotePermissionMode);
     }
-  }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode]);
+  }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode, remoteChat.session]);
 
   // Track the model used when the remote session was created
   const remoteSessionModelRef = useRef<string | null>(null);

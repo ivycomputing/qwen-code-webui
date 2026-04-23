@@ -260,6 +260,23 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     }
   }, [session]);
 
+  const resetSession = useCallback(async () => {
+    if (session) {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      try {
+        await stopRemoteSession(session.session_id);
+      } catch (err) {
+        console.error("[useRemoteChat] Failed to stop session during reset:", err);
+      }
+    }
+    setSession(null);
+    setError(null);
+    setIsLoading(false);
+  }, [session]);
+
   const handlePermissionResponse = useCallback(
     async (requestId: string, behavior: "allow" | "deny", message?: string, toolName?: string) => {
       if (!session) return;
@@ -279,6 +296,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     startSession,
     connectSession,
     stopSession: stopSessionHandler,
+    resetSession,
     sendPermissionResponse: handlePermissionResponse,
     error,
   };
