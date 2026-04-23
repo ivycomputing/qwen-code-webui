@@ -5,6 +5,7 @@
  */
 
 import { dirname, join } from "node:path";
+import { realpathSync } from "node:fs";
 import type { Runtime } from "../runtime/types.ts";
 import { logger } from "../utils/logger.ts";
 import {
@@ -313,11 +314,22 @@ export async function validateQwenCli(
     const detection = await detectQwenCliPath(runtime, qwenPath);
 
     if (detection.scriptPath) {
-      logger.cli.info(`✅ Qwen CLI script detected: ${detection.scriptPath}`);
+      // Resolve symlinks so SDK detects the .js extension and uses `node` to execute
+      let resolvedPath = detection.scriptPath;
+      try {
+        const realPath = realpathSync(detection.scriptPath);
+        if (realPath !== detection.scriptPath) {
+          logger.cli.info(`Resolved symlink: ${detection.scriptPath} -> ${realPath}`);
+          resolvedPath = realPath;
+        }
+      } catch {
+        // If realpath fails, continue with the original path
+      }
+      logger.cli.info(`✅ Qwen CLI script detected: ${resolvedPath}`);
       if (detection.versionOutput) {
         logger.cli.info(`✅ Qwen CLI found: ${detection.versionOutput}`);
       }
-      return detection.scriptPath;
+      return resolvedPath;
     } else {
       // Show warning but continue with fallback when detection fails
       logger.cli.warn("⚠️  Qwen CLI script path detection failed");
