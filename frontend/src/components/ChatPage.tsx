@@ -146,6 +146,10 @@ export function ChatPage() {
       // Strategy 2: Fallback naive decoding (has hyphen ambiguity)
       // e.g., -Users-rhuang-workspace-open-ace -> /Users/rhuang/workspace/open-ace
       // This incorrectly converts "open-ace" -> "open/ace" but works for paths without hyphens
+      // First, try treating the value as a URL-encoded full path (handles hyphens correctly)
+      if (urlEncodedProjectName.startsWith("/")) {
+        return urlEncodedProjectName;
+      }
       if (urlEncodedProjectName.startsWith("-")) {
         const decoded = urlEncodedProjectName.slice(1).replace(/-/g, "/");
         return "/" + decoded;
@@ -304,6 +308,29 @@ export function ChatPage() {
       remoteChat.startSession(remoteMachineId, workingDirectory, selectedModel || undefined, undefined, remotePermissionMode);
     }
   }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode]);
+
+  // Track the model used when the remote session was created
+  const remoteSessionModelRef = useRef<string | null>(null);
+
+  // Handle model change in remote mode — stop current session and restart with new model
+  useEffect(() => {
+    if (!isRemoteWorkspace || !remoteChat.session || remoteChat.session.status !== "active") return;
+
+    // First active session — record the model, don't restart
+    if (remoteSessionModelRef.current === null) {
+      remoteSessionModelRef.current = selectedModel;
+      return;
+    }
+    if (remoteSessionModelRef.current === selectedModel) return;
+
+    // Model changed — stop old session, clear state, auto-start effect will create new one
+    remoteSessionModelRef.current = selectedModel;
+    remoteChat.resetSession();
+    setMessages([]);
+    setCurrentSessionId(generateId());
+    setHasShownInitMessage(false);
+    setHasReceivedInit(false);
+  }, [selectedModel, isRemoteWorkspace, remoteChat]);
 
   // Calculate token usage from messages
   const tokenUsage = useMemo(() => {
@@ -1089,17 +1116,7 @@ export function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Remote stop session button */}
-            {isRemoteWorkspace && remoteChat.session?.status === "active" && (
-              <button
-                onClick={() => remoteChat.stopSession()}
-                className="px-2 py-1 text-xs font-medium rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
-                title="Stop remote session"
-              >
-                Stop Session
-              </button>
-            )}
-            {!isHistoryView && !isRemoteWorkspace && (
+            {!isHistoryView && (
               <ModelSelector
                 models={models}
                 selectedModel={selectedModel}

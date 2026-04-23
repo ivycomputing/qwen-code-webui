@@ -1,6 +1,9 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import type { JSX } from "react";
+import type { TFunction } from "i18next";
+import type { CSSProperties } from "react";
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import type { JSX } from "react";
 
 // Helper function to extract command name from pattern like "Bash(ls:*)" -> "ls"
 function extractCommandName(pattern: string, fallbackToolName?: string): string {
@@ -17,87 +20,61 @@ function extractCommandName(pattern: string, fallbackToolName?: string): string 
 }
 
 // Helper function to render permission content based on patterns
-function renderPermissionContent(patterns: string[], toolName?: string): JSX.Element {
+function renderPermissionContent(patterns: string[], toolName: string | undefined, t: TFunction): JSX.Element {
   // Handle empty patterns array — use toolName as fallback
   if (patterns.length === 0) {
-    const displayName = toolName || "bash commands";
+    const displayName = toolName || t("permission.bashCommands");
     return (
       <p className="text-slate-600 dark:text-slate-300 mb-3">
-        Qwen wants to use the{" "}
-        <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm">
-          {displayName}
-        </span>{" "}
-        command.
+        {t("permission.wantsToUse", { command: displayName })}
       </p>
     );
   }
 
-  const isMultipleCommands = patterns.length > 1;
+  // Extract and deduplicate command names
+  const commandNames = [...new Set(patterns.map((p) => extractCommandName(p, toolName)))];
 
-  if (isMultipleCommands) {
-    // Extract and deduplicate command names from patterns like "Bash(ls:*)" -> "ls"
-    const commandNames = [...new Set(patterns.map((p) => extractCommandName(p, toolName)))];
-
-    // After dedup, might only be one unique command
-    if (commandNames.length === 1) {
-      return (
-        <p className="text-slate-600 dark:text-slate-300 mb-3">
-          Qwen wants to use the{" "}
-          <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm">
-            {commandNames[0]}
-          </span>{" "}
-          command.
-        </p>
-      );
-    }
-
-    return (
-      <>
-        <p className="text-slate-600 dark:text-slate-300 mb-2">
-          Qwen wants to use the following commands:
-        </p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {commandNames.map((cmd, index) => (
-            <span
-              key={index}
-              className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm"
-            >
-              {cmd}
-            </span>
-          ))}
-        </div>
-      </>
-    );
-  } else {
-    const commandName = extractCommandName(patterns[0], toolName);
+  if (commandNames.length === 1) {
     return (
       <p className="text-slate-600 dark:text-slate-300 mb-3">
-        Qwen wants to use the{" "}
-        <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm">
-          {commandName}
-        </span>{" "}
-        command.
+        {t("permission.wantsToUse", { command: commandNames[0] })}
       </p>
     );
   }
+
+  return (
+    <>
+      <p className="text-slate-600 dark:text-slate-300 mb-2">
+        {t("permission.wantsToUseMultiple")}
+      </p>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {commandNames.map((cmd, index) => (
+          <span
+            key={index}
+            className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm"
+          >
+            {cmd}
+          </span>
+        ))}
+      </div>
+    </>
+  );
 }
 
 // Helper function to render button text for permanent permission
-function renderPermanentButtonText(patterns: string[], toolName?: string): string {
-  // Handle empty patterns array
+function renderPermanentButtonText(patterns: string[], toolName: string | undefined, t: TFunction): string {
   if (patterns.length === 0) {
-    const displayName = toolName || "bash commands";
-    return `Yes, and don't ask again for ${displayName} command`;
+    const displayName = toolName || t("permission.bashCommands");
+    return t("permission.yesPermanent", { commands: displayName });
   }
 
-  const isMultipleCommands = patterns.length > 1;
   const commandNames = [...new Set(patterns.map((p) => extractCommandName(p, toolName)))];
+  const joined = commandNames.join(" & ");
 
-  if (isMultipleCommands) {
-    return `Yes, and don't ask again for ${commandNames.join(" and ")} commands`;
-  } else {
-    return `Yes, and don't ask again for ${commandNames[0]} command`;
+  if (commandNames.length > 1) {
+    return t("permission.yesPermanentMulti", { commands: joined });
   }
+  return t("permission.yesPermanent", { commands: joined });
 }
 
 interface PermissionInputPanelProps {
@@ -106,16 +83,15 @@ interface PermissionInputPanelProps {
   onAllow: () => void;
   onAllowPermanent: () => void;
   onDeny: () => void;
-  // Optional extension point for custom button styling (e.g., demo effects)
   getButtonClassName?: (
     buttonType: "allow" | "allowPermanent" | "deny",
     defaultClassName: string,
   ) => string;
-  // Optional callback for demo automation to control selection state
   onSelectionChange?: (selection: "allow" | "allowPermanent" | "deny") => void;
-  // Optional external control for demo automation (overrides internal state)
   externalSelectedOption?: "allow" | "allowPermanent" | "deny" | null;
 }
+
+type Option = "allow" | "allowPermanent" | "deny";
 
 export function PermissionInputPanel({
   patterns,
@@ -123,24 +99,17 @@ export function PermissionInputPanel({
   onAllow,
   onAllowPermanent,
   onDeny,
-  getButtonClassName = (_, defaultClassName) => defaultClassName, // Default: no modification
-  onSelectionChange, // Optional callback for demo automation
-  externalSelectedOption, // Optional external control for demo automation
+  getButtonClassName = (_, defaultClassName) => defaultClassName,
+  onSelectionChange,
+  externalSelectedOption,
 }: PermissionInputPanelProps) {
-  const [selectedOption, setSelectedOption] = useState<
-    "allow" | "allowPermanent" | "deny" | null
-  >("allow");
+  const { t } = useTranslation();
+  const [selectedOption, setSelectedOption] = useState<Option>("allow");
 
-  // Check if component is externally controlled (for demo mode)
-  const isExternallyControlled = externalSelectedOption !== undefined;
-
-  // Use external selection if provided (for demo), otherwise use internal state
   const effectiveSelectedOption = externalSelectedOption ?? selectedOption;
 
-  // Update selection state based on external changes (for demo automation)
   const updateSelectedOption = useCallback(
-    (option: "allow" | "allowPermanent" | "deny") => {
-      // Only update internal state if not controlled externally
+    (option: Option) => {
       if (externalSelectedOption === undefined) {
         setSelectedOption(option);
       }
@@ -151,11 +120,9 @@ export function PermissionInputPanel({
 
   // Handle keyboard navigation
   useEffect(() => {
-    // Skip keyboard navigation if controlled externally (demo mode)
     if (externalSelectedOption !== undefined) return;
 
-    // Define options array inside useEffect to avoid unnecessary re-renders
-    const options = ["allow", "allowPermanent", "deny"] as const;
+    const options: Option[] = ["allow", "allowPermanent", "deny"];
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") {
@@ -170,30 +137,35 @@ export function PermissionInputPanel({
         updateSelectedOption(options[prevIndex]);
       } else if (e.key === "Enter" && effectiveSelectedOption) {
         e.preventDefault();
-        // Execute the currently selected option
-        if (effectiveSelectedOption === "allow") {
-          onAllow();
-        } else if (effectiveSelectedOption === "allowPermanent") {
-          onAllowPermanent();
-        } else if (effectiveSelectedOption === "deny") {
-          onDeny();
-        }
+        if (effectiveSelectedOption === "allow") onAllow();
+        else if (effectiveSelectedOption === "allowPermanent") onAllowPermanent();
+        else if (effectiveSelectedOption === "deny") onDeny();
       } else if (e.key === "Escape") {
         e.preventDefault();
-        onDeny(); // "Deny" option when ESC is pressed
+        onDeny();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [
-    effectiveSelectedOption,
-    onAllow,
-    onAllowPermanent,
-    onDeny,
-    updateSelectedOption,
-    externalSelectedOption,
-  ]);
+  }, [effectiveSelectedOption, onAllow, onAllowPermanent, onDeny, updateSelectedOption, externalSelectedOption]);
+
+  const selectedStyles: Record<Option, { className: string; style: React.CSSProperties }> = {
+    allow: {
+      className: "border-2 shadow-md",
+      style: { backgroundColor: "#3b82f6", borderColor: "#2563eb" } as CSSProperties,
+    },
+    allowPermanent: {
+      className: "border-2 shadow-md",
+      style: { backgroundColor: "#22c55e", borderColor: "#16a34a" } as CSSProperties,
+    },
+    deny: {
+      className: "border-2 shadow-md",
+      style: { backgroundColor: "#ef4444", borderColor: "#dc2626" } as CSSProperties,
+    },
+  };
+
+  const unselectedStyle = "border-2 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500";
 
   return (
     <div className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm">
@@ -203,131 +175,63 @@ export function PermissionInputPanel({
           <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
         </div>
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-          Permission Required
+          {t("permission.title")}
         </h3>
       </div>
 
       {/* Content */}
       <div className="mb-4">
-        {renderPermissionContent(patterns, toolName)}
+        {renderPermissionContent(patterns, toolName, t)}
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Do you want to proceed? (Press ESC to deny)
+          {t("permission.proceedHint")}
         </p>
       </div>
 
-      {/* Direct-click permission options with selection state */}
+      {/* Buttons */}
       <div className="space-y-2">
-        <button
-          data-permission-action="allow"
-          onClick={() => {
-            updateSelectedOption("allow");
-            onAllow();
-          }}
-          onFocus={() => updateSelectedOption("allow")}
-          onBlur={() => {
-            if (!isExternallyControlled) {
-              setSelectedOption(null);
-            }
-          }}
-          onMouseEnter={() => updateSelectedOption("allow")}
-          onMouseLeave={() => {
-            if (!isExternallyControlled) {
-              setSelectedOption(null);
-            }
-          }}
-          className={getButtonClassName(
-            "allow",
-            `w-full p-3 rounded-lg cursor-pointer transition-all duration-200 text-left focus:outline-none ${
-              effectiveSelectedOption === "allow"
-                ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500 dark:border-blue-400 shadow-sm"
-                : "border-2 border-transparent"
-            }`,
-          )}
-        >
-          <span
-            className={`text-sm font-medium ${
-              effectiveSelectedOption === "allow"
-                ? "text-blue-700 dark:text-blue-300"
-                : "text-slate-700 dark:text-slate-300"
-            }`}
-          >
-            Yes
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            updateSelectedOption("allowPermanent");
-            onAllowPermanent();
-          }}
-          onFocus={() => updateSelectedOption("allowPermanent")}
-          onBlur={() => {
-            if (!isExternallyControlled) {
-              setSelectedOption(null);
-            }
-          }}
-          onMouseEnter={() => updateSelectedOption("allowPermanent")}
-          onMouseLeave={() => {
-            if (!isExternallyControlled) {
-              setSelectedOption(null);
-            }
-          }}
-          className={getButtonClassName(
-            "allowPermanent",
-            `w-full p-3 rounded-lg cursor-pointer transition-all duration-200 text-left focus:outline-none ${
-              effectiveSelectedOption === "allowPermanent"
-                ? "bg-green-50 dark:bg-green-900/20 border-2 border-green-500 dark:border-green-400 shadow-sm"
-                : "border-2 border-transparent"
-            }`,
-          )}
-        >
-          <span
-            className={`text-sm font-medium ${
-              effectiveSelectedOption === "allowPermanent"
-                ? "text-green-700 dark:text-green-300"
-                : "text-slate-700 dark:text-slate-300"
-            }`}
-          >
-            {renderPermanentButtonText(patterns, toolName)}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            updateSelectedOption("deny");
-            onDeny();
-          }}
-          onFocus={() => updateSelectedOption("deny")}
-          onBlur={() => {
-            if (!isExternallyControlled) {
-              setSelectedOption(null);
-            }
-          }}
-          onMouseEnter={() => updateSelectedOption("deny")}
-          onMouseLeave={() => {
-            if (!isExternallyControlled) {
-              setSelectedOption(null);
-            }
-          }}
-          className={getButtonClassName(
-            "deny",
-            `w-full p-3 rounded-lg cursor-pointer transition-all duration-200 text-left focus:outline-none ${
-              effectiveSelectedOption === "deny"
-                ? "bg-slate-50 dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-500 shadow-sm"
-                : "border-2 border-transparent"
-            }`,
-          )}
-        >
-          <span
-            className={`text-sm font-medium ${
-              effectiveSelectedOption === "deny"
-                ? "text-slate-800 dark:text-slate-200"
-                : "text-slate-700 dark:text-slate-300"
-            }`}
-          >
-            No
-          </span>
-        </button>
+        {([
+          {
+            key: "allow" as Option,
+            label: t("permission.yes"),
+            action: onAllow,
+          },
+          {
+            key: "allowPermanent" as Option,
+            label: renderPermanentButtonText(patterns, toolName, t),
+            action: onAllowPermanent,
+          },
+          {
+            key: "deny" as Option,
+            label: t("permission.no"),
+            action: onDeny,
+          },
+        ]).map(({ key, label, action }) => {
+          const isSelected = effectiveSelectedOption === key;
+          const selected = selectedStyles[key];
+          return (
+            <button
+              key={key}
+              data-permission-action={key}
+              onClick={() => action()}
+              onMouseEnter={() => updateSelectedOption(key)}
+              className={getButtonClassName(
+                key,
+                `w-full p-3 rounded-lg cursor-pointer transition-all duration-200 text-left focus:outline-none ${
+                  isSelected ? selected.className : unselectedStyle
+                }`,
+              )}
+              style={isSelected ? selected.style : undefined}
+            >
+              <span
+                className={`text-sm font-semibold ${
+                  isSelected ? "text-white" : "text-slate-700 dark:text-slate-300"
+                }`}
+              >
+                {label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

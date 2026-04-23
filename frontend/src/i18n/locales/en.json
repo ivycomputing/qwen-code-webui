@@ -67,6 +67,17 @@
     "clickToCycle": "Click to cycle",
     "clickToCycleShortcut": "Click to cycle (Ctrl/Cmd+Shift+Y)"
   },
+  "permission": {
+    "title": "Permission Required",
+    "wantsToUse": "Qwen wants to use the {{command}} command.",
+    "wantsToUseMultiple": "Qwen wants to use the following commands:",
+    "proceedHint": "Do you want to proceed? (Press ESC to deny, Enter to confirm)",
+    "yes": "Yes",
+    "yesPermanent": "Yes, and don't ask again for {{commands}} command",
+    "yesPermanentMulti": "Yes, and don't ask again for {{commands}} commands",
+    "no": "No",
+    "bashCommands": "bash commands"
+  },
   "quota": {
     "exceeded": "Quota Exceeded",
     "exceededMessage": "Your token or request quota has been exhausted. Please contact the administrator.",
