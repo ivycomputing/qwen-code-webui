@@ -304,3 +304,270 @@ export function getOpenAceSessionApi(sessionId?: string, action?: string): strin
   return buildOpenAceUrl(endpoint);
 }
 
+// -------------------------------------------------------
+// Remote Machine & Workspace types
+// -------------------------------------------------------
+
+export interface RemoteMachine {
+  machine_id: string;
+  machine_name: string;
+  hostname: string | null;
+  os_type: string | null;
+  os_version: string | null;
+  status: "online" | "offline" | "busy" | "error";
+  capabilities: Record<string, any>;
+  connected: boolean;
+  last_heartbeat: string | null;
+}
+
+export interface RemoteSessionOutput {
+  session_id: string;
+  data: string;
+  stream: string;
+  is_complete: boolean;
+  timestamp: string;
+}
+
+export interface RemoteSession {
+  session_id: string;
+  machine_id: string;
+  status: string;
+  project_path: string;
+  cli_tool: string;
+  model: string | null;
+  output: RemoteSessionOutput[];
+  created_at: string | null;
+}
+
+// -------------------------------------------------------
+// Remote Workspace API functions
+// -------------------------------------------------------
+
+/**
+ * Fetch available remote machines
+ */
+export async function fetchRemoteMachines(): Promise<{ success: boolean; machines: RemoteMachine[] }> {
+  const url = buildOpenAceUrl("/api/remote/machines/available");
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch remote machines: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a new remote session on a machine
+ */
+export async function createRemoteSession(
+  machineId: string,
+  projectPath: string,
+  model?: string,
+  cliTool?: string,
+  permissionMode?: string
+): Promise<{ success: boolean; session: RemoteSession }> {
+  const url = buildOpenAceUrl("/api/remote/sessions");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      machine_id: machineId,
+      project_path: projectPath,
+      model: model || undefined,
+      cli_tool: cliTool || undefined,
+      permission_mode: permissionMode || undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || `Failed to create remote session: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Send a chat message to a remote session
+ */
+export async function sendRemoteMessage(
+  sessionId: string,
+  content: string,
+  permissionMode?: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/chat`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      content,
+      permission_mode: permissionMode || undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || `Failed to send remote message: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Get the current status / output of a remote session
+ */
+export async function getRemoteSessionStatus(
+  sessionId: string
+): Promise<{ success: boolean; session: RemoteSession }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}`);
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get remote session status: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Stop a remote session
+ */
+export async function stopRemoteSession(
+  sessionId: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/stop`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || `Failed to stop remote session: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Browse directories on a remote machine
+ */
+export async function browseRemoteDirectory(
+  machineId: string,
+  path?: string
+): Promise<BrowseResponse> {
+  let url = buildOpenAceUrl(`/api/remote/machines/${machineId}/browse`);
+  if (path) {
+    url = `${url}&path=${encodeURIComponent(path)}`;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to browse remote directory: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Open an SSE connection to stream remote session output.
+ * The server sends lines in the same claude_json format used by local sessions.
+ */
+/**
+ * Send a permission response (approve/deny) to the remote agent
+ */
+export async function sendPermissionResponse(
+  sessionId: string,
+  requestId: string,
+  behavior: "allow" | "deny",
+  message?: string,
+  toolName?: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/permission`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      request_id: requestId,
+      behavior,
+      tool_name: toolName || "",
+      ...(message ? { message } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || `Failed to send permission response: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+export function createRemoteSessionStream(
+  sessionId: string,
+  onLine: (line: string) => void,
+  onError: (err: Event) => void,
+  onDone: () => void,
+): EventSource {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/stream`);
+  console.log("[SSE] Connecting to:", url);
+  const es = new EventSource(url);
+  es.onopen = () => {
+    console.log("[SSE] Connection opened");
+  };
+  es.onmessage = (event) => {
+    if (event.data === "[DONE]") {
+      console.log("[SSE] Received [DONE]");
+      es.close();
+      onDone();
+      return;
+    }
+    onLine(event.data);
+  };
+  es.onerror = (e) => {
+    console.error("[SSE] Error, readyState:", es.readyState, e);
+    es.close();
+    onError(e);
+  };
+  return es;
+}
+

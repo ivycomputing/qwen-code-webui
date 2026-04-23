@@ -37,6 +37,11 @@ export interface ProcessingContext {
   currentAssistantMessage?: ChatMessage | null;
   setCurrentAssistantMessage?: (message: ChatMessage | null) => void;
 
+  // Current thinking message state (for streaming consolidation)
+  currentThinkingMessage?: ThinkingMessage | null;
+  setCurrentThinkingMessage?: (message: ThinkingMessage | null) => void;
+  updateThinkingMessage?: (content: string) => void;
+
   // Session handling
   onSessionId?: (sessionId: string) => void;
   hasReceivedInit?: boolean;
@@ -51,6 +56,7 @@ export interface ProcessingContext {
     toolName: string,
     patterns: string[],
     toolUseId: string,
+    requestId?: string,
   ) => void;
   onAbortRequest?: () => void;
 
@@ -91,6 +97,7 @@ export class UnifiedMessageProcessor {
   private toolUseCache = new Map<string, ToolCache>();
   private processedToolResults = new Set<string>();
   private processedToolUses = new Set<string>();
+  private processedThinkingFingerprints = new Set<string>();
 
   /**
    * Clear the tool use cache
@@ -99,6 +106,7 @@ export class UnifiedMessageProcessor {
     this.toolUseCache.clear();
     this.processedToolResults.clear();
     this.processedToolUses.clear();
+    this.processedThinkingFingerprints.clear();
   }
 
   /**
@@ -425,21 +433,40 @@ export class UnifiedMessageProcessor {
 
     // Qwen SDK uses 'parts' instead of 'content'
     const messageParts = (message.message as { parts?: unknown }).parts;
-    
+
     // Check if message.parts exists (Qwen SDK format)
     if (Array.isArray(messageParts)) {
       for (const partItem of messageParts) {
         const part = partItem as { text?: string; thought?: boolean; type?: string };
         if (part.thought && part.text) {
-          // Thinking/reasoning content
-          const thinkingMessage = createThinkingMessage(part.text, timestamp);
-          if (options.isStreaming) {
-            context.addMessage(thinkingMessage);
+          // Thinking/reasoning content — consolidate with existing thinking
+          const fingerprint = part.text.substring(0, 100);
+          if (this.processedThinkingFingerprints.has(fingerprint)) {
+            // Skip duplicate thinking content
+          } else if (options.isStreaming) {
+            this.processedThinkingFingerprints.add(fingerprint);
+            const existing = context.currentThinkingMessage;
+            if (existing) {
+              // Append to existing thinking message
+              const updatedContent = existing.content + "\n" + part.text;
+              const updated = { ...existing, content: updatedContent };
+              context.setCurrentThinkingMessage?.(updated);
+              context.updateThinkingMessage?.(updatedContent);
+            } else {
+              const thinkingMessage = createThinkingMessage(part.text, timestamp);
+              context.setCurrentThinkingMessage?.(thinkingMessage);
+              context.addMessage(thinkingMessage);
+            }
           } else {
+            this.processedThinkingFingerprints.add(fingerprint);
+            const thinkingMessage = createThinkingMessage(part.text, timestamp);
             thinkingMessages.push(thinkingMessage);
           }
         } else if (part.text) {
-          // Regular text content
+          // Regular text content — clear thinking state when text starts
+          if (options.isStreaming) {
+            context.setCurrentThinkingMessage?.(null);
+          }
           if (options.isStreaming) {
             this.handleAssistantText({ text: part.text } as { type: "text"; text: string }, context, options);
           } else {
@@ -460,13 +487,31 @@ export class UnifiedMessageProcessor {
         } else if (item.type === "tool_use") {
           this.handleToolUse(item, localContext, options);
         } else if (isThinkingContentItem(item)) {
-          const thinkingMessage = createThinkingMessage(
-            item.thinking,
-            timestamp,
-          );
-          if (options.isStreaming) {
-            context.addMessage(thinkingMessage);
+          const fingerprint = item.thinking.substring(0, 100);
+          if (this.processedThinkingFingerprints.has(fingerprint)) {
+            // Skip duplicate thinking content
+          } else if (options.isStreaming) {
+            this.processedThinkingFingerprints.add(fingerprint);
+            const existing = context.currentThinkingMessage;
+            if (existing) {
+              const updatedContent = existing.content + "\n" + item.thinking;
+              const updated = { ...existing, content: updatedContent };
+              context.setCurrentThinkingMessage?.(updated);
+              context.updateThinkingMessage?.(updatedContent);
+            } else {
+              const thinkingMessage = createThinkingMessage(
+                item.thinking,
+                timestamp,
+              );
+              context.setCurrentThinkingMessage?.(thinkingMessage);
+              context.addMessage(thinkingMessage);
+            }
           } else {
+            this.processedThinkingFingerprints.add(fingerprint);
+            const thinkingMessage = createThinkingMessage(
+              item.thinking,
+              timestamp,
+            );
             thinkingMessages.push(thinkingMessage);
           }
         }
@@ -512,9 +557,10 @@ export class UnifiedMessageProcessor {
     const resultMessage = convertResultMessage(message, timestamp);
     context.addMessage(resultMessage);
 
-    // Clear current assistant message (streaming only)
+    // Clear current assistant/thinking message (streaming only)
     if (options.isStreaming) {
       context.setCurrentAssistantMessage?.(null);
+      context.setCurrentThinkingMessage?.(null);
     }
   }
 

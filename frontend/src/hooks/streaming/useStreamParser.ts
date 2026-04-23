@@ -34,6 +34,11 @@ export function useStreamParser() {
         currentAssistantMessage: context.currentAssistantMessage,
         setCurrentAssistantMessage: context.setCurrentAssistantMessage,
 
+        // Current thinking message state
+        currentThinkingMessage: context.currentThinkingMessage,
+        setCurrentThinkingMessage: context.setCurrentThinkingMessage,
+        updateThinkingMessage: context.updateThinkingMessage,
+
         // Session handling
         onSessionId: context.onSessionId,
         hasReceivedInit: context.hasReceivedInit,

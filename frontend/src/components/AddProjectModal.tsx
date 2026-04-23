@@ -6,13 +6,19 @@ import {
   XMarkIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
+  ComputerDesktopIcon,
+  ServerIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
 import { DirectoryBrowser } from "./DirectoryBrowser";
+import { RemoteMachineSelector } from "./RemoteMachineSelector";
+import { RemoteDirectoryBrowser } from "./RemoteDirectoryBrowser";
 import {
   createOpenAceProject,
   checkPath,
+  createRemoteSession,
   type OpenAceProject,
+  type RemoteMachine,
 } from "../api/openace";
 
 interface AddProjectModalProps {
@@ -22,6 +28,7 @@ interface AddProjectModalProps {
 }
 
 type Step = "browse" | "details" | "creating" | "success" | "error";
+type WorkspaceType = "local" | "remote";
 
 export function AddProjectModal({
   isOpen,
@@ -30,7 +37,9 @@ export function AddProjectModal({
 }: AddProjectModalProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>("browse");
+  const [workspaceType, setWorkspaceType] = useState<WorkspaceType>("local");
   const [selectedPath, setSelectedPath] = useState<string>("");
+  const [selectedMachine, setSelectedMachine] = useState<RemoteMachine | null>(null);
   const [projectName, setProjectName] = useState<string>("");
   const [projectDescription, setProjectDescription] = useState<string>("");
   const [isShared, setIsShared] = useState(false);
@@ -41,7 +50,9 @@ export function AddProjectModal({
 
   const resetState = useCallback(() => {
     setStep("browse");
+    setWorkspaceType("local");
     setSelectedPath("");
+    setSelectedMachine(null);
     setProjectName("");
     setProjectDescription("");
     setIsShared(false);
@@ -87,19 +98,43 @@ export function AddProjectModal({
     setErrorMessage("");
 
     try {
-      const response = await createOpenAceProject({
-        path: selectedPath,
-        name: projectName || undefined,
-        description: projectDescription || undefined,
-        is_shared: isShared,
-        create_dir: createDir && !pathExists,
-      });
+      if (workspaceType === "remote" && selectedMachine) {
+        // For remote workspaces, create the project locally and start a remote session
+        const response = await createOpenAceProject({
+          path: selectedPath,
+          name: projectName || undefined,
+          description: projectDescription || undefined,
+          is_shared: isShared,
+          create_dir: false,
+        });
 
-      setCreatedProject(response.project);
-      setStep("success");
+        // Start remote session
+        const sessionResponse = await createRemoteSession(
+          selectedMachine.machine_id,
+          selectedPath,
+        );
 
-      // Notify parent
-      onProjectAdded(response.project);
+        if (!sessionResponse.success) {
+          throw new Error("Failed to create remote session");
+        }
+
+        setCreatedProject(response.project);
+        setStep("success");
+        onProjectAdded(response.project);
+      } else {
+        // Local workspace - existing flow
+        const response = await createOpenAceProject({
+          path: selectedPath,
+          name: projectName || undefined,
+          description: projectDescription || undefined,
+          is_shared: isShared,
+          create_dir: createDir && !pathExists,
+        });
+
+        setCreatedProject(response.project);
+        setStep("success");
+        onProjectAdded(response.project);
+      }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t("project.failedToCreate"));
       setStep("error");
@@ -169,28 +204,101 @@ export function AddProjectModal({
 
                 {/* Content based on step */}
                 {step === "browse" && (
-                  <div 
+                  <div
                     className="p-4"
                     style={{ pointerEvents: 'auto' }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        // Enter in browse step does nothing - let DirectoryBrowser handle it
                       }
                     }}
                   >
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                      {t("project.selectDirectory")}
-                    </p>
-                    <DirectoryBrowser
-                      onSelectDirectory={handleSelectDirectory}
-                      onClose={handleClose}
-                    />
+                    {/* Workspace Type Toggle */}
+                    <div className="flex items-center gap-4 mb-4">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Workspace:
+                      </span>
+                      <div className="flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => { setWorkspaceType("local"); setSelectedMachine(null); }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                            workspaceType === "local"
+                              ? "bg-blue-600 text-white"
+                              : "bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600"
+                          }`}
+                        >
+                          <ComputerDesktopIcon className="h-4 w-4" />
+                          Local
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWorkspaceType("remote")}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                            workspaceType === "remote"
+                              ? "bg-blue-600 text-white"
+                              : "bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600"
+                          }`}
+                        >
+                          <ServerIcon className="h-4 w-4" />
+                          Remote
+                        </button>
+                      </div>
+                    </div>
+
+                    {workspaceType === "local" ? (
+                      <>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                          {t("project.selectDirectory")}
+                        </p>
+                        <DirectoryBrowser
+                          onSelectDirectory={handleSelectDirectory}
+                          onClose={handleClose}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        {/* Remote workspace: select machine then browse directories */}
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                              Select Remote Machine
+                            </label>
+                            <RemoteMachineSelector
+                              onSelect={(machine) => setSelectedMachine(machine)}
+                              selectedMachineId={selectedMachine?.machine_id}
+                            />
+                          </div>
+                          {selectedMachine && (
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Select Directory on {selectedMachine.machine_name}
+                              </label>
+                              <RemoteDirectoryBrowser
+                                machineId={selectedMachine.machine_id}
+                                onSelectDirectory={handleSelectDirectory}
+                                onClose={handleClose}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
                 {step === "details" && (
                   <div className="p-6 space-y-4" style={{ pointerEvents: 'auto' }}>
+                    {/* Workspace type indicator */}
+                    {workspaceType === "remote" && selectedMachine && (
+                      <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                        <ServerIcon className="h-5 w-5 text-purple-500" />
+                        <span className="text-sm text-purple-700 dark:text-purple-300">
+                          Remote workspace on <strong>{selectedMachine.machine_name}</strong>
+                          {selectedMachine.hostname && ` (${selectedMachine.hostname})`}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         {t("project.projectPath")}

@@ -6,6 +6,7 @@ interface PermissionRequest {
   toolName: string;
   patterns: string[];
   toolUseId: string;
+  requestId?: string; // For remote mode: the control_request request_id
 }
 
 interface PlanModeRequest {
@@ -115,12 +116,13 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   const loopDetectionDisabledRef = useRef(false);
 
   const showPermissionRequest = useCallback(
-    (toolName: string, patterns: string[], toolUseId: string) => {
+    (toolName: string, patterns: string[], toolUseId: string, requestId?: string) => {
       setPermissionRequest({
         isOpen: true,
         toolName,
         patterns,
         toolUseId,
+        requestId,
       });
       // Enable inline permission mode
       setIsPermissionMode(true);

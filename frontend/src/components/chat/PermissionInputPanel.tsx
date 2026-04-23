@@ -3,20 +3,31 @@ import type { JSX } from "react";
 import { useState, useEffect, useCallback } from "react";
 
 // Helper function to extract command name from pattern like "Bash(ls:*)" -> "ls"
-function extractCommandName(pattern: string): string {
-  if (!pattern) return "Unknown";
-  const match = pattern.match(/Bash\(([^:]+):/);
-  return match ? match[1] : pattern;
+function extractCommandName(pattern: string, fallbackToolName?: string): string {
+  if (!pattern) return fallbackToolName || "Unknown";
+  // Bash(cmd:*) format
+  const bashMatch = pattern.match(/Bash\(([^:]+):/);
+  if (bashMatch) return bashMatch[1];
+  // Tool(*) format (e.g. Write(*), Read(*))
+  const toolMatch = pattern.match(/^(\w+)\(\*\)$/);
+  if (toolMatch) return toolMatch[1];
+  // Plain tool name without wildcards
+  if (/^\w+$/.test(pattern)) return pattern;
+  return fallbackToolName || pattern;
 }
 
 // Helper function to render permission content based on patterns
-function renderPermissionContent(patterns: string[]): JSX.Element {
-  // Handle empty patterns array
+function renderPermissionContent(patterns: string[], toolName?: string): JSX.Element {
+  // Handle empty patterns array — use toolName as fallback
   if (patterns.length === 0) {
+    const displayName = toolName || "bash commands";
     return (
       <p className="text-slate-600 dark:text-slate-300 mb-3">
-        Qwen wants to use bash commands, but the specific commands could not be
-        determined.
+        Qwen wants to use the{" "}
+        <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm">
+          {displayName}
+        </span>{" "}
+        command.
       </p>
     );
   }
@@ -24,8 +35,21 @@ function renderPermissionContent(patterns: string[]): JSX.Element {
   const isMultipleCommands = patterns.length > 1;
 
   if (isMultipleCommands) {
-    // Extract command names from patterns like "Bash(ls:*)" -> "ls"
-    const commandNames = patterns.map(extractCommandName);
+    // Extract and deduplicate command names from patterns like "Bash(ls:*)" -> "ls"
+    const commandNames = [...new Set(patterns.map((p) => extractCommandName(p, toolName)))];
+
+    // After dedup, might only be one unique command
+    if (commandNames.length === 1) {
+      return (
+        <p className="text-slate-600 dark:text-slate-300 mb-3">
+          Qwen wants to use the{" "}
+          <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-sm">
+            {commandNames[0]}
+          </span>{" "}
+          command.
+        </p>
+      );
+    }
 
     return (
       <>
@@ -45,7 +69,7 @@ function renderPermissionContent(patterns: string[]): JSX.Element {
       </>
     );
   } else {
-    const commandName = extractCommandName(patterns[0]);
+    const commandName = extractCommandName(patterns[0], toolName);
     return (
       <p className="text-slate-600 dark:text-slate-300 mb-3">
         Qwen wants to use the{" "}
@@ -59,14 +83,15 @@ function renderPermissionContent(patterns: string[]): JSX.Element {
 }
 
 // Helper function to render button text for permanent permission
-function renderPermanentButtonText(patterns: string[]): string {
+function renderPermanentButtonText(patterns: string[], toolName?: string): string {
   // Handle empty patterns array
   if (patterns.length === 0) {
-    return "Yes, and don't ask again for bash commands";
+    const displayName = toolName || "bash commands";
+    return `Yes, and don't ask again for ${displayName} command`;
   }
 
   const isMultipleCommands = patterns.length > 1;
-  const commandNames = patterns.map(extractCommandName);
+  const commandNames = [...new Set(patterns.map((p) => extractCommandName(p, toolName)))];
 
   if (isMultipleCommands) {
     return `Yes, and don't ask again for ${commandNames.join(" and ")} commands`;
@@ -77,6 +102,7 @@ function renderPermanentButtonText(patterns: string[]): string {
 
 interface PermissionInputPanelProps {
   patterns: string[];
+  toolName?: string;
   onAllow: () => void;
   onAllowPermanent: () => void;
   onDeny: () => void;
@@ -93,6 +119,7 @@ interface PermissionInputPanelProps {
 
 export function PermissionInputPanel({
   patterns,
+  toolName,
   onAllow,
   onAllowPermanent,
   onDeny,
@@ -182,7 +209,7 @@ export function PermissionInputPanel({
 
       {/* Content */}
       <div className="mb-4">
-        {renderPermissionContent(patterns)}
+        {renderPermissionContent(patterns, toolName)}
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Do you want to proceed? (Press ESC to deny)
         </p>
@@ -261,7 +288,7 @@ export function PermissionInputPanel({
                 : "text-slate-700 dark:text-slate-300"
             }`}
           >
-            {renderPermanentButtonText(patterns)}
+            {renderPermanentButtonText(patterns, toolName)}
           </span>
         </button>
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import type { AllMessage, ChatMessage } from "../../types";
+import type { AllMessage, ChatMessage, ThinkingMessage } from "../../types";
 import { generateId } from "../../utils/id";
 
 interface ChatStateOptions {
@@ -32,6 +32,8 @@ export function useChatState(options: ChatStateOptions = {}) {
   const [hasReceivedInit, setHasReceivedInit] = useState(false);
   const [currentAssistantMessage, setCurrentAssistantMessage] =
     useState<ChatMessage | null>(null);
+  const [currentThinkingMessage, setCurrentThinkingMessage] =
+    useState<ThinkingMessage | null>(null);
 
   // Update messages and sessionId when initial values change
   useEffect(() => {
@@ -56,6 +58,19 @@ export function useChatState(options: ChatStateOptions = {}) {
     );
   }, []);
 
+  const updateThinkingMessage = useCallback((content: string) => {
+    setMessages((prev) => {
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].type === "thinking") {
+          return prev.map((msg, index) =>
+            index === i ? { ...msg, content } : msg
+          );
+        }
+      }
+      return prev;
+    });
+  }, []);
+
   const clearInput = useCallback(() => {
     setInput("");
   }, []);
@@ -70,11 +85,13 @@ export function useChatState(options: ChatStateOptions = {}) {
     setIsLoading(false);
     setCurrentRequestId(null);
     setCurrentAssistantMessage(null);
+    setCurrentThinkingMessage(null);
   }, []);
 
   const startRequest = useCallback(() => {
     setIsLoading(true);
     setCurrentAssistantMessage(null);
+    setCurrentThinkingMessage(null);
     setHasReceivedInit(false);
   }, []);
 
@@ -88,6 +105,7 @@ export function useChatState(options: ChatStateOptions = {}) {
     hasShownInitMessage,
     hasReceivedInit,
     currentAssistantMessage,
+    currentThinkingMessage,
 
     // State setters
     setMessages,
@@ -98,10 +116,12 @@ export function useChatState(options: ChatStateOptions = {}) {
     setHasShownInitMessage,
     setHasReceivedInit,
     setCurrentAssistantMessage,
+    setCurrentThinkingMessage,
 
     // Helper functions
     addMessage,
     updateLastMessage,
+    updateThinkingMessage,
     clearInput,
     generateRequestId,
     resetRequestState,

@@ -1,4 +1,4 @@
-import type { AllMessage, ChatMessage } from "../../types";
+import type { AllMessage, ChatMessage, ThinkingMessage } from "../../types";
 import { useMessageConverter } from "../useMessageConverter";
 import type { CommandLoopRequest } from "../chat/usePermissions";
 
@@ -7,6 +7,10 @@ export interface StreamingContext {
   setCurrentAssistantMessage: (msg: ChatMessage | null) => void;
   addMessage: (msg: AllMessage) => void;
   updateLastMessage: (content: string) => void;
+  // Thinking message consolidation (streaming)
+  currentThinkingMessage?: ThinkingMessage | null;
+  setCurrentThinkingMessage?: (msg: ThinkingMessage | null) => void;
+  updateThinkingMessage?: (content: string) => void;
   onSessionId?: (sessionId: string) => void;
   shouldShowInitMessage?: () => boolean;
   onInitMessageShown?: () => void;
@@ -16,6 +20,7 @@ export interface StreamingContext {
     toolName: string,
     patterns: string[],
     toolUseId: string,
+    requestId?: string,
   ) => void;
   onAbortRequest?: () => void;
   // Command result loop detection

@@ -16,6 +16,7 @@ import { formatTokenCount } from "../../utils/tokenUsage";
 
 interface PermissionData {
   patterns: string[];
+  toolName?: string;
   onAllow: () => void;
   onAllowPermanent: () => void;
   onDeny: () => void;
@@ -335,6 +336,7 @@ export function ChatInput({
     return (
       <PermissionInputPanel
         patterns={permissionData.patterns}
+        toolName={permissionData.toolName}
         onAllow={permissionData.onAllow}
         onAllowPermanent={permissionData.onAllowPermanent}
         onDeny={permissionData.onDeny}

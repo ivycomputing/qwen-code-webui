@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeftIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ServerIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
 import type {
   ChatRequest,
@@ -38,6 +38,7 @@ import { getChatUrl, getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
 import { normalizeWindowsPath } from "../utils/pathUtils";
 import { isIntegratedMode, fetchOpenAceProjects } from "../api/openace";
+import { useRemoteChat } from "../hooks/useRemoteChat";
 import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
 
 // Types for quota status
@@ -72,6 +73,11 @@ export function ChatPage() {
   const urlModel = searchParams.get("model");
   const urlUseWebUI = searchParams.get("useWebUI");
   const urlPermissionMode = searchParams.get("permissionMode");
+
+  // Remote workspace parameters
+  const isRemoteWorkspace = searchParams.get("workspaceType") === "remote";
+  const remoteMachineId = searchParams.get("machineId") || "";
+  const remoteMachineName = searchParams.get("machineName") || "";
 
   // Model selection
   const {
@@ -227,15 +233,19 @@ export function ChatPage() {
     currentSessionId,
     currentRequestId,
     hasShownInitMessage,
+    hasReceivedInit,
     currentAssistantMessage,
+    currentThinkingMessage,
     setInput,
     setMessages,
     setCurrentSessionId,
     setHasShownInitMessage,
     setHasReceivedInit,
     setCurrentAssistantMessage,
+    setCurrentThinkingMessage,
     addMessage,
     updateLastMessage,
+    updateThinkingMessage,
     clearInput,
     generateRequestId,
     resetRequestState,
@@ -245,10 +255,69 @@ export function ChatPage() {
     initialSessionId: loadedSessionId || undefined,
   });
 
+  // Remote chat hook — placed after processStreamLine and useChatState so we
+  // can pass both into the options.  Only meaningful when isRemoteWorkspace.
+  const remoteChat = useRemoteChat(
+    isRemoteWorkspace
+      ? {
+          onStreamLine: (line, ctx) => processStreamLine(line, ctx),
+          streamingContext: {
+            currentAssistantMessage,
+            setCurrentAssistantMessage,
+            currentThinkingMessage,
+            setCurrentThinkingMessage,
+            updateThinkingMessage,
+            addMessage,
+            updateLastMessage,
+            onSessionId: setCurrentSessionId,
+            hasReceivedInit,
+            setHasReceivedInit,
+            shouldShowInitMessage: () => !hasShownInitMessage,
+            onInitMessageShown: () => setHasShownInitMessage(true),
+            onPermissionError: (toolName, patterns, toolUseId) =>
+              permissionErrorRef.current?.(toolName, patterns, toolUseId),
+          },
+          onPermissionRequest: (event) => {
+            // Forward remote CLI permission request to the existing permission panel
+            const req = event.request;
+            if (req?.tool_name) {
+              const patterns = req.permission_suggestions?.map(s => s.rule) || [];
+              permissionErrorRef.current?.(req.tool_name, patterns, req.tool_use_id || "", event.request_id);
+            }
+          },
+        }
+      : undefined,
+  );
+
+  // Remote workspace supports all permission modes (default triggers control_request via stream-json)
+  const remotePermissionMode = permissionMode;
+
+  // Auto-start or connect to remote session
+  useEffect(() => {
+    if (!isRemoteWorkspace || !remoteMachineId || remoteChat.session) return;
+
+    if (isLoadedConversation && sessionId) {
+      // open-ace already created this session — just connect to it
+      remoteChat.connectSession(sessionId);
+    } else if (workingDirectory) {
+      // No existing session — create a new one
+      remoteChat.startSession(remoteMachineId, workingDirectory, selectedModel || undefined, undefined, remotePermissionMode);
+    }
+  }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode]);
+
   // Calculate token usage from messages
   const tokenUsage = useMemo(() => {
     return calculateTokenUsage(messages);
   }, [messages]);
+
+  // Unified messages for display — remote sessions now go through processStreamLine
+  // which populates the same messages array, so no conversion is needed.
+  const displayMessages = useMemo(() => {
+    return messages;
+  }, [messages]);
+
+  // Combined loading state: local streaming OR remote chat loading
+  const effectiveIsLoading = isLoading || (isRemoteWorkspace && remoteChat.isLoading);
 
   const {
     allowedTools,
@@ -293,19 +362,25 @@ export function ChatPage() {
   // during the current streaming session (used to decide if input notification should fire)
   const notificationTriggeredRef = useRef(false);
 
+  // Ref for permission error handler — used by remote streamingContext to
+  // avoid declaration-order issues (handlePermissionError is defined below).
+  const permissionErrorRef = useRef<
+    ((toolName: string, patterns: string[], toolUseId: string, requestId?: string) => void) | null
+  >(null);
+
   // Ref to track previous isLoading state for detecting when AI finishes responding
   const wasLoadingRef = useRef(false);
 
   // Show input notification when AI finishes responding (isLoading changes from true to false)
   useEffect(() => {
     // Update the ref to track previous state
-    if (isLoading) {
+    if (effectiveIsLoading) {
       wasLoadingRef.current = true;
     }
 
     // When isLoading changes from true to false, show input notification
     // Only if no permission/plan notification was triggered
-    if (wasLoadingRef.current && !isLoading) {
+    if (wasLoadingRef.current && !effectiveIsLoading) {
       wasLoadingRef.current = false;
 
       // Show input notification if no permission/plan notification was triggered
@@ -316,10 +391,10 @@ export function ChatPage() {
       // Reset the flag for the next request
       notificationTriggeredRef.current = false;
     }
-  }, [isLoading, showInputNotification]);
+  }, [effectiveIsLoading, showInputNotification]);
 
   const handlePermissionError = useCallback(
-    (toolName: string, patterns: string[], toolUseId: string) => {
+    (toolName: string, patterns: string[], toolUseId: string, requestId?: string) => {
       notificationTriggeredRef.current = true;
       // Check if this is an ExitPlanMode permission error
       if (patterns.includes("ExitPlanMode")) {
@@ -328,13 +403,14 @@ export function ChatPage() {
         // Show tab notification for plan approval
         showPlanNotification();
       } else {
-        showPermissionRequest(toolName, patterns, toolUseId);
+        showPermissionRequest(toolName, patterns, toolUseId, requestId);
         // Show tab notification for permission request
         showPermissionNotification();
       }
     },
     [showPermissionRequest, showPlanModeRequest, showPermissionNotification, showPlanNotification],
   );
+  permissionErrorRef.current = handlePermissionError;
 
   const sendMessage = useCallback(
     async (
@@ -350,6 +426,25 @@ export function ChatPage() {
       if (content === "/clear") {
         setShowClearConfirm(true);
         if (!messageContent) clearInput();
+        return;
+      }
+
+      // Remote mode: delegate to useRemoteChat
+      // Note: don't call startRequest() here — remoteChat.isLoading tracks
+      // the SSE lifecycle via effectiveIsLoading, and startRequest() has no
+      // matching resetRequestState() in this path, which would permanently
+      // block the user from sending further messages.
+      if (isRemoteWorkspace) {
+        if (!hideUserMessage) {
+          addMessage({
+            type: "chat",
+            role: "user",
+            content,
+            timestamp: Date.now(),
+          });
+        }
+        if (!messageContent) clearInput();
+        await remoteChat.sendMessage(content, remotePermissionMode);
         return;
       }
 
@@ -409,6 +504,9 @@ export function ChatPage() {
         const streamingContext: StreamingContext = {
           currentAssistantMessage,
           setCurrentAssistantMessage,
+          currentThinkingMessage,
+          setCurrentThinkingMessage,
+          updateThinkingMessage,
           addMessage,
           updateLastMessage,
           onSessionId: setCurrentSessionId,
@@ -488,12 +586,18 @@ export function ChatPage() {
       handlePermissionError,
       createAbortHandler,
       showInputNotification,
+      isRemoteWorkspace,
+      remoteChat.sendMessage,
     ],
   );
 
   const handleAbort = useCallback(() => {
+    if (isRemoteWorkspace && remoteChat.session) {
+      remoteChat.stopSession();
+      return;
+    }
     abortRequest(currentRequestId, isLoading, resetRequestState);
-  }, [abortRequest, currentRequestId, isLoading, resetRequestState]);
+  }, [abortRequest, currentRequestId, isLoading, resetRequestState, isRemoteWorkspace, remoteChat.stopSession, remoteChat.session]);
 
   // Slash command execution handler
   const handleExecuteSlashCommand = useCallback(
@@ -535,6 +639,18 @@ export function ChatPage() {
     // Clear tab notification
     clearNotification();
 
+    // In remote mode, send permission response to the remote agent
+    if (isRemoteWorkspace) {
+      remoteChat.sendPermissionResponse(
+        permissionRequest.requestId || "",
+        "allow",
+        undefined,
+        permissionRequest.toolName
+      );
+      closePermissionRequest();
+      return;
+    }
+
     // Add all patterns temporarily
     let updatedAllowedTools = allowedTools;
     permissionRequest.patterns.forEach((pattern) => {
@@ -555,6 +671,8 @@ export function ChatPage() {
     closePermissionRequest,
     resetDenialCounter,
     clearNotification,
+    isRemoteWorkspace,
+    remoteChat,
   ]);
 
   const handlePermissionAllowPermanent = useCallback(() => {
@@ -565,6 +683,18 @@ export function ChatPage() {
 
     // Clear tab notification
     clearNotification();
+
+    // In remote mode, send permission response to the remote agent
+    if (isRemoteWorkspace) {
+      remoteChat.sendPermissionResponse(
+        permissionRequest.requestId || "",
+        "allow",
+        undefined,
+        permissionRequest.toolName
+      );
+      closePermissionRequest();
+      return;
+    }
 
     // Add all patterns permanently
     let updatedAllowedTools = allowedTools;
@@ -586,6 +716,8 @@ export function ChatPage() {
     closePermissionRequest,
     resetDenialCounter,
     clearNotification,
+    isRemoteWorkspace,
+    remoteChat,
   ]);
 
   const handlePermissionDeny = useCallback(() => {
@@ -598,6 +730,20 @@ export function ChatPage() {
 
     // Clear tab notification
     clearNotification();
+
+    // In remote mode, send permission response to the remote agent
+    if (isRemoteWorkspace) {
+      const denyMessage = loopMessage ||
+        `The user denied the permission request for ${toolName}. Please stop retrying and ask the user what they would like to do instead.`;
+      remoteChat.sendPermissionResponse(
+        permissionRequest.requestId || "",
+        "deny",
+        denyMessage,
+        toolName
+      );
+      closePermissionRequest();
+      return;
+    }
 
     closePermissionRequest();
 
@@ -622,6 +768,8 @@ export function ChatPage() {
     closePermissionRequest,
     recordDenial,
     clearNotification,
+    isRemoteWorkspace,
+    remoteChat,
   ]);
 
   // Plan mode request handlers
@@ -701,6 +849,7 @@ export function ChatPage() {
   const permissionData = permissionRequest
     ? {
         patterns: permissionRequest.patterns,
+        toolName: permissionRequest.toolName,
         onAllow: handlePermissionAllow,
         onAllowPermanent: handlePermissionAllowPermanent,
         onDeny: handlePermissionDeny,
@@ -815,7 +964,7 @@ export function ChatPage() {
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === KEYBOARD_SHORTCUTS.ABORT && isLoading && currentRequestId) {
+      if (e.key === KEYBOARD_SHORTCUTS.ABORT && effectiveIsLoading && currentRequestId) {
         e.preventDefault();
         handleAbort();
       }
@@ -859,7 +1008,7 @@ export function ChatPage() {
 
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isLoading, currentRequestId, handleAbort, permissionMode, setPermissionMode]);
+  }, [effectiveIsLoading, currentRequestId, handleAbort, permissionMode, setPermissionMode]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
@@ -906,10 +1055,51 @@ export function ChatPage() {
                   )}
                 </div>
               </nav>
+              {/* Remote workspace indicator */}
+              {isRemoteWorkspace && remoteChat.session && (
+                <div className="flex items-center gap-2 mt-1 text-sm text-purple-600 dark:text-purple-400">
+                  <ServerIcon className="h-4 w-4" />
+                  <span className="font-medium">{remoteMachineName}</span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      remoteChat.session.status === "active"
+                        ? "bg-green-500"
+                        : remoteChat.session.status === "error"
+                          ? "bg-red-500"
+                          : "bg-slate-400"
+                    }`}
+                    title={`Status: ${remoteChat.session.status}`}
+                  />
+                </div>
+              )}
+              {/* Remote session error */}
+              {isRemoteWorkspace && remoteChat.error && (
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xs text-red-500 dark:text-red-400">
+                    {remoteChat.error}
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="text-xs px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                  >
+                    刷新重连
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!isHistoryView && (
+            {/* Remote stop session button */}
+            {isRemoteWorkspace && remoteChat.session?.status === "active" && (
+              <button
+                onClick={() => remoteChat.stopSession()}
+                className="px-2 py-1 text-xs font-medium rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                title="Stop remote session"
+              >
+                Stop Session
+              </button>
+            )}
+            {!isHistoryView && !isRemoteWorkspace && (
               <ModelSelector
                 models={models}
                 selectedModel={selectedModel}
@@ -1029,13 +1219,13 @@ export function ChatPage() {
             {/* Chat Messages */}
             {experimental.useWebUIComponents ? (
               <WebUIChatMessages
-                messages={messages}
+                messages={displayMessages}
                 expandThinking={expandThinking}
               />
             ) : (
               <ChatMessages
-                messages={messages}
-                isLoading={isLoading}
+                messages={displayMessages}
+                isLoading={effectiveIsLoading}
                 expandThinking={expandThinking}
               />
             )}
@@ -1043,7 +1233,7 @@ export function ChatPage() {
             {/* Input */}
             <ChatInput
               input={input}
-              isLoading={isLoading}
+              isLoading={effectiveIsLoading}
               currentRequestId={currentRequestId}
               onInputChange={setInput}
               onSubmit={() => sendMessage()}
