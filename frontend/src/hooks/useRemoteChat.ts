@@ -181,18 +181,26 @@ export function useRemoteChat(options?: RemoteChatOptions) {
           return;
         }
 
-        setSession(response.session);
+        // Check session is actually usable
+        const s = response.session;
+        if (s.status !== "active" && s.status !== "paused") {
+          setError("远程会话已结束，请创建新会话");
+          setIsLoading(false);
+          return;
+        }
+
+        setSession(s);
 
         const currentOptions = optionsRef.current;
         if (currentOptions?.onStreamLine && currentOptions.streamingContext) {
           const es = createRemoteSessionStream(
-            response.session.session_id,
+            s.session_id,
             (line) => {
               handleSSELine(line);
             },
             (err) => {
               console.error("[useRemoteChat] SSE error:", err);
-              setError("远程会话连接断开，请刷新页面重新创建会话");
+              setError("远程会话连接断开，请重新连接");
               setIsLoading(false);
               setSession((prev) =>
                 prev ? { ...prev, status: "error" } : null
@@ -231,10 +239,9 @@ export function useRemoteChat(options?: RemoteChatOptions) {
       try {
         await sendRemoteMessage(session.session_id, content, permissionMode);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to send remote message"
-        );
+        const msg = err instanceof Error ? err.message : "Failed to send remote message";
         setIsLoading(false);
+        setError(msg);
       } finally {
         sendingRef.current = false;
       }
@@ -278,6 +285,20 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     setIsLoading(false);
   }, [session]);
 
+  const reconnect = useCallback(
+    async (machineId: string, projectPath: string, model?: string) => {
+      // Close old SSE
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setSession(null);
+      setError(null);
+      await startSession(machineId, projectPath, model);
+    },
+    [startSession]
+  );
+
   const handlePermissionResponse = useCallback(
     async (requestId: string, behavior: "allow" | "deny", message?: string, toolName?: string) => {
       if (!session) return;
@@ -311,6 +332,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     connectSession,
     stopSession: stopSessionHandler,
     resetSession,
+    reconnect,
     switchModel,
     sendPermissionResponse: handlePermissionResponse,
     error,

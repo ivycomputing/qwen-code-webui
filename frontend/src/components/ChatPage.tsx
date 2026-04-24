@@ -228,7 +228,7 @@ export function ChatPage() {
     sessionId: loadedSessionId,
   } = useAutoHistoryLoader(
     getEncodedName() || undefined,
-    sessionId || undefined,
+    isRemoteWorkspace ? undefined : (sessionId || undefined),
     toolName || undefined,
   );
 
@@ -299,15 +299,19 @@ export function ChatPage() {
   // Remote workspace supports all permission modes (default triggers control_request via stream-json)
   const remotePermissionMode = permissionMode;
 
+  // Guard against React StrictMode double-mounting
+  const startSessionCalledRef = useRef(false);
+
   // Auto-start or connect to remote session
   useEffect(() => {
     if (!isRemoteWorkspace || !remoteMachineId || remoteChat.session) return;
+    if (startSessionCalledRef.current) return;
 
     if (isLoadedConversation && sessionId) {
-      // open-ace already created this session — just connect to it
+      startSessionCalledRef.current = true;
       remoteChat.connectSession(sessionId);
     } else if (workingDirectory) {
-      // No existing session — create a new one
+      startSessionCalledRef.current = true;
       remoteChat.startSession(remoteMachineId, workingDirectory, selectedModel || undefined, undefined, remotePermissionMode);
     }
   }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode, remoteChat.session]);
@@ -1092,6 +1096,15 @@ export function ChatPage() {
                     <h1 className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight">
                       Conversation History
                     </h1>
+                  ) : isRemoteWorkspace ? (
+                    <button
+                      onClick={handleBackToProjects}
+                      className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
+                      aria-label="Back to project selection"
+                      title="Back to project selection"
+                    >
+                      {workingDirectory || "Chat"}
+                    </button>
                   ) : sessionId ? (
                     <>
                       <h1 className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight">
@@ -1138,12 +1151,14 @@ export function ChatPage() {
                   <p className="text-xs text-red-500 dark:text-red-400">
                     {remoteChat.error}
                   </p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="text-xs px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
-                  >
-                    刷新重连
-                  </button>
+                  {remoteMachineId && (
+                    <button
+                      onClick={() => remoteChat.reconnect(remoteMachineId, workingDirectory || "", selectedModel || undefined)}
+                      className="text-xs px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                    >
+                      重新连接
+                    </button>
+                  )}
                 </div>
               )}
             </div>
