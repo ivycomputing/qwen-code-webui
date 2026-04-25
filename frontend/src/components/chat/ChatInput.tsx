@@ -206,8 +206,15 @@ export function ChatInput({
         }
       }
       if (e.key === KEYBOARD_SHORTCUTS.SUBMIT) {
+        // If input exactly matches a complete slash command, submit the form
+        // so sendMessage can intercept and execute it (e.g. /context, /clear)
+        const trimmedInput = input.trim();
+        const exactMatch = suggestions.some(s => s.name === trimmedInput);
+        if (exactMatch) {
+          cancelSlashSuggestions();
+          return; // Let form submit normally
+        }
         e.preventDefault();
-        // Use completeWithTab for consistent behavior with Tab key
         if (completeWithTab()) {
           return;
         }
@@ -430,26 +437,30 @@ export function ChatInput({
           <>
             <span className="mx-3 text-slate-300 dark:text-slate-600">|</span>
             <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-              <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0">
-                <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
-                <circle
-                  cx="7" cy="7" r="6"
-                  fill="none"
-                  stroke={(() => {
-                    const pct = contextWindowSize ? (tokenUsage.promptTokens / contextWindowSize) * 100 : 0;
-                    if (pct > 80) return "#ef4444";
-                    if (pct > 50) return "#f59e0b";
-                    return "#22c55e";
-                  })()}
-                  strokeWidth="1.5"
-                  strokeDasharray={`${((tokenUsage.promptTokens / (contextWindowSize || tokenUsage.promptTokens)) * 37.7).toFixed(1)} 37.7`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 7 7)"
-                />
-              </svg>
-              {contextWindowSize
-                ? `${((tokenUsage.promptTokens / contextWindowSize) * 100).toFixed(1)}%`
-                : formatTokenCount(tokenUsage.promptTokens)}
+              {contextWindowSize ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0">
+                    <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+                    <circle
+                      cx="7" cy="7" r="6"
+                      fill="none"
+                      stroke={(() => {
+                        const pct = (tokenUsage.promptTokens / contextWindowSize) * 100;
+                        if (pct > 80) return "#ef4444";
+                        if (pct > 50) return "#f59e0b";
+                        return "#22c55e";
+                      })()}
+                      strokeWidth="1.5"
+                      strokeDasharray={`${((tokenUsage.promptTokens / contextWindowSize) * 37.7).toFixed(1)} 37.7`}
+                      strokeLinecap="round"
+                      transform="rotate(-90 7 7)"
+                    />
+                  </svg>
+                  {`${((tokenUsage.promptTokens / contextWindowSize) * 100).toFixed(1)}%`}
+                </>
+              ) : (
+                formatTokenCount(tokenUsage.promptTokens)
+              )}
             </span>
           </>
         )}

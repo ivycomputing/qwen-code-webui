@@ -19,7 +19,6 @@ import { useExpandThinking } from "../hooks/useSettings";
 import { useModel } from "../hooks/useModel";
 import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
 import { useTabNotification } from "../hooks/useTabNotification";
-import { getSlashCommand } from "../utils/slashCommands";
 import { generateId } from "../utils/id";
 import { calculateTokenUsage, calculateContextBreakdown } from "../utils/tokenUsage";
 import type { ContextUsageData } from "../utils/tokenUsage";
@@ -666,9 +665,10 @@ export function ChatPage() {
   // Slash command execution handler
   const handleExecuteSlashCommand = useCallback(
     (commandName: string) => {
-      const command = getSlashCommand(commandName);
-      if (command?.requiresConfirmation) {
+      if (commandName === "/clear") {
         setShowClearConfirm(true);
+      } else if (commandName === "/context") {
+        setShowContextPanel(true);
       }
     },
     [],
@@ -1301,6 +1301,24 @@ export function ChatPage() {
                 data={contextPanelData}
                 onClose={() => setShowContextPanel(false)}
               />
+            )}
+            {showContextPanel && !contextPanelData && (
+              <div className="border border-slate-300 dark:border-slate-600 rounded-lg p-4 my-2 bg-white dark:bg-slate-800">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    {t("contextPanel.title")}
+                  </span>
+                  <button
+                    onClick={() => setShowContextPanel(false)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg leading-none"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t("contextPanel.noApiData")}
+                </p>
+              </div>
             )}
 
             {/* Input */}
