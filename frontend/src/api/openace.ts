@@ -337,6 +337,7 @@ export interface RemoteSession {
   model: string | null;
   output: RemoteSessionOutput[];
   created_at: string | null;
+  paused_at: string | null;
 }
 
 // -------------------------------------------------------
@@ -594,6 +595,44 @@ export async function sendPermissionResponse(
     );
   }
 
+  return response.json();
+}
+
+/**
+ * Pause a remote session
+ */
+export async function pauseRemoteSession(
+  sessionId: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/pause`);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || `Failed to pause session: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Resume a paused remote session
+ */
+export async function resumeRemoteSession(
+  sessionId: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/resume`);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || `Failed to resume session: ${response.statusText}`);
+  }
   return response.json();
 }
 

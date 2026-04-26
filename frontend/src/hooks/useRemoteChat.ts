@@ -9,6 +9,8 @@ import {
   createRemoteSessionStream,
   sendPermissionResponse,
   switchRemoteModel,
+  pauseRemoteSession,
+  resumeRemoteSession,
   type RemoteSession,
 } from "../api/openace";
 import type { StreamingContext } from "./streaming/useMessageProcessor";
@@ -384,6 +386,36 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     [session]
   );
 
+  const pauseSession = useCallback(
+    async () => {
+      if (!session) return;
+      try {
+        const result = await pauseRemoteSession(session.session_id);
+        if (result.success) {
+          setSession((prev) => prev ? { ...prev, status: "paused" } : null);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to pause session");
+      }
+    },
+    [session]
+  );
+
+  const resumeSession = useCallback(
+    async () => {
+      if (!session) return;
+      try {
+        const result = await resumeRemoteSession(session.session_id);
+        if (result.success) {
+          setSession((prev) => prev ? { ...prev, status: "active" } : null);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to resume session");
+      }
+    },
+    [session]
+  );
+
   return {
     session,
     isLoading,
@@ -395,6 +427,8 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     resetSession,
     reconnect,
     switchModel,
+    pauseSession,
+    resumeSession,
     sendPermissionResponse: handlePermissionResponse,
     error,
   };
