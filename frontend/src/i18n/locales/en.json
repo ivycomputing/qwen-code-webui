@@ -65,7 +65,13 @@
     "startConversation": "Start a conversation with Qwen",
     "typeToBegin": "Type your message below to begin",
     "clickToCycle": "Click to cycle",
-    "clickToCycleShortcut": "Click to cycle (Ctrl/Cmd+Shift+Y)"
+    "clickToCycleShortcut": "Click to cycle (Ctrl/Cmd+Shift+Y)",
+    "remoteDisconnected": "Remote session disconnected. Please refresh to create a new session.",
+    "remoteEnded": "Remote session has ended. Please refresh to create a new session.",
+    "remoteNotFound": "Remote session not found or has ended",
+    "remoteEndedCreate": "Remote session has ended. Please create a new session.",
+    "remoteReconnectFailed": "Remote session disconnected. Please reconnect.",
+    "reconnect": "Reconnect"
   },
   "permission": {
     "title": "Permission Required",
@@ -81,7 +87,19 @@
   "quota": {
     "exceeded": "Quota Exceeded",
     "exceededMessage": "Your token or request quota has been exhausted. Please contact the administrator.",
-    "exceededLimits": "Exceeded Limits:"
+    "exceededLimits": "Exceeded Limits:",
+    "dailyTokens": "Daily Tokens",
+    "dailyRequests": "Daily Requests"
+  },
+  "commandLoop": {
+    "title": "Command Result Loop Detected",
+    "description": "The AI is repeatedly executing the same command with the same error. This indicates the current approach is not working and the AI may be stuck in a loop.",
+    "tool": "Tool",
+    "command": "Command",
+    "error": "Error",
+    "abort": "Abort",
+    "continue": "Continue",
+    "manualInput": "Manual Input"
   },
   "projectSelector": {
     "title": "Your Projects",

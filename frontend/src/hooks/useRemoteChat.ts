@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createRemoteSession,
   sendRemoteMessage,
   stopRemoteSession,
+  abortRemoteRequest,
   getRemoteSessionStatus,
   createRemoteSessionStream,
   sendPermissionResponse,
@@ -30,6 +32,7 @@ export interface RemoteChatOptions {
   onStreamLine?: (line: string, context: StreamingContext) => void;
   streamingContext?: StreamingContext;
   onPermissionRequest?: (event: PermissionRequestEvent) => void;
+  onQuotaExceeded?: (quotaStatus: unknown) => void;
 }
 
 export function useRemoteChat(options?: RemoteChatOptions) {
@@ -38,6 +41,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const sendingRef = useRef(false);
+  const { t } = useTranslation();
 
   // Use ref to always have fresh options in SSE callbacks (avoids stale closures)
   const optionsRef = useRef(options);
@@ -121,7 +125,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
             },
             (err) => {
               console.error("[useRemoteChat] SSE error:", err);
-              setError("远程会话连接断开，请刷新页面重新创建会话");
+              setError(t("chat.remoteDisconnected"));
               setIsLoading(false);
               setSession((prev) =>
                 prev ? { ...prev, status: "error" } : null
@@ -133,7 +137,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
               // If the session was active and SSE closed, it likely means
               // the server was restarted or the session was marked completed.
               if (session?.status === "active") {
-                setError("远程会话已结束，请刷新页面重新创建会话");
+                setError(t("chat.remoteEnded"));
                 setSession((prev) =>
                   prev ? { ...prev, status: "completed" } : null
                 );
@@ -176,7 +180,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
       try {
         const response = await getRemoteSessionStatus(sessionId);
         if (!response.success || !response.session) {
-          setError("远程会话不存在或已结束");
+          setError(t("chat.remoteNotFound"));
           setIsLoading(false);
           return;
         }
@@ -184,7 +188,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
         // Check session is actually usable
         const s = response.session;
         if (s.status !== "active" && s.status !== "paused") {
-          setError("远程会话已结束，请创建新会话");
+          setError(t("chat.remoteEndedCreate"));
           setIsLoading(false);
           return;
         }
@@ -193,6 +197,44 @@ export function useRemoteChat(options?: RemoteChatOptions) {
 
         const currentOptions = optionsRef.current;
         if (currentOptions?.onStreamLine && currentOptions.streamingContext) {
+          // 1) Replay DB-stored user messages to restore user chat bubbles
+          const dbMessages = (s as { messages?: Array<{ role: string; content: string }> }).messages;
+          if (dbMessages && dbMessages.length > 0) {
+            for (const msg of dbMessages) {
+              if (msg.role === "user" && msg.content) {
+                const userLine = JSON.stringify({
+                  type: "claude_json",
+                  data: {
+                    type: "user",
+                    session_id: s.session_id,
+                    message: { role: "user", content: msg.content },
+                  },
+                });
+                handleSSELine(userLine);
+              }
+            }
+          }
+
+          // 2) Replay buffered output (stdout + permission entries)
+          const output = (s as { output?: Array<{ data: string; stream: string }> }).output;
+          if (output && output.length > 0) {
+            for (const entry of output) {
+              if (!entry.data) continue;
+              if (entry.stream === "permission") {
+                // Wrap in SSE envelope like the backend does for live SSE
+                try {
+                  const wrapped = JSON.stringify({
+                    type: "permission_request",
+                    data: JSON.parse(entry.data),
+                  });
+                  handleSSELine(wrapped);
+                } catch { /* skip unparseable */ }
+              } else if (entry.stream === "stdout") {
+                handleSSELine(entry.data);
+              }
+            }
+          }
+
           const es = createRemoteSessionStream(
             s.session_id,
             (line) => {
@@ -200,7 +242,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
             },
             (err) => {
               console.error("[useRemoteChat] SSE error:", err);
-              setError("远程会话连接断开，请重新连接");
+              setError(t("chat.remoteReconnectFailed"));
               setIsLoading(false);
               setSession((prev) =>
                 prev ? { ...prev, status: "error" } : null
@@ -221,7 +263,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
         setIsLoading(false);
       }
     },
-    [session]
+    [session, handleSSELine, t]
   );
 
   const sendMessage = useCallback(
@@ -239,6 +281,14 @@ export function useRemoteChat(options?: RemoteChatOptions) {
       try {
         await sendRemoteMessage(session.session_id, content, permissionMode);
       } catch (err) {
+        // Check for quota exceeded (HTTP 403)
+        const httpErr = err as Error & { status?: number; quotaStatus?: unknown };
+        if (httpErr.status === 403 && httpErr.quotaStatus) {
+          const opts = optionsRef.current;
+          opts?.onQuotaExceeded?.(httpErr.quotaStatus);
+          setIsLoading(false);
+          return;
+        }
         const msg = err instanceof Error ? err.message : "Failed to send remote message";
         setIsLoading(false);
         setError(msg);
@@ -248,6 +298,16 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     },
     [session]
   );
+
+  const abortCurrentRequest = useCallback(async () => {
+    if (!session) return;
+    try {
+      await abortRemoteRequest(session.session_id);
+      setIsLoading(false);
+    } catch (err) {
+      console.error("[useRemoteChat] Failed to abort request:", err);
+    }
+  }, [session]);
 
   const stopSessionHandler = useCallback(async () => {
     if (!session) return;
@@ -300,7 +360,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
   );
 
   const handlePermissionResponse = useCallback(
-    async (requestId: string, behavior: "allow" | "deny", message?: string, toolName?: string) => {
+    async (requestId: string, behavior: "allow" | "allow-permanent" | "deny", message?: string, toolName?: string) => {
       if (!session) return;
       try {
         await sendPermissionResponse(session.session_id, requestId, behavior, message, toolName);
@@ -331,6 +391,7 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     startSession,
     connectSession,
     stopSession: stopSessionHandler,
+    abortCurrentRequest,
     resetSession,
     reconnect,
     switchModel,

@@ -65,7 +65,13 @@
     "startConversation": "开始与 Qwen 对话",
     "typeToBegin": "在下方输入消息开始",
     "clickToCycle": "点击切换",
-    "clickToCycleShortcut": "点击切换 (Ctrl/Cmd+Shift+Y)"
+    "clickToCycleShortcut": "点击切换 (Ctrl/Cmd+Shift+Y)",
+    "remoteDisconnected": "远程会话连接断开，请刷新页面重新创建会话",
+    "remoteEnded": "远程会话已结束，请刷新页面重新创建会话",
+    "remoteNotFound": "远程会话不存在或已结束",
+    "remoteEndedCreate": "远程会话已结束，请创建新会话",
+    "remoteReconnectFailed": "远程会话连接断开，请重新连接",
+    "reconnect": "重新连接"
   },
   "permission": {
     "title": "需要权限确认",
@@ -81,7 +87,19 @@
   "quota": {
     "exceeded": "配额已超限",
     "exceededMessage": "您的 token 或请求配额已用尽，请联系管理员。",
-    "exceededLimits": "已超限："
+    "exceededLimits": "已超限：",
+    "dailyTokens": "每日 Token",
+    "dailyRequests": "每日请求"
+  },
+  "commandLoop": {
+    "title": "命令执行结果循环检测",
+    "description": "检测到 AI 反复执行相同命令并得到相同错误结果。这表明当前方法无效，AI 可能陷入了死循环。",
+    "tool": "工具",
+    "command": "命令",
+    "error": "错误",
+    "abort": "中止操作",
+    "continue": "继续尝试",
+    "manualInput": "手动输入指令"
   },
   "projectSelector": {
     "title": "您的项目",

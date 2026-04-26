@@ -422,9 +422,15 @@ export async function sendRemoteMessage(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(
+    // Enrich error with status for quota detection
+    const httpError: Error & { status?: number; quotaStatus?: unknown } = new Error(
       error.error || `Failed to send remote message: ${response.statusText}`
     );
+    httpError.status = response.status;
+    if (error.error === "quota_exceeded") {
+      httpError.quotaStatus = error.quota_status;
+    }
+    throw httpError;
   }
 
   return response.json();
@@ -474,6 +480,28 @@ export async function getRemoteSessionStatus(
 
   if (!response.ok) {
     throw new Error(`Failed to get remote session status: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Abort the current in-progress request without stopping the session
+ */
+export async function abortRemoteRequest(
+  sessionId: string
+): Promise<{ success: boolean }> {
+  const url = buildOpenAceUrl(`/api/remote/sessions/${sessionId}/abort`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to abort remote request: ${response.statusText}`);
   }
 
   return response.json();
@@ -540,7 +568,7 @@ export async function browseRemoteDirectory(
 export async function sendPermissionResponse(
   sessionId: string,
   requestId: string,
-  behavior: "allow" | "deny",
+  behavior: "allow" | "allow-permanent" | "deny",
   message?: string,
   toolName?: string
 ): Promise<{ success: boolean }> {

@@ -10,7 +10,7 @@ import type {
 } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
-import { usePermissions } from "../hooks/chat/usePermissions";
+import { usePermissions, type CommandLoopRequest } from "../hooks/chat/usePermissions";
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
@@ -261,6 +261,13 @@ export function ChatPage() {
     initialSessionId: loadedSessionId || undefined,
   });
 
+  // Refs for command loop detection — declared early so remote streamingContext
+  // can reference them. Wired to actual functions after usePermissions is called.
+  const commandLoopCheckRef = useRef<
+    ((toolName: string, input: Record<string, unknown>, result: { exitCode?: number; output: string }) => CommandLoopRequest | null) | null
+  >(null);
+  const commandLoopShowRef = useRef<((request: CommandLoopRequest) => void) | null>(null);
+
   // Remote chat hook — placed after processStreamLine and useChatState so we
   // can pass both into the options.  Only meaningful when isRemoteWorkspace.
   const remoteChat = useRemoteChat(
@@ -282,6 +289,11 @@ export function ChatPage() {
             onInitMessageShown: () => setHasShownInitMessage(true),
             onPermissionError: (toolName, patterns, toolUseId) =>
               permissionErrorRef.current?.(toolName, patterns, toolUseId),
+            onCommandResultLoop: (...args) => commandLoopCheckRef.current?.(...args) ?? null,
+            onShowCommandLoopRequest: (request) => {
+              notificationTriggeredRef.current = true;
+              commandLoopShowRef.current?.(request);
+            },
           },
           onPermissionRequest: (event) => {
             // Forward remote CLI permission request to the existing permission panel
@@ -290,6 +302,10 @@ export function ChatPage() {
               const patterns = req.permission_suggestions?.map(s => s.rule) || [];
               permissionErrorRef.current?.(req.tool_name, patterns, req.tool_use_id || "", event.request_id);
             }
+          },
+          onQuotaExceeded: (quotaStatus) => {
+            setIsQuotaExceeded(true);
+            setQuotaErrorStatus(quotaStatus as QuotaStatus);
           },
         }
       : undefined,
@@ -398,6 +414,10 @@ export function ChatPage() {
   } = usePermissions({
     onPermissionModeChange: setPermissionMode,
   });
+
+  // Wire refs to actual functions after they are defined
+  commandLoopCheckRef.current = checkCommandResultLoop;
+  commandLoopShowRef.current = showCommandLoopRequest;
 
   // Track session with Open-ACE for work duration statistics
   useOpenAceSessionTracker(
@@ -656,11 +676,11 @@ export function ChatPage() {
 
   const handleAbort = useCallback(() => {
     if (isRemoteWorkspace && remoteChat.session) {
-      remoteChat.stopSession();
+      remoteChat.abortCurrentRequest();
       return;
     }
     abortRequest(currentRequestId, isLoading, resetRequestState);
-  }, [abortRequest, currentRequestId, isLoading, resetRequestState, isRemoteWorkspace, remoteChat.stopSession, remoteChat.session]);
+  }, [abortRequest, currentRequestId, isLoading, resetRequestState, isRemoteWorkspace, remoteChat.abortCurrentRequest, remoteChat.session]);
 
   // Slash command execution handler
   const handleExecuteSlashCommand = useCallback(
@@ -752,7 +772,7 @@ export function ChatPage() {
     if (isRemoteWorkspace) {
       remoteChat.sendPermissionResponse(
         permissionRequest.requestId || "",
-        "allow",
+        "allow-permanent",
         undefined,
         permissionRequest.toolName
       );
@@ -1156,7 +1176,7 @@ export function ChatPage() {
                       onClick={() => remoteChat.reconnect(remoteMachineId, workingDirectory || "", selectedModel || undefined)}
                       className="text-xs px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
                     >
-                      重新连接
+                      {t("chat.reconnect")}
                     </button>
                   )}
                 </div>
@@ -1247,15 +1267,15 @@ export function ChatPage() {
                     <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h3 className="text-red-800 dark:text-red-300 font-semibold">配额已超限</h3>
+                    <h3 className="text-red-800 dark:text-red-300 font-semibold">{t("quota.exceeded")}</h3>
                   </div>
                   <p className="text-red-600 dark:text-red-400 text-sm mb-3">
-                    您的 token 或请求配额已用尽，请联系管理员。
+                    {t("quota.exceededMessage")}
                   </p>
                   {quotaErrorStatus && (
                     <div className="text-xs text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/30 rounded p-2 mb-3">
-                      <p>每日 Token: {quotaErrorStatus.daily?.tokens?.used ?? 0} / {quotaErrorStatus.daily?.tokens?.limit ?? '∞'}</p>
-                      <p>每日请求: {quotaErrorStatus.daily?.requests?.used ?? 0} / {quotaErrorStatus.daily?.requests?.limit ?? '∞'}</p>
+                      <p>{t("quota.dailyTokens")}: {quotaErrorStatus.daily?.tokens?.used ?? 0} / {quotaErrorStatus.daily?.tokens?.limit ?? '∞'}</p>
+                      <p>{t("quota.dailyRequests")}: {quotaErrorStatus.daily?.requests?.used ?? 0} / {quotaErrorStatus.daily?.requests?.limit ?? '∞'}</p>
                     </div>
                   )}
                   <button
@@ -1275,7 +1295,7 @@ export function ChatPage() {
                     }}
                     className="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
                   >
-                    重试
+                    {t("common.retry")}
                   </button>
                 </div>
               </div>
@@ -1379,20 +1399,19 @@ export function ChatPage() {
                   </svg>
                 </div>
                 <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-                  命令执行结果循环检测
+                  {t("commandLoop.title")}
                 </h2>
               </div>
 
               <p className="text-slate-600 dark:text-slate-400 mb-4">
-                检测到 AI 反复执行相同命令并得到相同错误结果。这表明当前方法无效，AI
-                可能陷入了死循环。
+                {t("commandLoop.description")}
               </p>
 
               <div className="bg-slate-100 dark:bg-slate-700/50 rounded-lg p-4 mb-4">
                 <div className="space-y-2 text-sm">
                   <div>
                     <span className="text-slate-500 dark:text-slate-400 font-medium">
-                      工具:
+                      {t("commandLoop.tool")}:
                     </span>
                     <span className="ml-2 text-slate-700 dark:text-slate-300">
                       {commandLoopRequest.toolName}
@@ -1400,7 +1419,7 @@ export function ChatPage() {
                   </div>
                   <div>
                     <span className="text-slate-500 dark:text-slate-400 font-medium">
-                      命令:
+                      {t("commandLoop.command")}:
                     </span>
                     <span className="ml-2 text-slate-700 dark:text-slate-300 font-mono text-xs">
                       {commandLoopRequest.command}
@@ -1408,7 +1427,7 @@ export function ChatPage() {
                   </div>
                   <div>
                     <span className="text-slate-500 dark:text-slate-400 font-medium">
-                      错误:
+                      {t("commandLoop.error")}:
                     </span>
                     <span className="ml-2 text-red-600 dark:text-red-400 font-mono text-xs">
                       {commandLoopRequest.errorOutput}
@@ -1422,19 +1441,19 @@ export function ChatPage() {
                   onClick={handleCommandLoopAbort}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  中止操作
+                  {t("commandLoop.abort")}
                 </button>
                 <button
                   onClick={handleCommandLoopContinue}
                   className="px-4 py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors"
                 >
-                  继续尝试
+                  {t("commandLoop.continue")}
                 </button>
                 <button
                   onClick={handleCommandLoopManualInput}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  手动输入指令
+                  {t("commandLoop.manualInput")}
                 </button>
               </div>
             </div>
