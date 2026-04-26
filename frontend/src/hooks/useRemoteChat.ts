@@ -199,11 +199,16 @@ export function useRemoteChat(options?: RemoteChatOptions) {
 
         const currentOptions = optionsRef.current;
         if (currentOptions?.onStreamLine && currentOptions.streamingContext) {
-          // 1) Replay DB-stored user messages to restore user chat bubbles
+          // 1) Replay DB-stored messages (user always; assistant/system only
+          //    when output buffer is empty, i.e. server restarted)
           const dbMessages = (s as { messages?: Array<{ role: string; content: string }> }).messages;
+          const output = (s as { output?: Array<{ data: string; stream: string }> }).output;
+          const hasOutputBuffer = output && output.length > 0;
+
           if (dbMessages && dbMessages.length > 0) {
             for (const msg of dbMessages) {
-              if (msg.role === "user" && msg.content) {
+              if (!msg.content) continue;
+              if (msg.role === "user") {
                 const userLine = JSON.stringify({
                   type: "claude_json",
                   data: {
@@ -213,17 +218,20 @@ export function useRemoteChat(options?: RemoteChatOptions) {
                   },
                 });
                 handleSSELine(userLine);
+              } else if (!hasOutputBuffer && (msg.role === "assistant" || msg.role === "system")) {
+                // Only replay AI/system from DB when output buffer is empty
+                // (server restarted). Otherwise buffer has richer data.
+                handleSSELine(msg.content);
               }
             }
           }
 
           // 2) Replay buffered output (stdout + permission entries)
-          const output = (s as { output?: Array<{ data: string; stream: string }> }).output;
-          if (output && output.length > 0) {
+          //    Only used when server did NOT restart (buffer still alive).
+          if (hasOutputBuffer) {
             for (const entry of output) {
               if (!entry.data) continue;
               if (entry.stream === "permission") {
-                // Wrap in SSE envelope like the backend does for live SSE
                 try {
                   const wrapped = JSON.stringify({
                     type: "permission_request",

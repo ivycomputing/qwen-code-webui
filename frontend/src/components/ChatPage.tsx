@@ -145,10 +145,7 @@ export function ChatPage() {
         }
       }
 
-      // Strategy 2: Fallback naive decoding (has hyphen ambiguity)
-      // e.g., -Users-rhuang-workspace-open-ace -> /Users/rhuang/workspace/open-ace
-      // This incorrectly converts "open-ace" -> "open/ace" but works for paths without hyphens
-      // First, try treating the value as a URL-encoded full path (handles hyphens correctly)
+      // Strategy 2: Decode based on path format
       if (urlEncodedProjectName.startsWith("/")) {
         return urlEncodedProjectName;
       }
@@ -156,6 +153,9 @@ export function ChatPage() {
         const decoded = urlEncodedProjectName.slice(1).replace(/-/g, "/");
         return "/" + decoded;
       }
+      // Strategy 3: Return as-is for remote workspace paths (e.g., ~/workspace,
+      // C:\workspace) and other formats that don't match above patterns
+      return urlEncodedProjectName;
     }
 
     // Otherwise derive from URL path
@@ -1100,7 +1100,7 @@ export function ChatPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
-            {(isHistoryView || isLoadedConversation) && (
+            {!isIntegratedMode() && (isHistoryView || isLoadedConversation) && (
               <button
                 onClick={isHistoryView ? handleBackToChat : handleBackToHistory}
                 className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
