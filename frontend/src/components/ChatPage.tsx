@@ -294,6 +294,9 @@ export function ChatPage() {
               notificationTriggeredRef.current = true;
               commandLoopShowRef.current?.(request);
             },
+            onAutoRejection: (toolName, content) => {
+              return recordAutoRejection(toolName, content);
+            },
           },
           onPermissionRequest: (event) => {
             // Forward remote CLI permission request to the existing permission panel
@@ -411,6 +414,8 @@ export function ChatPage() {
     showCommandLoopRequest,
     closeCommandLoopRequest,
     disableCommandResultLoopDetection,
+    // Auto-rejection loop detection
+    recordAutoRejection,
   } = usePermissions({
     onPermissionModeChange: setPermissionMode,
   });
@@ -606,6 +611,10 @@ export function ChatPage() {
           onAbortRequest: async () => {
             shouldAbort = true;
             await createAbortHandler(requestId)();
+          },
+          // Auto-rejection loop detection
+          onAutoRejection: (toolName, content) => {
+            return recordAutoRejection(toolName, content);
           },
           // Command result loop detection
           onCommandResultLoop: checkCommandResultLoop,

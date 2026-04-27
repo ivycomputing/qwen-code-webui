@@ -98,6 +98,11 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   const lastDeniedToolRef = useRef<string>("");
   const loopDetectionConfigRef = useRef(DEFAULT_LOOP_DETECTION_CONFIG);
 
+  // Auto-rejection loop detection state (SDK-level rejections, e.g. stdin closed)
+  const autoRejectionCountRef = useRef(0);
+  const lastAutoRejectionToolRef = useRef<string>("");
+  const lastAutoRejectionTimeRef = useRef(0);
+
   // Command result loop detection state
   const commandResultLoopConfigRef = useRef(DEFAULT_COMMAND_RESULT_LOOP_CONFIG);
   const commandResultsRef = useRef<
@@ -371,6 +376,59 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     closeCommandLoopRequest();
   }, [closeCommandLoopRequest]);
 
+  /**
+   * Record an auto-rejected tool call (SDK-level rejection, e.g. stdin closed)
+   * Returns CommandLoopRequest if loop detected, null otherwise
+   */
+  const recordAutoRejection = useCallback(
+    (toolName: string, content: string): CommandLoopRequest | null => {
+      if (loopDetectionDisabledRef.current) return null;
+
+      const config = loopDetectionConfigRef.current;
+      const now = Date.now();
+
+      // Reset counter if outside the time window
+      if (now - lastAutoRejectionTimeRef.current > config.resetWindowMs) {
+        autoRejectionCountRef.current = 0;
+      }
+
+      // Skip loop detection for excluded tools
+      if (config.excludedTools.has(toolName)) return null;
+
+      // Check if same tool as last auto-rejection
+      if (lastAutoRejectionToolRef.current === toolName) {
+        autoRejectionCountRef.current++;
+      } else {
+        autoRejectionCountRef.current = 1;
+        lastAutoRejectionToolRef.current = toolName;
+      }
+
+      lastAutoRejectionTimeRef.current = now;
+
+      // Check threshold
+      if (autoRejectionCountRef.current >= config.maxConsecutiveDenials) {
+        autoRejectionCountRef.current = 0;
+        return {
+          isOpen: true,
+          toolName,
+          command: toolName,
+          errorOutput: content.substring(0, 200),
+        };
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  /**
+   * Reset the auto-rejection counter
+   */
+  const resetAutoRejectionCounter = useCallback(() => {
+    autoRejectionCountRef.current = 0;
+    lastAutoRejectionToolRef.current = "";
+  }, []);
+
   return {
     allowedTools,
     permissionRequest,
@@ -394,5 +452,8 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     showCommandLoopRequest,
     closeCommandLoopRequest,
     disableCommandResultLoopDetection,
+    // Auto-rejection loop detection
+    recordAutoRejection,
+    resetAutoRejectionCounter,
   };
 }

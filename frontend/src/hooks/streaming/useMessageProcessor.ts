@@ -23,6 +23,11 @@ export interface StreamingContext {
     requestId?: string,
   ) => void;
   onAbortRequest?: () => void;
+  // Auto-rejection loop detection (SDK-level rejections, e.g. stdin closed)
+  onAutoRejection?: (
+    toolName: string,
+    content: string,
+  ) => CommandLoopRequest | null;
   // Command result loop detection
   onCommandResultLoop?: (
     toolName: string,

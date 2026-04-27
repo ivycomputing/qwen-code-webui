@@ -60,6 +60,12 @@ export interface ProcessingContext {
   ) => void;
   onAbortRequest?: () => void;
 
+  // Auto-rejection loop detection (SDK-level rejections, e.g. stdin closed)
+  onAutoRejection?: (
+    toolName: string,
+    content: string,
+  ) => CommandLoopRequest | null;
+
   // Command result loop detection
   onCommandResultLoop?: (
     toolName: string,
@@ -134,12 +140,7 @@ export class UnifiedMessageProcessor {
     contentItem: { tool_use_id?: string; content?: string | unknown[] },
     context: ProcessingContext,
   ): void {
-    // Immediately abort the current request
-    if (context.onAbortRequest) {
-      context.onAbortRequest();
-    }
-
-    // Get cached tool_use information
+    // Get cached tool_use information first (needed for both paths)
     const toolUseId = contentItem.tool_use_id || "";
     const cachedToolInfo = this.getCachedToolInfo(toolUseId);
 
@@ -148,6 +149,28 @@ export class UnifiedMessageProcessor {
       cachedToolInfo?.name,
       cachedToolInfo?.input,
     );
+
+    // Check for auto-rejection loop before aborting
+    if (context.onAutoRejection) {
+      const content =
+        typeof contentItem.content === "string"
+          ? contentItem.content
+          : JSON.stringify(contentItem.content);
+      const loopRequest = context.onAutoRejection(toolName, content);
+      if (loopRequest && context.onShowCommandLoopRequest) {
+        // Loop detected - show loop dialog and abort
+        if (context.onAbortRequest) {
+          context.onAbortRequest();
+        }
+        context.onShowCommandLoopRequest(loopRequest);
+        return;
+      }
+    }
+
+    // No loop - normal permission error handling
+    if (context.onAbortRequest) {
+      context.onAbortRequest();
+    }
 
     // Compute patterns based on tool type
     const patterns = generateToolPatterns(toolName, commands);

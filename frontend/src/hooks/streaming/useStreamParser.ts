@@ -51,6 +51,13 @@ export function useStreamParser() {
         // Permission/Error handling
         onPermissionError: context.onPermissionError,
         onAbortRequest: context.onAbortRequest,
+
+        // Auto-rejection loop detection
+        onAutoRejection: context.onAutoRejection,
+
+        // Command result loop detection
+        onCommandResultLoop: context.onCommandResultLoop,
+        onShowCommandLoopRequest: context.onShowCommandLoopRequest,
       };
     },
     [],

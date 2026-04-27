@@ -163,6 +163,115 @@ describe("usePermissions", () => {
   });
 });
 
+describe("usePermissions - Permission Denial Loop Detection", () => {
+  it("should not detect loop on first denial", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    let loopMessage: string | null = null;
+
+    act(() => {
+      loopMessage = result.current.recordDenial("Bash");
+    });
+
+    expect(loopMessage).toBeNull();
+  });
+
+  it("should not detect loop on second denial", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => {
+      result.current.recordDenial("Bash");
+    });
+
+    let loopMessage: string | null = null;
+    act(() => {
+      loopMessage = result.current.recordDenial("Bash");
+    });
+
+    expect(loopMessage).toBeNull();
+  });
+
+  it("should detect loop on third consecutive denial of same tool", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => { result.current.recordDenial("Bash"); });
+    act(() => { result.current.recordDenial("Bash"); });
+
+    let loopMessage: string | null = null;
+    act(() => {
+      loopMessage = result.current.recordDenial("Bash");
+    });
+
+    expect(loopMessage).not.toBeNull();
+    expect(loopMessage).toContain("Loop Detection Triggered");
+  });
+
+  it("should reset counter for different tool denial", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => { result.current.recordDenial("Bash"); });
+    act(() => { result.current.recordDenial("Bash"); });
+
+    // Different tool resets counter
+    act(() => { result.current.recordDenial("Write"); });
+
+    // Back to Bash - counter should be 1
+    let loopMessage: string | null = null;
+    act(() => {
+      loopMessage = result.current.recordDenial("Bash");
+    });
+
+    expect(loopMessage).toBeNull();
+  });
+
+  it("should reset counter when resetDenialCounter is called", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => { result.current.recordDenial("Bash"); });
+    act(() => { result.current.recordDenial("Bash"); });
+
+    act(() => { result.current.resetDenialCounter(); });
+
+    let loopMessage: string | null = null;
+    act(() => {
+      loopMessage = result.current.recordDenial("Bash");
+    });
+
+    expect(loopMessage).toBeNull();
+  });
+
+  it("should not detect loop for excluded tools (exit_plan_mode)", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    let loopMessage: string | null = null;
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        loopMessage = result.current.recordDenial("exit_plan_mode");
+      });
+    }
+
+    expect(loopMessage).toBeNull();
+  });
+
+  it("should reset counter after triggering", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // Trigger once
+    act(() => { result.current.recordDenial("Bash"); });
+    act(() => { result.current.recordDenial("Bash"); });
+    act(() => { result.current.recordDenial("Bash"); });
+
+    // Should be reset now, so 2 more denials should not trigger
+    let loopMessage: string | null = null;
+    act(() => { result.current.recordDenial("Bash"); });
+    act(() => {
+      loopMessage = result.current.recordDenial("Bash");
+    });
+
+    expect(loopMessage).toBeNull();
+  });
+});
+
 describe("usePermissions - Command Result Loop Detection", () => {
   it("should not detect loop on first error result", () => {
     const { result } = renderHook(() => usePermissions());
@@ -433,5 +542,170 @@ describe("usePermissions - Command Result Loop Detection", () => {
     });
 
     expect(loopRequest).not.toBeNull();
+  });
+});
+
+describe("usePermissions - Auto-Rejection Loop Detection", () => {
+  it("should not detect loop on first auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    let loopRequest: CommandLoopRequest | null = null;
+
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should not detect loop on second auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should detect loop on third same-tool auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // First two auto-rejections
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    // Third - should trigger
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    expect(loopRequest).not.toBeNull();
+    expect(loopRequest!.toolName).toBe("run_shell_command");
+    expect(loopRequest!.errorOutput).toContain("Input closed");
+  });
+
+  it("should reset counter for different tool auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // Two auto-rejections for run_shell_command
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    // Different tool - should reset counter
+    act(() => {
+      result.current.recordAutoRejection(
+        "write_file",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    // Back to original tool - should be count 1 again
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should respect disabled loop detection flag", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // Disable loop detection
+    act(() => {
+      result.current.disableCommandResultLoopDetection();
+    });
+
+    // Try 5 auto-rejections - should never trigger
+    let loopRequest: CommandLoopRequest | null = null;
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        loopRequest = result.current.recordAutoRejection(
+          "run_shell_command",
+          "[Operation Cancelled] Reason: Error: Input closed"
+        );
+      });
+    }
+
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should reset auto-rejection counter", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // Two auto-rejections
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    // Reset counter
+    act(() => {
+      result.current.resetAutoRejectionCounter();
+    });
+
+    // Should be back to count 1
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
   });
 });
