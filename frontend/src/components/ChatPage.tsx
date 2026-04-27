@@ -1057,7 +1057,7 @@ export function ChatPage() {
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === KEYBOARD_SHORTCUTS.ABORT && effectiveIsLoading && currentRequestId) {
+      if (e.key === KEYBOARD_SHORTCUTS.ABORT && effectiveIsLoading) {
         e.preventDefault();
         handleAbort();
       }

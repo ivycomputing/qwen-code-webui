@@ -313,9 +313,10 @@ export function useRemoteChat(options?: RemoteChatOptions) {
     if (!session) return;
     try {
       await abortRemoteRequest(session.session_id);
-      setIsLoading(false);
     } catch (err) {
       console.error("[useRemoteChat] Failed to abort request:", err);
+    } finally {
+      setIsLoading(false);
     }
   }, [session]);
 
