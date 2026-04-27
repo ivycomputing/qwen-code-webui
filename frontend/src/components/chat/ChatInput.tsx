@@ -71,7 +71,6 @@ interface ChatInputProps {
 export function ChatInput({
   input,
   isLoading,
-  currentRequestId,
   onInputChange,
   onSubmit,
   onAbort,
