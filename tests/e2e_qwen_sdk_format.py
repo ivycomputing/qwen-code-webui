@@ -330,7 +330,7 @@ def test_loop_detection():
                         "response": {"output": "[Operation Cancelled] Reason: Error: Input closed"},
                     }}],
                 },
-                "toolCallResult": {"callId": tool_id, "status": "error"},
+                "toolCallResult": {"callId": tool_id, "status": "cancelled"},
             })
 
         log("Loop", "Injected 5 error cycles")

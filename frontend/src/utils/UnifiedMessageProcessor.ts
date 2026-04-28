@@ -742,7 +742,10 @@ export class UnifiedMessageProcessor {
           const content = fr.response?.output || JSON.stringify(fr.response || {});
 
           // Check for is_error based on toolCallResult status
-          const isError = msg.toolCallResult?.status === "error";
+          // "error" = tool execution failed; "cancelled" + error response = Input closed / user abort
+          const status = msg.toolCallResult?.status;
+          const isError = status === "error" ||
+            (status === "cancelled" && !!fr.response?.error);
 
           // Cache tool info from functionResponse if not already cached
           if (toolUseId && fr.name && !this.getCachedToolInfo(toolUseId)) {

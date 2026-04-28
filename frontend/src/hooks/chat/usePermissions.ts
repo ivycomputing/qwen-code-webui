@@ -394,15 +394,21 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
         autoRejectionCountRef.current = 0;
       }
 
-      // Skip loop detection for excluded tools
-      if (config.excludedTools.has(toolName)) return null;
+      // "Input closed" is a session-level problem — count across all tools
+      const lowerContent = content.toLowerCase();
+      const isInputClosed = lowerContent.includes("input closed") ||
+        lowerContent.includes("operation cancelled");
 
-      // Check if same tool as last auto-rejection
-      if (lastAutoRejectionToolRef.current === toolName) {
+      // Skip loop detection for excluded tools (but always track Input closed)
+      if (!isInputClosed && config.excludedTools.has(toolName)) return null;
+      const trackingKey = isInputClosed ? "__input_closed__" : toolName;
+
+      // Check if same tracking key as last auto-rejection
+      if (lastAutoRejectionToolRef.current === trackingKey) {
         autoRejectionCountRef.current++;
       } else {
         autoRejectionCountRef.current = 1;
-        lastAutoRejectionToolRef.current = toolName;
+        lastAutoRejectionToolRef.current = trackingKey;
       }
 
       lastAutoRejectionTimeRef.current = now;

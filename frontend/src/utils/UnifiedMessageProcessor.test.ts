@@ -515,14 +515,14 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
               functionResponse: {
                 id: toolUseId,
                 name: toolName,
-                response: { output },
+                response: isError ? { error: output } : { output },
               },
             },
           ],
         },
         toolCallResult: {
           callId: toolUseId,
-          status: isError ? "error" : "success",
+          status: isError ? "cancelled" : "success",
           resultDisplay: output.substring(0, 100),
         },
       } as any,

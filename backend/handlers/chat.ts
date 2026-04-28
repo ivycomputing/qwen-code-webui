@@ -2,6 +2,7 @@ import { Context } from "hono";
 import { query, type PermissionMode, type AuthType } from "@qwen-code/sdk";
 import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
+import { checkLoop, type LoopState } from "../utils/loopDetector.ts";
 
 /**
  * Maps UI permission mode to Qwen SDK permission mode
@@ -62,6 +63,8 @@ async function* executeQwenCommand(
       { permissionMode, mappedPermissionMode },
     );
 
+    const loopState: LoopState = { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 };
+
     for await (const sdkMessage of query({
       prompt: processedMessage,
       options: {
@@ -75,6 +78,21 @@ async function* executeQwenCommand(
         ...(authType ? { authType } : {}),
       },
     })) {
+      // Backend loop detection — failsafe if frontend detection fails
+      const loopResult = checkLoop(sdkMessage, loopState);
+      if (loopResult) {
+        logger.chat.error(
+          "Loop detected: fingerprint={fingerprint}, count={count}, aborting CLI",
+          { fingerprint: loopResult.fingerprint, count: loopResult.count },
+        );
+        abortController.abort();
+        yield {
+          type: "error",
+          error: `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x)`,
+        };
+        break;
+      }
+
       // Debug logging of raw SDK messages with detailed content
       logger.chat.debug("Qwen SDK Message: {sdkMessage}", { sdkMessage });
 
