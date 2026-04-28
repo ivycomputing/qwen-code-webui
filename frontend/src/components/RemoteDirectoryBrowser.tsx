@@ -6,6 +6,7 @@ import {
   ArrowUpIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import {
   browseRemoteDirectory,
   type DirectoryInfo,
@@ -23,6 +24,7 @@ export function RemoteDirectoryBrowser({
   onSelectDirectory,
   onClose,
 }: RemoteDirectoryBrowserProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentPath, setCurrentPath] = useState<string>("");
   const [parentPath, setParentPath] = useState<string | null>(null);
@@ -148,7 +150,7 @@ export function RemoteDirectoryBrowser({
         <button
           onClick={onClose}
           className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400"
-          title="Close"
+          title={t("common.cancel")}
         >
           <XMarkIcon className="h-4 w-4" />
         </button>
@@ -159,7 +161,7 @@ export function RemoteDirectoryBrowser({
         <button
           onClick={handleGoHome}
           className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300"
-          title="Home directory"
+          title={t("directoryBrowser.home")}
         >
           <HomeIcon className="h-5 w-5" />
         </button>
@@ -168,7 +170,7 @@ export function RemoteDirectoryBrowser({
           <button
             onClick={handleGoUp}
             className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300"
-            title="Go up"
+            title={t("directoryBrowser.goUp")}
           >
             <ArrowUpIcon className="h-4 w-4" />
           </button>

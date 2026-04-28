@@ -227,12 +227,22 @@ export function ChatInput({
     }
 
     // History navigation with up/down arrows (only when input is focused and slash command not active)
+    // Only trigger history nav when cursor is at the top (ArrowUp) or bottom (ArrowDown) of the text
     if (!isSlashActive) {
       if (e.key === "ArrowUp") {
+        const textarea = inputRef.current;
+        if (textarea) {
+          const pos = textarea.selectionStart;
+          const textBeforeCursor = textarea.value.substring(0, pos);
+          const currentLineIndex = textBeforeCursor.split("\n").length - 1;
+          if (currentLineIndex > 0) {
+            // Cursor is not on the first line, let browser handle cursor movement
+            return;
+          }
+        }
         e.preventDefault();
         const previousValue = navigatePrevious(input);
         onInputChange(previousValue);
-        // Move cursor to end of text
         setTimeout(() => {
           if (inputRef.current) {
             const len = inputRef.current.value.length;
@@ -242,10 +252,19 @@ export function ChatInput({
         return;
       }
       if (e.key === "ArrowDown") {
+        const textarea = inputRef.current;
+        if (textarea) {
+          const pos = textarea.selectionStart;
+          const textAfterCursor = textarea.value.substring(pos);
+          const linesAfterCursor = textAfterCursor.split("\n").length - 1;
+          if (linesAfterCursor > 0) {
+            // Cursor is not on the last line, let browser handle cursor movement
+            return;
+          }
+        }
         e.preventDefault();
         const nextValue = navigateNext(input);
         onInputChange(nextValue);
-        // Move cursor to end of text
         setTimeout(() => {
           if (inputRef.current) {
             const len = inputRef.current.value.length;
@@ -395,7 +414,7 @@ export function ChatInput({
                 type="button"
                 onClick={onAbort}
                 className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
-                title="Stop (ESC)"
+                title={t("chat.stop")}
               >
                 <StopIcon className="w-4 h-4" />
               </button>

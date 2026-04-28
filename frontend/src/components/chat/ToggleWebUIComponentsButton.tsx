@@ -1,4 +1,5 @@
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 
 interface ToggleWebUIComponentsButtonProps {
@@ -8,6 +9,7 @@ interface ToggleWebUIComponentsButtonProps {
 export function ToggleWebUIComponentsButton({
   onClick,
 }: ToggleWebUIComponentsButtonProps) {
+  const { t } = useTranslation();
   const { experimental, updateSettings } = useSettings();
   const isEnabled = experimental.useWebUIComponents;
 
@@ -29,8 +31,8 @@ export function ToggleWebUIComponentsButton({
           ? "bg-blue-600 dark:bg-blue-600 border-blue-700 dark:border-blue-500 scale-105"
           : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800"
       }`}
-      aria-label={`Toggle WebUI Components. Currently ${isEnabled ? "enabled" : "disabled"}. Click to ${isEnabled ? "disable" : "enable"}.`}
-      title={`Toggle WebUI Components (${isEnabled ? "Enabled" : "Disabled"})`}
+      aria-label={t("chat.toggleComponents", { status: isEnabled ? t("chat.enabled") : t("chat.disabled") })}
+      title={t("chat.toggleComponents", { status: isEnabled ? t("chat.enabled") : t("chat.disabled") })}
     >
       <ArrowsRightLeftIcon
         className={`w-4 h-4 ${

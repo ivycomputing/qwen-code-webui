@@ -71,7 +71,22 @@
     "remoteNotFound": "远程会话不存在或已结束",
     "remoteEndedCreate": "远程会话已结束，请创建新会话",
     "remoteReconnectFailed": "远程会话连接断开，请重新连接",
-    "reconnect": "重新连接"
+    "reconnect": "重新连接",
+    "stop": "停止 (ESC)",
+    "backToProjects": "返回项目选择",
+    "viewHistory": "查看对话历史",
+    "switchProject": "切换项目",
+    "toggleComponents": "切换 WebUI 组件（{{status}}）",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "thinkingExpanded": "思考内容默认展开（点击收起）",
+    "thinkingCollapsed": "思考内容默认收起（点击展开）",
+    "settings": "设置",
+    "refreshMachines": "刷新机器列表",
+    "statusOnline": "在线",
+    "statusBusy": "忙碌",
+    "statusOffline": "离线",
+    "statusError": "错误"
   },
   "permission": {
     "title": "需要权限确认",

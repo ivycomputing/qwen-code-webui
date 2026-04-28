@@ -71,7 +71,22 @@
     "remoteNotFound": "Remote session not found or has ended",
     "remoteEndedCreate": "Remote session has ended. Please create a new session.",
     "remoteReconnectFailed": "Remote session disconnected. Please reconnect.",
-    "reconnect": "Reconnect"
+    "reconnect": "Reconnect",
+    "stop": "Stop (ESC)",
+    "backToProjects": "Back to project selection",
+    "viewHistory": "View conversation history",
+    "switchProject": "Switch project",
+    "toggleComponents": "Toggle WebUI Components ({{status}})",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "thinkingExpanded": "Thinking content is expanded by default (click to collapse)",
+    "thinkingCollapsed": "Thinking content is collapsed by default (click to expand)",
+    "settings": "Settings",
+    "refreshMachines": "Refresh machines",
+    "statusOnline": "Online",
+    "statusBusy": "Busy",
+    "statusOffline": "Offline",
+    "statusError": "Error"
   },
   "permission": {
     "title": "Permission Required",

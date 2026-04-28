@@ -101,6 +101,9 @@ export function useDemoAutomation(
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Cache tool names from assistant messages for permission error handling
+  const toolNameCacheRef = useRef<Map<string, string>>(new Map());
+
   // Chat state (fallback if not provided externally)
   const chatState = useChatState();
   const {
@@ -258,6 +261,11 @@ export function useDemoAutomation(
                 input: Record<string, unknown>;
               };
 
+              // Cache tool name for permission error lookup
+              if (toolUse.id && toolUse.name) {
+                toolNameCacheRef.current.set(toolUse.id, toolUse.name);
+              }
+
               // Special handling for ExitPlanMode - create plan message instead of tool message
               if (toolUse.name === "ExitPlanMode") {
                 const planContent = (toolUse.input?.plan as string) || "";
@@ -317,10 +325,11 @@ export function useDemoAutomation(
                       toolResult.tool_use_id,
                     );
                   } else {
-                    // For other tool permission errors, show regular permission dialog
+                    // For other tool permission errors, look up cached tool name
+                    const cachedToolName = toolNameCacheRef.current.get(toolResult.tool_use_id) || "Unknown";
                     finalShowPermissionRequest(
-                      "Unknown",
-                      ["*"],
+                      cachedToolName,
+                      [cachedToolName],
                       toolResult.tool_use_id,
                     );
                   }

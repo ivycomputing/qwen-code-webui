@@ -1151,8 +1151,8 @@ export function ChatPage() {
                     <button
                       onClick={handleBackToProjects}
                       className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
-                      aria-label="Back to project selection"
-                      title="Back to project selection"
+                      aria-label={t("chat.backToProjects")}
+                      title={t("chat.backToProjects")}
                     >
                       {workingDirectory || "Chat"}
                     </button>
@@ -1171,8 +1171,8 @@ export function ChatPage() {
                     <button
                       onClick={handleBackToProjects}
                       className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
-                      aria-label="Back to project selection"
-                      title="Back to project selection"
+                      aria-label={t("chat.backToProjects")}
+                      title={t("chat.backToProjects")}
                     >
                       {workingDirectory || "Chat"}
                     </button>

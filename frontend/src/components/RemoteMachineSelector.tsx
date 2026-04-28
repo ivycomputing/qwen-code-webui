@@ -3,6 +3,7 @@ import {
   ComputerDesktopIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import {
   fetchRemoteMachines,
   type RemoteMachine,
@@ -44,6 +45,8 @@ function getStatusDotColor(status: RemoteMachine["status"]): string {
 }
 
 function getStatusLabel(status: RemoteMachine["status"]): string {
+  // This function is used in a non-component context for the title attribute
+  // For the visible status label, we use inline translated text
   switch (status) {
     case "online":
       return "Online";
@@ -62,6 +65,7 @@ export function RemoteMachineSelector({
   onSelect,
   selectedMachineId,
 }: RemoteMachineSelectorProps) {
+  const { t } = useTranslation();
   const [machines, setMachines] = useState<RemoteMachine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +164,7 @@ export function RemoteMachineSelector({
         <button
           onClick={loadMachines}
           className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
-          title="Refresh machines"
+          title={t("chat.refreshMachines")}
         >
           <ArrowPathIcon className="h-4 w-4" />
         </button>
@@ -216,7 +220,7 @@ export function RemoteMachineSelector({
                           : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                   }`}
                 >
-                  {getStatusLabel(machine.status)}
+                  {machine.status === "online" ? t("chat.statusOnline") : machine.status === "busy" ? t("chat.statusBusy") : machine.status === "error" ? t("chat.statusError") : t("chat.statusOffline")}
                 </span>
               </div>
             </button>

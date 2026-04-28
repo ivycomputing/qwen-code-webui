@@ -62,11 +62,7 @@ export function CollapsibleDetails({
 
   const handleToggle = () => {
     if (forceExpanded !== undefined) {
-      // When forceExpanded is controlled, use local override
-      setLocalOverride(!forceExpanded);
-    } else {
-      // Otherwise just toggle (handled by parent or default behavior)
-      // This case shouldn't happen in normal usage since isCollapsible requires hasDetails
+      setLocalOverride(!effectiveExpanded);
     }
   };
 
