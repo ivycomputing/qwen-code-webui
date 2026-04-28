@@ -555,4 +555,84 @@ describe("useStreamParser", () => {
       );
     });
   });
+
+  describe("Qwen SDK tool_result message type", () => {
+    it("should process top-level tool_result messages (Qwen SDK format)", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      const toolResultMessage = {
+        type: "tool_result",
+        message: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "tool-abc123",
+                name: "grep_search",
+                response: { output: "Found 5 matches" },
+              },
+            },
+          ],
+        },
+        toolCallResult: {
+          callId: "tool-abc123",
+          status: "success",
+          resultDisplay: "Found 5 matches",
+        },
+      };
+
+      result.current.processStreamLine(
+        JSON.stringify({
+          type: "claude_json",
+          data: toolResultMessage,
+        }),
+        mockContext,
+      );
+
+      // Should have processed the tool_result and added a tool_result message
+      expect(mockContext.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "tool_result",
+          toolName: "grep_search",
+        }),
+      );
+    });
+
+    it("should process assistant message with functionCall in parts", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      const assistantMessage = {
+        type: "assistant",
+        message: {
+          role: "model",
+          parts: [
+            { text: "Let me search." },
+            {
+              functionCall: {
+                id: "fc-test-1",
+                name: "grep_search",
+                args: { pattern: "TODO" },
+              },
+            },
+          ],
+        },
+      };
+
+      result.current.processStreamLine(
+        JSON.stringify({
+          type: "claude_json",
+          data: assistantMessage,
+        }),
+        mockContext,
+      );
+
+      // Should have text + tool message
+      expect(mockContext.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "tool",
+          content: expect.stringContaining("grep_search"),
+        }),
+      );
+    });
+  });
 });

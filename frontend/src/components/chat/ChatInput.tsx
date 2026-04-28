@@ -71,6 +71,7 @@ interface ChatInputProps {
 export function ChatInput({
   input,
   isLoading,
+  currentRequestId,
   onInputChange,
   onSubmit,
   onAbort,
@@ -369,7 +370,7 @@ export function ChatInput({
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
               placeholder={
-                isLoading ? t("chat.processing") : t("chat.typeMessage")
+                isLoading && currentRequestId ? t("chat.processing") : t("chat.typeMessage")
               }
               rows={1}
               className={`w-full px-4 py-3 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm shadow-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 resize-none overflow-hidden min-h-[48px] max-h-[${UI_CONSTANTS.TEXTAREA_MAX_HEIGHT}px]`}
@@ -389,7 +390,7 @@ export function ChatInput({
             )}
           </div>
           <div className="flex gap-2 pb-3">
-            {isLoading && (
+            {isLoading && currentRequestId && (
               <button
                 type="button"
                 onClick={onAbort}

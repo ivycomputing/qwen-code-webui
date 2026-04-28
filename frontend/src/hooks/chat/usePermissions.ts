@@ -368,11 +368,13 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   }, []);
 
   /**
-   * Disable command result loop detection for current session
+   * Reset command result loop detection counters (instead of permanent disable)
    */
   const disableCommandResultLoopDetection = useCallback(() => {
-    loopDetectionDisabledRef.current = true;
     commandResultsRef.current.clear();
+    // Reset auto-rejection counters too
+    autoRejectionCountRef.current = 0;
+    lastAutoRejectionToolRef.current = "";
     closeCommandLoopRequest();
   }, [closeCommandLoopRequest]);
 

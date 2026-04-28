@@ -531,7 +531,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         requestId: "test-auth-type",
       };
 
-      mockContext.var.config = {
+      (mockContext.var as any).config = {
         cliPath: "/path/to/claude-cli",
         authType: "openai",
       };
@@ -572,7 +572,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       };
 
       // No authType in config (default mock)
-      mockContext.var.config = {
+      (mockContext.var as any).config = {
         cliPath: "/path/to/claude-cli",
       };
 
@@ -608,7 +608,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         workingDirectory: "/project/path",
       };
 
-      mockContext.var.config = {
+      (mockContext.var as any).config = {
         cliPath: "/path/to/claude-cli",
         authType: "anthropic",
       };

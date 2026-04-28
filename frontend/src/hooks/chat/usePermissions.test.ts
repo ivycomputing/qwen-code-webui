@@ -496,15 +496,16 @@ describe("usePermissions - Command Result Loop Detection", () => {
 
     expect(result.current.commandLoopRequest).not.toBeNull();
 
-    // Disable loop detection (simulating "continue" button)
+    // Reset loop detection counters (simulating auto-abort notification dismiss)
     act(() => {
       result.current.disableCommandResultLoopDetection();
     });
 
     expect(result.current.commandLoopRequest).toBeNull();
 
-    // After disabling, same errors should not trigger loop
-    for (let i = 0; i < 3; i++) {
+    // After resetting, loop detection remains active
+    // First 2 calls build up tracking again
+    for (let i = 0; i < 2; i++) {
       let loopRequest: CommandLoopRequest | null = null;
       act(() => {
         loopRequest = result.current.checkCommandResultLoop(
@@ -513,9 +514,20 @@ describe("usePermissions - Command Result Loop Detection", () => {
           { exitCode: 1, output: "go: go.mod file not found" }
         );
       });
-      // Should be null because tracking was cleared
       expect(loopRequest).toBeNull();
     }
+
+    // Third call should trigger loop detection again (counter reset allows re-detection)
+    let thirdLoopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      thirdLoopRequest = result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "go build" },
+        { exitCode: 1, output: "go: go.mod file not found" }
+      );
+    });
+    expect(thirdLoopRequest).not.toBeNull();
+    expect(thirdLoopRequest!.toolName).toBe("run_shell_command");
   });
 
   it("should detect loop with error keywords even without exit code", () => {

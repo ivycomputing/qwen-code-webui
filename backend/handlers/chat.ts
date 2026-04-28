@@ -41,12 +41,7 @@ async function* executeQwenCommand(
   model?: string,
   authType?: AuthType,
 ): AsyncGenerator<StreamResponse> {
-  // Reuse the pre-registered AbortController (created in handleChatRequest
-  // to avoid race condition with abort requests)
-  const abortController = requestAbortControllers.get(requestId) ?? new AbortController();
-  if (!requestAbortControllers.has(requestId)) {
-    requestAbortControllers.set(requestId, abortController);
-  }
+  let abortController: AbortController;
 
   try {
     // Process commands that start with '/'
@@ -55,6 +50,10 @@ async function* executeQwenCommand(
       // Remove the '/' and send just the command
       processedMessage = message.substring(1);
     }
+
+    // Create and store AbortController for this request
+    abortController = new AbortController();
+    requestAbortControllers.set(requestId, abortController);
 
     // Log permission mode for debugging
     const mappedPermissionMode = permissionMode ? mapPermissionMode(permissionMode) : undefined;
@@ -87,19 +86,12 @@ async function* executeQwenCommand(
 
     yield { type: "done" };
   } catch (error) {
-    // Detect abort: check abort signal or error name/message
-    const isAborted =
-      abortController.signal.aborted ||
-      (error instanceof Error && (
-        error.name === "AbortError" ||
-        error.message === "The operation was aborted" ||
-        error.message.includes("aborted") ||
-        error.message.includes("AbortError")
-      ));
-
-    if (isAborted) {
-      yield { type: "aborted" };
-    } else {
+    // Check if error is due to abort
+    // TODO: Re-enable when AbortError is properly exported from Qwen SDK
+    // if (error instanceof AbortError) {
+    //   yield { type: "aborted" };
+    // } else {
+    {
       logger.chat.error("Qwen Code execution failed: {error}", { error });
       yield {
         type: "error",
@@ -135,11 +127,6 @@ export async function handleChatRequest(
     "Chat request permissionMode: {permissionMode}",
     { permissionMode: chatRequest.permissionMode },
   );
-
-  // Pre-register AbortController so abort requests can find it immediately,
-  // before the async generator starts executing (avoids race condition)
-  const preAbortController = new AbortController();
-  requestAbortControllers.set(chatRequest.requestId, preAbortController);
 
   const stream = new ReadableStream({
     async start(controller) {

@@ -2,6 +2,11 @@ import type { AllMessage, ChatMessage, ThinkingMessage } from "../../types";
 import { useMessageConverter } from "../useMessageConverter";
 import type { CommandLoopRequest } from "../chat/usePermissions";
 
+export interface ThinkingTimeoutInfo {
+  /** Triggered when thinking exceeds the timeout */
+  onThinkingTimeout: (accumulatedContent: string) => void;
+}
+
 export interface StreamingContext {
   currentAssistantMessage: ChatMessage | null;
   setCurrentAssistantMessage: (msg: ChatMessage | null) => void;
@@ -35,6 +40,8 @@ export interface StreamingContext {
     result: { exitCode?: number; output: string }
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
+  // Thinking timeout
+  thinkingTimeout?: ThinkingTimeoutInfo;
 }
 
 /**

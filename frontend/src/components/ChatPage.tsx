@@ -293,9 +293,15 @@ export function ChatPage() {
             onShowCommandLoopRequest: (request) => {
               notificationTriggeredRef.current = true;
               commandLoopShowRef.current?.(request);
+              // Auto-abort the remote request
+              remoteChat.abortCurrentRequest();
             },
             onAutoRejection: (toolName, content) => {
               return recordAutoRejection(toolName, content);
+            },
+            // Thinking timeout
+            thinkingTimeout: {
+              onThinkingTimeout: (content) => thinkingTimeoutRef.current?.(content),
             },
           },
           onPermissionRequest: (event) => {
@@ -413,7 +419,6 @@ export function ChatPage() {
     checkCommandResultLoop,
     showCommandLoopRequest,
     closeCommandLoopRequest,
-    disableCommandResultLoopDetection,
     // Auto-rejection loop detection
     recordAutoRejection,
   } = usePermissions({
@@ -447,6 +452,11 @@ export function ChatPage() {
   // avoid declaration-order issues (handlePermissionError is defined below).
   const permissionErrorRef = useRef<
     ((toolName: string, patterns: string[], toolUseId: string, requestId?: string) => void) | null
+  >(null);
+
+  // Ref for thinking timeout handler — same pattern as permissionErrorRef
+  const thinkingTimeoutRef = useRef<
+    ((accumulatedContent: string) => void) | null
   >(null);
 
   // Ref to track previous isLoading state for detecting when AI finishes responding
@@ -616,12 +626,18 @@ export function ChatPage() {
           onAutoRejection: (toolName, content) => {
             return recordAutoRejection(toolName, content);
           },
-          // Command result loop detection
+          // Command result loop detection — auto-abort on loop
           onCommandResultLoop: checkCommandResultLoop,
           onShowCommandLoopRequest: (request) => {
             notificationTriggeredRef.current = true;
             shouldAbort = true;
             showCommandLoopRequest(request);
+            // Auto-abort the request
+            createAbortHandler(requestId)();
+          },
+          // Thinking timeout
+          thinkingTimeout: {
+            onThinkingTimeout: handleThinkingTimeout,
           },
         };
 
@@ -904,7 +920,7 @@ export function ChatPage() {
     closePlanModeRequest();
   }, [updatePermissionMode, closePlanModeRequest, clearNotification]);
 
-  // Command loop detection handlers
+  // Command loop detection handlers — auto-abort, no dialog
   const handleCommandLoopAbort = useCallback(() => {
     closeCommandLoopRequest();
     // Abort current request if loading
@@ -919,24 +935,30 @@ export function ChatPage() {
     resetRequestState,
   ]);
 
-  const handleCommandLoopContinue = useCallback(() => {
-    disableCommandResultLoopDetection();
-    // Continue with current session
-    if (currentSessionId) {
-      sendMessage("continue", allowedTools, true);
-    }
-  }, [
-    disableCommandResultLoopDetection,
-    currentSessionId,
-    sendMessage,
-    allowedTools,
-  ]);
+  // Thinking timeout handler — abort and show notification
+  const [thinkingTimeoutInfo, setThinkingTimeoutInfo] = useState<{
+    content: string;
+    elapsed: number;
+  } | null>(null);
 
-  const handleCommandLoopManualInput = useCallback(() => {
-    closeCommandLoopRequest();
-    // Focus on input field for user to type new instruction
-    // The user can then type their own instruction
-  }, [closeCommandLoopRequest]);
+  const handleThinkingTimeout = useCallback(
+    (accumulatedContent: string) => {
+      // Abort the request
+      if (isLoading && currentRequestId) {
+        abortRequest(currentRequestId, isLoading, resetRequestState);
+      } else if (isRemoteWorkspace && remoteChat.session) {
+        remoteChat.abortCurrentRequest();
+      }
+
+      // Show timeout notification with thinking content
+      setThinkingTimeoutInfo({
+        content: accumulatedContent,
+        elapsed: 5 * 60, // 5 minutes
+      });
+    },
+    [isLoading, currentRequestId, abortRequest, resetRequestState, isRemoteWorkspace, remoteChat],
+  );
+  thinkingTimeoutRef.current = handleThinkingTimeout;
 
   // Create permission data for inline permission interface
   const permissionData = permissionRequest
@@ -1057,7 +1079,7 @@ export function ChatPage() {
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === KEYBOARD_SHORTCUTS.ABORT && effectiveIsLoading) {
+      if (e.key === KEYBOARD_SHORTCUTS.ABORT && effectiveIsLoading && currentRequestId) {
         e.preventDefault();
         handleAbort();
       }
@@ -1387,82 +1409,93 @@ export function ChatPage() {
           variant="warning"
         />
 
-        {/* Command Loop Detection Dialog */}
+        {/* Command Loop Detection — auto-abort notification */}
         {commandLoopRequest && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-amber-600 dark:text-amber-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-                  {t("commandLoop.title")}
-                </h2>
-              </div>
-
-              <p className="text-slate-600 dark:text-slate-400 mb-4">
-                {t("commandLoop.description")}
-              </p>
-
-              <div className="bg-slate-100 dark:bg-slate-700/50 rounded-lg p-4 mb-4">
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 font-medium">
-                      {t("commandLoop.tool")}:
-                    </span>
-                    <span className="ml-2 text-slate-700 dark:text-slate-300">
-                      {commandLoopRequest.toolName}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 font-medium">
-                      {t("commandLoop.command")}:
-                    </span>
-                    <span className="ml-2 text-slate-700 dark:text-slate-300 font-mono text-xs">
-                      {commandLoopRequest.command}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 font-medium">
-                      {t("commandLoop.error")}:
-                    </span>
-                    <span className="ml-2 text-red-600 dark:text-red-400 font-mono text-xs">
-                      {commandLoopRequest.errorOutput}
-                    </span>
+          <div className="fixed bottom-4 right-4 z-50 max-w-md">
+            <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-4 shadow-lg">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    {t("commandLoop.autoAbortTitle", "Loop detected — auto-aborted")}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                    {t("commandLoop.autoAbortDescription", "Tool {{tool}} was repeating the same error. Request aborted.", { tool: commandLoopRequest.toolName })}
+                  </p>
+                  <div className="mt-2 text-xs text-amber-600 dark:text-amber-500 font-mono bg-amber-100 dark:bg-amber-900/40 rounded p-2 max-h-20 overflow-auto">
+                    {commandLoopRequest.errorOutput}
                   </div>
                 </div>
-              </div>
-
-              <div className="flex gap-3 justify-end">
                 <button
                   onClick={handleCommandLoopAbort}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-200 flex-shrink-0"
+                  aria-label="Dismiss"
                 >
-                  {t("commandLoop.abort")}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
-                <button
-                  onClick={handleCommandLoopContinue}
-                  className="px-4 py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors"
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Thinking Timeout — auto-abort notification */}
+        {thinkingTimeoutInfo && (
+          <div className="fixed bottom-4 left-4 z-50 max-w-md">
+            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 shadow-lg">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {t("commandLoop.continue")}
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                    {t("thinkingTimeout.title", "Thinking timeout — auto-aborted")}
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                    {t("thinkingTimeout.description", "AI thinking exceeded {{minutes}} minutes and was auto-aborted. Here's what the AI was thinking about:", { minutes: thinkingTimeoutInfo.elapsed / 60 })}
+                  </p>
+                  {thinkingTimeoutInfo.content && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-800 dark:hover:text-blue-200">
+                        {t("thinkingTimeout.showContent", "Show thinking content")}
+                      </summary>
+                      <div className="mt-1 text-xs text-blue-700 dark:text-blue-300 font-mono bg-blue-100 dark:bg-blue-900/40 rounded p-2 max-h-40 overflow-auto whitespace-pre-wrap">
+                        {thinkingTimeoutInfo.content}
+                      </div>
+                    </details>
+                  )}
+                </div>
                 <button
-                  onClick={handleCommandLoopManualInput}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => setThinkingTimeoutInfo(null)}
+                  className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 flex-shrink-0"
+                  aria-label="Dismiss"
                 >
-                  {t("commandLoop.manualInput")}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>

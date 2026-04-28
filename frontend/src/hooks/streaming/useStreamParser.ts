@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type {
   StreamResponse,
   SDKMessage,
@@ -18,9 +18,23 @@ import {
   type ProcessingContext,
 } from "../../utils/UnifiedMessageProcessor";
 
+const THINKING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 export function useStreamParser() {
   // Create a single unified processor instance
   const processor = useMemo(() => new UnifiedMessageProcessor(), []);
+
+  // Thinking timeout tracking
+  const thinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkingStartRef = useRef<number>(0);
+  const thinkingContentRef = useRef<string>("");
+
+  const clearThinkingTimer = useCallback(() => {
+    if (thinkingTimerRef.current) {
+      clearTimeout(thinkingTimerRef.current);
+      thinkingTimerRef.current = null;
+    }
+  }, []);
 
   // Convert StreamingContext to ProcessingContext
   const adaptContext = useCallback(
@@ -36,8 +50,30 @@ export function useStreamParser() {
 
         // Current thinking message state
         currentThinkingMessage: context.currentThinkingMessage,
-        setCurrentThinkingMessage: context.setCurrentThinkingMessage,
-        updateThinkingMessage: context.updateThinkingMessage,
+        setCurrentThinkingMessage: (msg) => {
+          context.setCurrentThinkingMessage?.(msg);
+          if (msg && context.thinkingTimeout) {
+            // Start thinking timer when a new thinking message begins
+            if (!thinkingTimerRef.current) {
+              thinkingStartRef.current = Date.now();
+              thinkingContentRef.current = msg.content;
+              thinkingTimerRef.current = setTimeout(() => {
+                const elapsed = Math.round((Date.now() - thinkingStartRef.current) / 1000);
+                const content = thinkingContentRef.current;
+                console.warn(`Thinking timeout after ${elapsed}s, auto-aborting`);
+                context.thinkingTimeout!.onThinkingTimeout(content);
+              }, THINKING_TIMEOUT_MS);
+            }
+          } else if (!msg) {
+            // Thinking ended — clear timer
+            clearThinkingTimer();
+          }
+        },
+        updateThinkingMessage: (content: string) => {
+          context.updateThinkingMessage?.(content);
+          // Track latest thinking content for timeout notification
+          thinkingContentRef.current = content;
+        },
 
         // Session handling
         onSessionId: context.onSessionId,
@@ -58,9 +94,12 @@ export function useStreamParser() {
         // Command result loop detection
         onCommandResultLoop: context.onCommandResultLoop,
         onShowCommandLoopRequest: context.onShowCommandLoopRequest,
+
+        // Thinking timeout
+        onThinkingTimeout: context.thinkingTimeout?.onThinkingTimeout,
       };
     },
-    [],
+    [clearThinkingTimer],
   );
 
   const processQwenData = useCallback(
@@ -68,7 +107,8 @@ export function useStreamParser() {
       const processingContext = adaptContext(context);
 
       // Validate message types before processing
-      switch (qwenData.type) {
+      const msgType = (qwenData as { type: string }).type;
+      switch (msgType) {
         case "system":
           if (!isSystemMessage(qwenData)) {
             console.warn("Invalid system message:", qwenData);
@@ -99,6 +139,10 @@ export function useStreamParser() {
             console.warn("Invalid stream_event message:", qwenData);
             return;
           }
+          break;
+        case "tool_result":
+          // Qwen SDK sends tool results as top-level messages (not in SDKMessage union)
+          // Process without type guard since it's not in the TypeScript types
           break;
         default:
           console.log("Unknown Qwen message type:", qwenData);

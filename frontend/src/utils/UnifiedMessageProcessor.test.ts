@@ -444,3 +444,494 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
     });
   });
 });
+
+describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
+  function createProcessor() {
+    return new UnifiedMessageProcessor();
+  }
+
+  function createMockContext(
+    overrides: Partial<ProcessingContext> = {},
+  ): ProcessingContext {
+    return {
+      addMessage: () => {},
+      updateLastMessage: () => {},
+      setCurrentAssistantMessage: () => {},
+      setHasReceivedInit: () => {},
+      ...overrides,
+    };
+  }
+
+  /**
+   * Helper: send assistant message with functionCall in parts (Qwen format)
+   */
+  function sendFunctionCall(
+    processor: UnifiedMessageProcessor,
+    context: ProcessingContext,
+    toolUseId: string,
+    toolName: string,
+    toolArgs: Record<string, unknown>,
+  ) {
+    processor.processMessage(
+      {
+        type: "assistant",
+        message: {
+          role: "model",
+          parts: [
+            { text: "Let me search for this." },
+            {
+              functionCall: {
+                id: toolUseId,
+                name: toolName,
+                args: toolArgs,
+              },
+            },
+          ],
+        },
+      } as any,
+      context,
+      { isStreaming: true },
+    );
+  }
+
+  /**
+   * Helper: send top-level tool_result with functionResponse in parts (Qwen format)
+   */
+  function sendQwenToolResult(
+    processor: UnifiedMessageProcessor,
+    context: ProcessingContext,
+    toolUseId: string,
+    toolName: string,
+    output: string,
+    isError = false,
+  ) {
+    processor.processMessage(
+      {
+        type: "tool_result",
+        message: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: toolUseId,
+                name: toolName,
+                response: { output },
+              },
+            },
+          ],
+        },
+        toolCallResult: {
+          callId: toolUseId,
+          status: isError ? "error" : "success",
+          resultDisplay: output.substring(0, 100),
+        },
+      } as any,
+      context,
+      { isStreaming: true },
+    );
+  }
+
+  describe("functionCall in assistant parts", () => {
+    it("should cache tool_use info from functionCall in parts", () => {
+      const processor = createProcessor();
+      const autoRejectionCalls: Array<{ toolName: string; content: string }> = [];
+
+      const context = createMockContext({
+        onAutoRejection: (toolName, content) => {
+          autoRejectionCalls.push({ toolName, content });
+          return null;
+        },
+        onPermissionError: () => {},
+        onAbortRequest: () => {},
+      });
+
+      // Send tool call via functionCall (Qwen format)
+      sendFunctionCall(processor, context, "fc-1", "grep_search", {
+        pattern: "TODO",
+      });
+
+      // Send error result via Qwen tool_result format
+      sendQwenToolResult(
+        processor,
+        context,
+        "fc-1",
+        "grep_search",
+        "[Operation Cancelled] Reason: Error: Input closed",
+        true,
+      );
+
+      // The auto-rejection callback should be called with correct tool name
+      expect(autoRejectionCalls).toHaveLength(1);
+      expect(autoRejectionCalls[0].toolName).toBe("grep_search");
+    });
+
+    it("should create tool message for functionCall", () => {
+      const processor = createProcessor();
+      const messages: any[] = [];
+
+      const context = createMockContext({
+        addMessage: (msg) => messages.push(msg),
+      });
+
+      sendFunctionCall(processor, context, "fc-msg-1", "read_file", {
+        file_path: "/tmp/test.txt",
+      });
+
+      const toolMsg = messages.find((m) => m.type === "tool");
+      expect(toolMsg).toBeDefined();
+      expect(toolMsg.content).toContain("read_file");
+    });
+
+    it("should handle multiple functionCalls in one assistant message", () => {
+      const processor = createProcessor();
+      const messages: any[] = [];
+
+      const context = createMockContext({
+        addMessage: (msg) => messages.push(msg),
+      });
+
+      processor.processMessage(
+        {
+          type: "assistant",
+          message: {
+            role: "model",
+            parts: [
+              { text: "Let me search." },
+              {
+                functionCall: {
+                  id: "fc-multi-1",
+                  name: "grep_search",
+                  args: { pattern: "TODO" },
+                },
+              },
+              {
+                functionCall: {
+                  id: "fc-multi-2",
+                  name: "glob",
+                  args: { pattern: "**/*.ts" },
+                },
+              },
+            ],
+          },
+        } as any,
+        context,
+        { isStreaming: true },
+      );
+
+      const toolMsgs = messages.filter((m) => m.type === "tool");
+      expect(toolMsgs).toHaveLength(2);
+      expect(toolMsgs[0].content).toContain("grep_search");
+      expect(toolMsgs[1].content).toContain("glob");
+    });
+  });
+
+  describe("functionResponse in user parts", () => {
+    it("should process functionResponse as tool result", () => {
+      const processor = createProcessor();
+      const messages: any[] = [];
+
+      const context = createMockContext({
+        addMessage: (msg) => messages.push(msg),
+      });
+
+      // First send the functionCall to cache it
+      sendFunctionCall(processor, context, "fr-1", "read_file", {
+        file_path: "/tmp/test.txt",
+      });
+      messages.length = 0; // Clear tool messages
+
+      // Send via user message with functionResponse in parts
+      processor.processMessage(
+        {
+          type: "user",
+          message: {
+            role: "user",
+            parts: [
+              {
+                functionResponse: {
+                  id: "fr-1",
+                  name: "read_file",
+                  response: { output: "File contents here" },
+                },
+              },
+            ],
+          },
+        } as any,
+        context,
+        { isStreaming: true },
+      );
+
+      const resultMsg = messages.find((m) => m.type === "tool_result");
+      expect(resultMsg).toBeDefined();
+      expect(resultMsg.content).toContain("File contents here");
+      expect(resultMsg.toolName).toBe("read_file");
+    });
+  });
+
+  describe("top-level tool_result messages (Qwen SDK format)", () => {
+    it("should process top-level tool_result with functionResponse", () => {
+      const processor = createProcessor();
+      const messages: any[] = [];
+
+      const context = createMockContext({
+        addMessage: (msg) => messages.push(msg),
+      });
+
+      // First send the functionCall to cache it
+      sendFunctionCall(processor, context, "tr-1", "grep_search", {
+        pattern: "test",
+      });
+      messages.length = 0;
+
+      // Send as top-level tool_result message
+      sendQwenToolResult(processor, context, "tr-1", "grep_search", "Found 5 matches");
+
+      const resultMsg = messages.find((m) => m.type === "tool_result");
+      expect(resultMsg).toBeDefined();
+      expect(resultMsg.toolName).toBe("grep_search");
+      expect(resultMsg.content).toContain("Found 5 matches");
+    });
+
+    it("should trigger auto-rejection for error tool_result from Qwen SDK", () => {
+      const processor = createProcessor();
+      const autoRejectionCalls: Array<{ toolName: string; content: string }> = [];
+
+      const context = createMockContext({
+        onAutoRejection: (toolName, content) => {
+          autoRejectionCalls.push({ toolName, content });
+          return null;
+        },
+        onPermissionError: () => {},
+        onAbortRequest: () => {},
+      });
+
+      // Send tool call
+      sendFunctionCall(processor, context, "tr-err-1", "run_shell_command", {
+        command: "npm test",
+      });
+
+      // Send error result via top-level tool_result
+      sendQwenToolResult(
+        processor,
+        context,
+        "tr-err-1",
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed",
+        true,
+      );
+
+      expect(autoRejectionCalls).toHaveLength(1);
+      expect(autoRejectionCalls[0].toolName).toBe("run_shell_command");
+      expect(autoRejectionCalls[0].content).toContain("Input closed");
+    });
+
+    it("should trigger auto-abort when loop detected via Qwen tool_result", () => {
+      const processor = createProcessor();
+      let abortCalled = false;
+      let loopRequestShown: CommandLoopRequest | null = null;
+
+      const context = createMockContext({
+        onAutoRejection: (toolName, content) => {
+          return {
+            isOpen: true,
+            toolName,
+            command: toolName,
+            errorOutput: content.substring(0, 200),
+          };
+        },
+        onShowCommandLoopRequest: (request) => {
+          loopRequestShown = request;
+        },
+        onAbortRequest: () => {
+          abortCalled = true;
+        },
+      });
+
+      sendFunctionCall(processor, context, "tr-loop-1", "run_shell_command", {
+        command: "ssh test",
+      });
+
+      sendQwenToolResult(
+        processor,
+        context,
+        "tr-loop-1",
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed",
+        true,
+      );
+
+      expect(abortCalled).toBe(true);
+      expect(loopRequestShown).not.toBeNull();
+      expect(loopRequestShown!.toolName).toBe("run_shell_command");
+    });
+
+    it("should trigger command result loop detection via Qwen tool_result", () => {
+      const processor = createProcessor();
+      const loopCheckCalls: Array<{ toolName: string; result: any }> = [];
+
+      const context = createMockContext({
+        onCommandResultLoop: (toolName, _input, result) => {
+          loopCheckCalls.push({ toolName, result });
+          return null;
+        },
+      });
+
+      sendFunctionCall(processor, context, "tr-cmdloop-1", "run_shell_command", {
+        command: "go build",
+      });
+
+      sendQwenToolResult(
+        processor,
+        context,
+        "tr-cmdloop-1",
+        "run_shell_command",
+        "Exit Code: 1\nError: go.mod not found",
+      );
+
+      expect(loopCheckCalls).toHaveLength(1);
+      expect(loopCheckCalls[0].toolName).toBe("run_shell_command");
+    });
+
+    it("should handle streaming of Qwen format messages", () => {
+      const processor = createProcessor();
+      const messages: any[] = [];
+
+      const context = createMockContext({
+        addMessage: (msg) => messages.push(msg),
+      });
+
+      // Streaming: assistant with functionCall
+      processor.processMessage(
+        {
+          type: "assistant",
+          message: {
+            role: "model",
+            parts: [
+              { text: "Thinking...", thought: true },
+              { text: "Let me search." },
+              {
+                functionCall: {
+                  id: "batch-fc-1",
+                  name: "grep_search",
+                  args: { pattern: "TODO" },
+                },
+              },
+            ],
+          },
+        } as any,
+        context,
+        { isStreaming: true },
+      );
+
+      // Streaming: tool_result
+      processor.processMessage(
+        {
+          type: "tool_result",
+          message: {
+            role: "user",
+            parts: [
+              {
+                functionResponse: {
+                  id: "batch-fc-1",
+                  name: "grep_search",
+                  response: { output: "Found 3 matches" },
+                },
+              },
+            ],
+          },
+          toolCallResult: {
+            callId: "batch-fc-1",
+            status: "success",
+            resultDisplay: "Found 3 matches",
+          },
+        } as any,
+        context,
+        { isStreaming: true },
+      );
+
+      // Should have: thinking, tool (grep_search), tool_result, assistant text
+      const thinkingMsg = messages.find((m) => m.type === "thinking");
+      const toolMsg = messages.find((m) => m.type === "tool");
+      const resultMsg = messages.find((m) => m.type === "tool_result");
+
+      expect(thinkingMsg).toBeDefined();
+      expect(toolMsg).toBeDefined();
+      expect(toolMsg.content).toContain("grep_search");
+      expect(resultMsg).toBeDefined();
+      expect(resultMsg.content).toContain("Found 3 matches");
+    });
+  });
+
+  describe("Mixed Claude and Qwen formats", () => {
+    it("should handle both Claude content and Qwen parts formats", () => {
+      const processor = createProcessor();
+      const autoRejectionCalls: Array<string> = [];
+
+      const context = createMockContext({
+        onAutoRejection: (toolName) => {
+          autoRejectionCalls.push(toolName);
+          return null;
+        },
+        onPermissionError: () => {},
+        onAbortRequest: () => {},
+      });
+
+      // Claude format tool_use
+      processor.processMessage(
+        {
+          type: "assistant",
+          message: {
+            role: "assistant",
+            content: [
+              {
+                type: "tool_use",
+                id: "mix-1",
+                name: "read_file",
+                input: { file_path: "/tmp/a.txt" },
+              },
+            ],
+          },
+        } as any,
+        context,
+        { isStreaming: true },
+      );
+      // Claude format error result
+      processor.processMessage(
+        {
+          type: "user",
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "mix-1",
+                content: "Input closed",
+                is_error: true,
+              },
+            ],
+          },
+        } as any,
+        context,
+        { isStreaming: true },
+      );
+
+      // Qwen format tool_use
+      sendFunctionCall(processor, context, "mix-2", "grep_search", {
+        pattern: "test",
+      });
+      // Qwen format error result (top-level tool_result)
+      sendQwenToolResult(
+        processor,
+        context,
+        "mix-2",
+        "grep_search",
+        "Input closed",
+        true,
+      );
+
+      expect(autoRejectionCalls).toHaveLength(2);
+      expect(autoRejectionCalls[0]).toBe("read_file");
+      expect(autoRejectionCalls[1]).toBe("grep_search");
+    });
+  });
+});

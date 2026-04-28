@@ -73,6 +73,9 @@ export interface ProcessingContext {
     result: { exitCode?: number; output: string }
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
+
+  // Thinking timeout
+  onThinkingTimeout?: (accumulatedContent: string) => void;
 }
 
 /**
@@ -460,7 +463,12 @@ export class UnifiedMessageProcessor {
     // Check if message.parts exists (Qwen SDK format)
     if (Array.isArray(messageParts)) {
       for (const partItem of messageParts) {
-        const part = partItem as { text?: string; thought?: boolean; type?: string };
+        const part = partItem as {
+          text?: string;
+          thought?: boolean;
+          type?: string;
+          functionCall?: { id?: string; name?: string; args?: unknown };
+        };
         if (part.thought && part.text) {
           // Thinking/reasoning content — consolidate with existing thinking
           const fingerprint = part.text.substring(0, 100);
@@ -485,6 +493,21 @@ export class UnifiedMessageProcessor {
             const thinkingMessage = createThinkingMessage(part.text, timestamp);
             thinkingMessages.push(thinkingMessage);
           }
+        } else if (part.functionCall) {
+          // Qwen SDK functionCall — equivalent to tool_use
+          // Clear thinking state when tool call starts
+          if (options.isStreaming) {
+            context.setCurrentThinkingMessage?.(null);
+          }
+          this.handleToolUse(
+            {
+              id: part.functionCall.id,
+              name: part.functionCall.name,
+              input: part.functionCall.args,
+            },
+            localContext,
+            options,
+          );
         } else if (part.text) {
           // Regular text content — clear thinking state when text starts
           if (options.isStreaming) {
@@ -614,8 +637,31 @@ export class UnifiedMessageProcessor {
     if (Array.isArray(messageParts)) {
       // Qwen SDK format: message.parts array
       for (const partItem of messageParts) {
-        const part = partItem as { type?: string; text?: string };
-        if (part.text) {
+        const part = partItem as {
+          type?: string;
+          text?: string;
+          functionResponse?: {
+            id?: string;
+            name?: string;
+            response?: { output?: string; [key: string]: unknown };
+          };
+        };
+        if (part.functionResponse) {
+          // Qwen SDK functionResponse — equivalent to tool_result
+          const fr = part.functionResponse;
+          const toolUseId = fr.id || "";
+          const content = fr.response?.output || JSON.stringify(fr.response || {});
+
+          this.processToolResult(
+            {
+              tool_use_id: toolUseId,
+              content,
+              is_error: false,
+            },
+            localContext,
+            options,
+          );
+        } else if (part.text) {
           // Text content in parts
           const userMessage: ChatMessage = {
             type: "chat",
@@ -664,6 +710,62 @@ export class UnifiedMessageProcessor {
   }
 
   /**
+   * Process a tool_result message (Qwen SDK format)
+   * Qwen SDK sends tool results as top-level { type: "tool_result" } messages
+   * with functionResponse in message.parts
+   */
+  private processToolResultMessage(
+    message: Record<string, unknown>,
+    context: ProcessingContext,
+    options: ProcessingOptions,
+  ): void {
+    const msg = message as unknown as {
+      message?: { parts?: unknown[] };
+      toolCallResult?: { callId?: string; status?: string; resultDisplay?: string };
+    };
+
+    // Extract tool_use_id and content from functionResponse in parts
+    const messageParts = msg.message?.parts;
+    if (Array.isArray(messageParts)) {
+      for (const partItem of messageParts) {
+        const part = partItem as {
+          functionResponse?: {
+            id?: string;
+            name?: string;
+            response?: { output?: string; [key: string]: unknown };
+          };
+        };
+
+        if (part.functionResponse) {
+          const fr = part.functionResponse;
+          const toolUseId = fr.id || "";
+          const content = fr.response?.output || JSON.stringify(fr.response || {});
+
+          // Check for is_error based on toolCallResult status
+          const isError = msg.toolCallResult?.status === "error";
+
+          // Cache tool info from functionResponse if not already cached
+          if (toolUseId && fr.name && !this.getCachedToolInfo(toolUseId)) {
+            this.cacheToolUse(toolUseId, fr.name, {});
+          }
+
+          // Process as tool_result
+          this.processToolResult(
+            {
+              tool_use_id: toolUseId,
+              content,
+              is_error: isError,
+            },
+            context,
+            options,
+            msg.toolCallResult,
+          );
+        }
+      }
+    }
+  }
+
+  /**
    * Process a single SDK message
    *
    * @param message - The SDK message to process
@@ -684,20 +786,31 @@ export class UnifiedMessageProcessor {
 
     const finalOptions = { ...options, timestamp };
 
-    switch (message.type) {
+    const messageType = (message as { type: string }).type;
+
+    switch (messageType) {
       case "system":
-        this.processSystemMessage(message, context, finalOptions);
+        this.processSystemMessage(message as Extract<SDKMessage | TimestampedSDKMessage, { type: "system" }>, context, finalOptions);
         return [];
 
       case "assistant":
-        return this.processAssistantMessage(message, context, finalOptions);
+        return this.processAssistantMessage(message as Extract<SDKMessage | TimestampedSDKMessage, { type: "assistant" }>, context, finalOptions);
 
       case "result":
-        this.processResultMessage(message, context, finalOptions);
+        this.processResultMessage(message as Extract<SDKMessage | TimestampedSDKMessage, { type: "result" }>, context, finalOptions);
         return [];
 
       case "user":
-        return this.processUserMessage(message, context, finalOptions);
+        return this.processUserMessage(message as Extract<SDKMessage | TimestampedSDKMessage, { type: "user" }>, context, finalOptions);
+
+      case "tool_result":
+        // Qwen SDK sends tool results as top-level messages
+        this.processToolResultMessage(
+          message as unknown as Record<string, unknown>,
+          context,
+          finalOptions,
+        );
+        return [];
 
       default:
         console.warn(
