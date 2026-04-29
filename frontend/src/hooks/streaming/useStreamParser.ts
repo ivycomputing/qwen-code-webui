@@ -173,9 +173,13 @@ export function useStreamParser() {
         } else if (data.type === "permission_request") {
           // Proactive canUseTool flow: backend paused SDK, show permission dialog
           if (context.onPermissionRequest) {
+            if (!data.permissionId || !data.toolName) {
+              console.warn("Invalid permission_request: missing permissionId or toolName");
+              return;
+            }
             context.onPermissionRequest({
-              permissionId: data.permissionId!,
-              toolName: data.toolName!,
+              permissionId: data.permissionId,
+              toolName: data.toolName,
               toolInput: (data.toolInput as Record<string, unknown>) || {},
               suggestions: data.suggestions || [],
             });

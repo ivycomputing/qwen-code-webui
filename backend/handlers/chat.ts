@@ -152,13 +152,13 @@ async function executeQwenCommand(
 
       logger.chat.debug("Qwen SDK Message: {sdkMessage}", { sdkMessage });
 
-      enqueue({
+      if (!enqueue({
         type: "claude_json",
         data: sdkMessage,
-      });
+      })) break;
     }
 
-    enqueue({ type: "done" });
+    if (!enqueue({ type: "done" })) return;
   } catch (error) {
     logger.chat.error("Qwen Code execution failed: {error}", { error });
     enqueue({

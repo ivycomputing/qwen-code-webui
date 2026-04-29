@@ -687,6 +687,11 @@ export function ChatPage() {
         // Note: Input notification will be shown via useEffect when isLoading becomes false.
         // Don't reset notificationTriggeredRef here - it's needed by useEffect to determine
         // whether a permission/plan notification was triggered during this session.
+
+        // Clean up orphan proactive permission dialog (e.g. CLI crash → error → dialog remains)
+        if (permissionRequestRef.current?.permissionId) {
+          closePermissionRequest();
+        }
         resetRequestState();
       }
     },
@@ -759,7 +764,7 @@ export function ChatPage() {
   }, [setMessages, setCurrentSessionId, setHasShownInitMessage, setHasReceivedInit, addMessage, t, navigate, generateId]);
 
   // Permission request handlers
-  const handlePermissionAllow = useCallback(() => {
+  const handlePermissionAllow = useCallback(async () => {
     if (!permissionRequest) return;
 
     // Reset denial counter when user allows
@@ -782,9 +787,16 @@ export function ChatPage() {
 
     // Proactive canUseTool flow — stream still open, just respond
     if (permissionRequest.permissionId) {
-      sendPermissionResponse(permissionRequest.permissionId, "allow", {
-        updatedInput: permissionRequest.toolInput || {},
-      });
+      try {
+        const resp = await sendPermissionResponse(permissionRequest.permissionId, "allow", {
+          updatedInput: permissionRequest.toolInput || {},
+        });
+        if (!resp.ok) {
+          console.warn("Permission response failed:", resp.status);
+        }
+      } catch (error) {
+        console.error("Failed to send permission response:", error);
+      }
       closePermissionRequest();
       return;
     }
@@ -813,7 +825,7 @@ export function ChatPage() {
     remoteChat,
   ]);
 
-  const handlePermissionAllowPermanent = useCallback(() => {
+  const handlePermissionAllowPermanent = useCallback(async () => {
     if (!permissionRequest) return;
 
     // Reset denial counter when user allows
@@ -839,9 +851,16 @@ export function ChatPage() {
       permissionRequest.patterns.forEach((pattern) => {
         allowToolPermanent(pattern, allowedTools);
       });
-      sendPermissionResponse(permissionRequest.permissionId, "allow", {
-        updatedInput: permissionRequest.toolInput || {},
-      });
+      try {
+        const resp = await sendPermissionResponse(permissionRequest.permissionId, "allow", {
+          updatedInput: permissionRequest.toolInput || {},
+        });
+        if (!resp.ok) {
+          console.warn("Permission response failed:", resp.status);
+        }
+      } catch (error) {
+        console.error("Failed to send permission response:", error);
+      }
       closePermissionRequest();
       return;
     }
@@ -870,7 +889,7 @@ export function ChatPage() {
     remoteChat,
   ]);
 
-  const handlePermissionDeny = useCallback(() => {
+  const handlePermissionDeny = useCallback(async () => {
     if (!permissionRequest) return;
 
     const toolName = permissionRequest.toolName;
@@ -898,9 +917,16 @@ export function ChatPage() {
     // Proactive canUseTool flow — send deny response, stream continues
     if (permissionRequest.permissionId) {
       const denyMessage = loopMessage || `User denied this tool call`;
-      sendPermissionResponse(permissionRequest.permissionId, "deny", {
-        message: denyMessage,
-      });
+      try {
+        const resp = await sendPermissionResponse(permissionRequest.permissionId, "deny", {
+          message: denyMessage,
+        });
+        if (!resp.ok) {
+          console.warn("Permission response failed:", resp.status);
+        }
+      } catch (error) {
+        console.error("Failed to send permission response:", error);
+      }
       closePermissionRequest();
       return;
     }

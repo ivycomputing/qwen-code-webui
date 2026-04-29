@@ -1,4 +1,5 @@
 import { Context } from "hono";
+import type { PermissionRespondRequest } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 
 export interface PendingPermission {
@@ -14,7 +15,7 @@ export async function handlePermissionRespond(
   c: Context,
   pendingPermissions: Map<string, PendingPermission>,
 ) {
-  const body = await c.req.json();
+  const body = await c.req.json<PermissionRespondRequest>();
   if (!body?.permissionId || !body?.behavior) {
     return c.json({ error: "Missing permissionId or behavior" }, 400);
   }
@@ -42,9 +43,12 @@ export async function handlePermissionRespond(
       updatedInput: body.updatedInput || {},
     });
   } else {
+    const message = body.message
+      ? `${body.message} [proactive]`
+      : `User denied this tool call [proactive]`;
     pending.resolve({
       behavior: "deny",
-      message: `User denied this tool call [proactive]`,
+      message,
     });
   }
 
