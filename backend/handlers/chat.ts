@@ -143,10 +143,10 @@ async function executeQwenCommand(
           { fingerprint: loopResult.fingerprint, count: loopResult.count },
         );
         abortController.abort();
-        enqueue({
+        if (!enqueue({
           type: "error",
           error: `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x)`,
-        });
+        })) break;
         break;
       }
 
@@ -237,8 +237,8 @@ export async function handleChatRequest(
           type: "error",
           error: error instanceof Error ? error.message : String(error),
         };
-        controller.enqueue(encoder.encode(JSON.stringify(errorResponse) + "\n"));
-        controller.close();
+        enqueue(errorResponse);
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
     cancel() {
