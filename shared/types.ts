@@ -1,7 +1,12 @@
 export interface StreamResponse {
-  type: "claude_json" | "error" | "done" | "aborted";
+  type: "claude_json" | "error" | "done" | "aborted" | "permission_request";
   data?: unknown; // SDKMessage object for claude_json type (Qwen SDK message)
   error?: string;
+  // Fields for permission_request type
+  permissionId?: string;
+  toolName?: string;
+  toolInput?: Record<string, unknown>;
+  suggestions?: Array<{ type: string; label: string; description?: string }>;
 }
 
 export interface ChatRequest {
@@ -32,6 +37,13 @@ export interface ModelsResponse {
 
 export interface AbortRequest {
   requestId: string;
+}
+
+export interface PermissionRespondRequest {
+  permissionId: string;
+  behavior: "allow" | "deny";
+  message?: string;
+  updatedInput?: Record<string, unknown>;
 }
 
 export interface ProjectInfo {
