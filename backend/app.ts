@@ -18,6 +18,7 @@ import { handleHistoriesRequest } from "./handlers/histories.ts";
 import { handleConversationRequest } from "./handlers/conversations.ts";
 import { handleChatRequest } from "./handlers/chat.ts";
 import { handleAbortRequest } from "./handlers/abort.ts";
+import { handlePermissionRespond, type PendingPermission } from "./handlers/permission.ts";
 import { handleVersionRequest } from "./handlers/version.ts";
 import { handleModelsRequest } from "./handlers/models.ts";
 import { handleQuotaStatusRequest, quotaCheckMiddleware } from "./handlers/quota.ts";
@@ -43,6 +44,9 @@ export function createApp(
 
   // Store AbortControllers for each request (shared with chat handler)
   const requestAbortControllers = new Map<string, AbortController>();
+
+  // Store pending permission requests for canUseTool callback
+  const pendingPermissions = new Map<string, PendingPermission>();
 
   // CORS middleware
   app.use(
@@ -92,7 +96,12 @@ export function createApp(
     handleAbortRequest(c, requestAbortControllers),
   );
 
-  app.post("/api/chat", quotaCheckMiddleware, (c) => handleChatRequest(c, requestAbortControllers));
+  app.post("/api/permission/respond", (c) =>
+    handlePermissionRespond(c, pendingPermissions),
+  );
+
+  app.post("/api/chat", quotaCheckMiddleware, (c) =>
+    handleChatRequest(c, requestAbortControllers, pendingPermissions));
 
   // Static file serving with SPA fallback
   // Serve static assets (CSS, JS, images, etc.)
