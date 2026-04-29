@@ -40,6 +40,15 @@ export interface StreamingContext {
     result: { exitCode?: number; output: string }
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
+  // Proactive canUseTool permission handling
+  onPermissionRequest?: (event: {
+    permissionId: string;
+    toolName: string;
+    toolInput: Record<string, unknown>;
+    suggestions: Array<{ type: string; label: string; description?: string }>;
+  }) => void;
+  // Cleanup orphan permission dialogs after SDK timeout/stream resume
+  onPermissionOrphanCleanup?: () => void;
   // Thinking timeout
   thinkingTimeout?: ThinkingTimeoutInfo;
 }

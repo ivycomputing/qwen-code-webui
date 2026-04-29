@@ -166,6 +166,20 @@ export function useStreamParser() {
           // data.data is already an SDKMessage object, no need to parse
           const qwenData = data.data as SDKMessage;
           processQwenData(qwenData, context);
+          // SDK resumed after canUseTool timeout — clean up orphan permission dialog
+          if (context.onPermissionOrphanCleanup) {
+            context.onPermissionOrphanCleanup();
+          }
+        } else if (data.type === "permission_request") {
+          // Proactive canUseTool flow: backend paused SDK, show permission dialog
+          if (context.onPermissionRequest) {
+            context.onPermissionRequest({
+              permissionId: data.permissionId!,
+              toolName: data.toolName!,
+              toolInput: (data.toolInput as Record<string, unknown>) || {},
+              suggestions: data.suggestions || [],
+            });
+          }
         } else if (data.type === "error") {
           const errorMessage: SystemMessage = {
             type: "error",
