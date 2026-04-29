@@ -3,6 +3,7 @@ import { query, type PermissionMode, type AuthType } from "@qwen-code/sdk";
 import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 import { checkLoop, type LoopState } from "../utils/loopDetector.ts";
+import type { PendingPermission } from "./permission.ts";
 
 /**
  * Maps UI permission mode to Qwen SDK permission mode
@@ -18,22 +19,15 @@ function mapPermissionMode(mode?: string): PermissionMode | undefined {
 }
 
 /**
- * Executes a Qwen command and yields streaming responses
- * @param message - User message or command
- * @param requestId - Unique request identifier for abort functionality
- * @param requestAbortControllers - Shared map of abort controllers
- * @param cliPath - Path to actual CLI script (detected by validateQwenCli)
- * @param sessionId - Optional session ID for conversation continuity
- * @param allowedTools - Optional array of allowed tool names
- * @param workingDirectory - Optional working directory for Qwen execution
- * @param permissionMode - Optional permission mode for Qwen execution
- * @param model - Optional model to use for the query
- * @returns AsyncGenerator yielding StreamResponse objects
+ * Executes a Qwen command and sends StreamResponse objects via the provided enqueue callback.
+ * Supports canUseTool callback for proactive permission handling.
  */
-async function* executeQwenCommand(
+async function executeQwenCommand(
   message: string,
   requestId: string,
   requestAbortControllers: Map<string, AbortController>,
+  pendingPermissions: Map<string, PendingPermission>,
+  enqueue: (response: StreamResponse) => boolean,
   cliPath: string,
   sessionId?: string,
   allowedTools?: string[],
@@ -41,14 +35,14 @@ async function* executeQwenCommand(
   permissionMode?: string,
   model?: string,
   authType?: AuthType,
-): AsyncGenerator<StreamResponse> {
+): Promise<void> {
   let abortController: AbortController;
+  const localPendingIds = new Set<string>();
 
   try {
     // Process commands that start with '/'
     let processedMessage = message;
     if (message.startsWith("/")) {
-      // Remove the '/' and send just the command
       processedMessage = message.substring(1);
     }
 
@@ -65,6 +59,67 @@ async function* executeQwenCommand(
 
     const loopState: LoopState = { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 };
 
+    // Create the canUseTool callback — proactive permission handling
+    const canUseTool = async (
+      toolName: string,
+      input: Record<string, unknown>,
+      _options: { signal: AbortSignal; suggestions?: unknown[] | null },
+    ): Promise<{ behavior: "allow" | "deny"; updatedInput?: Record<string, unknown>; message?: string }> => {
+      // Defense 1: check main query abort (not SDK's per-request signal)
+      if (abortController.signal.aborted) {
+        return { behavior: "deny", message: "Request aborted" };
+      }
+
+      const permissionId = crypto.randomUUID();
+      localPendingIds.add(permissionId);
+
+      // Defense 2: enqueue returns false → stream already closed
+      const suggestions = _options.suggestions
+        ? (_options.suggestions as Array<{ type: string; label: string; description?: string }>).map((s) => ({
+            type: s.type,
+            label: s.label,
+            description: s.description,
+          }))
+        : undefined;
+
+      if (
+        !enqueue({
+          type: "permission_request",
+          permissionId,
+          toolName,
+          toolInput: input,
+          suggestions,
+        })
+      ) {
+        localPendingIds.delete(permissionId);
+        return { behavior: "deny", message: "Stream closed" };
+      }
+
+      logger.chat.debug("canUseTool: waiting for user response, permissionId={permissionId}, tool={toolName}", {
+        permissionId,
+        toolName,
+      });
+
+      // Defense 3: abort listener for async abort during wait
+      return new Promise((resolve) => {
+        const onAbort = () => {
+          pendingPermissions.delete(permissionId);
+          localPendingIds.delete(permissionId);
+          resolve({ behavior: "deny", message: "Request aborted" });
+        };
+        abortController.signal.addEventListener("abort", onAbort, { once: true });
+
+        pendingPermissions.set(permissionId, {
+          resolve: (result) => {
+            abortController.signal.removeEventListener("abort", onAbort);
+            localPendingIds.delete(permissionId);
+            resolve(result);
+          },
+          abortSignal: abortController.signal,
+        });
+      });
+    };
+
     for await (const sdkMessage of query({
       prompt: processedMessage,
       options: {
@@ -76,6 +131,8 @@ async function* executeQwenCommand(
         ...(mappedPermissionMode ? { permissionMode: mappedPermissionMode } : {}),
         ...(model ? { model } : {}),
         ...(authType ? { authType } : {}),
+        canUseTool,
+        timeout: { canUseTool: 300_000 },
       },
     })) {
       // Backend loop detection — failsafe if frontend detection fails
@@ -86,53 +143,53 @@ async function* executeQwenCommand(
           { fingerprint: loopResult.fingerprint, count: loopResult.count },
         );
         abortController.abort();
-        yield {
+        enqueue({
           type: "error",
           error: `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x)`,
-        };
+        });
         break;
       }
 
-      // Debug logging of raw SDK messages with detailed content
       logger.chat.debug("Qwen SDK Message: {sdkMessage}", { sdkMessage });
 
-      yield {
+      enqueue({
         type: "claude_json",
         data: sdkMessage,
-      };
+      });
     }
 
-    yield { type: "done" };
+    enqueue({ type: "done" });
   } catch (error) {
-    // Check if error is due to abort
-    // TODO: Re-enable when AbortError is properly exported from Qwen SDK
-    // if (error instanceof AbortError) {
-    //   yield { type: "aborted" };
-    // } else {
-    {
-      logger.chat.error("Qwen Code execution failed: {error}", { error });
-      yield {
-        type: "error",
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    logger.chat.error("Qwen Code execution failed: {error}", { error });
+    enqueue({
+      type: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
-    // Clean up AbortController from map
-    if (requestAbortControllers.has(requestId)) {
+    // Ensure CLI subprocess is killed on any exit path (issue #84)
+    const ac = requestAbortControllers.get(requestId);
+    if (ac) {
+      ac.abort();
       requestAbortControllers.delete(requestId);
+    }
+    // Clean up unresolved pending permissions for this request
+    for (const id of localPendingIds) {
+      const pending = pendingPermissions.get(id);
+      if (pending) {
+        pending.resolve({ behavior: "deny", message: "Request ended" });
+        pendingPermissions.delete(id);
+      }
     }
   }
 }
 
 /**
  * Handles POST /api/chat requests with streaming responses
- * @param c - Hono context object with config variables
- * @param requestAbortControllers - Shared map of abort controllers
- * @returns Response with streaming NDJSON
  */
 export async function handleChatRequest(
   c: Context,
   requestAbortControllers: Map<string, AbortController>,
+  pendingPermissions: Map<string, PendingPermission>,
 ) {
   const chatRequest: ChatRequest = await c.req.json();
   const { cliPath, authType } = c.var.config as { cliPath: string; authType?: AuthType };
@@ -146,34 +203,52 @@ export async function handleChatRequest(
     { permissionMode: chatRequest.permissionMode },
   );
 
+  const encoder = new TextEncoder();
+
   const stream = new ReadableStream({
     async start(controller) {
+      const enqueue = (response: StreamResponse): boolean => {
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(response) + "\n"));
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
       try {
-        for await (const chunk of executeQwenCommand(
+        await executeQwenCommand(
           chatRequest.message,
           chatRequest.requestId,
           requestAbortControllers,
-          cliPath, // Use detected CLI path from validateQwenCli
+          pendingPermissions,
+          enqueue,
+          cliPath,
           chatRequest.sessionId,
           chatRequest.allowedTools,
           chatRequest.workingDirectory,
           chatRequest.permissionMode,
           chatRequest.model,
           authType,
-        )) {
-          const data = JSON.stringify(chunk) + "\n";
-          controller.enqueue(new TextEncoder().encode(data));
-        }
+        );
         controller.close();
       } catch (error) {
         const errorResponse: StreamResponse = {
           type: "error",
           error: error instanceof Error ? error.message : String(error),
         };
-        controller.enqueue(
-          new TextEncoder().encode(JSON.stringify(errorResponse) + "\n"),
-        );
+        controller.enqueue(encoder.encode(JSON.stringify(errorResponse) + "\n"));
         controller.close();
+      }
+    },
+    cancel() {
+      // Client disconnected — kill CLI subprocess to prevent infinite retry loops
+      const ac = requestAbortControllers.get(chatRequest.requestId);
+      if (ac) {
+        logger.chat.info("Client disconnected, aborting CLI subprocess for request {requestId}", {
+          requestId: chatRequest.requestId,
+        });
+        ac.abort();
       }
     },
   });

@@ -1983,6 +1983,7 @@
         "npm:rimraf@6",
         "npm:tsx@4",
         "npm:typescript@^5.9.0",
+        "npm:vite@^7.3.2",
         "npm:vitest@^3.2.4"
       ]
     }
