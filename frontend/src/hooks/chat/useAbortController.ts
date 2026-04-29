@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { getAbortUrl } from "../../config/api";
+import { getAbortUrl, getPermissionRespondUrl } from "../../config/api";
 
 export function useAbortController() {
   // Helper function to perform abort request
@@ -45,4 +45,20 @@ export function useAbortController() {
     abortRequest,
     createAbortHandler,
   };
+}
+
+/**
+ * Send a permission response to the backend for proactive canUseTool flow.
+ * Standalone function (not a hook) since it's a simple HTTP POST.
+ */
+export async function sendPermissionResponse(
+  permissionId: string,
+  behavior: "allow" | "deny",
+  options?: { message?: string; updatedInput?: Record<string, unknown> },
+): Promise<Response> {
+  return fetch(getPermissionRespondUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ permissionId, behavior, ...options }),
+  });
 }

@@ -7,6 +7,9 @@ interface PermissionRequest {
   patterns: string[];
   toolUseId: string;
   requestId?: string; // For remote mode: the control_request request_id
+  permissionId?: string; // For proactive canUseTool flow
+  toolInput?: Record<string, unknown>;
+  suggestions?: Array<{ type: string; label: string; description?: string }>;
 }
 
 interface PlanModeRequest {
@@ -86,6 +89,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   const [allowedTools, setAllowedTools] = useState<string[]>([]);
   const [permissionRequest, setPermissionRequest] =
     useState<PermissionRequest | null>(null);
+  const permissionRequestRef = useRef<PermissionRequest | null>(null);
   const [planModeRequest, setPlanModeRequest] =
     useState<PlanModeRequest | null>(null);
 
@@ -121,14 +125,17 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   const loopDetectionDisabledRef = useRef(false);
 
   const showPermissionRequest = useCallback(
-    (toolName: string, patterns: string[], toolUseId: string, requestId?: string) => {
-      setPermissionRequest({
-        isOpen: true,
-        toolName,
-        patterns,
-        toolUseId,
-        requestId,
-      });
+    (
+      toolName: string, patterns: string[], toolUseId: string, requestId?: string,
+      permissionId?: string, toolInput?: Record<string, unknown>,
+      suggestions?: Array<{ type: string; label: string; description?: string }>,
+    ) => {
+      const req: PermissionRequest = {
+        isOpen: true, toolName, patterns, toolUseId, requestId,
+        permissionId, toolInput, suggestions,
+      };
+      permissionRequestRef.current = req;
+      setPermissionRequest(req);
       // Enable inline permission mode
       setIsPermissionMode(true);
     },
@@ -136,6 +143,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   );
 
   const closePermissionRequest = useCallback(() => {
+    permissionRequestRef.current = null;
     setPermissionRequest(null);
     // Disable inline permission mode
     setIsPermissionMode(false);
@@ -440,6 +448,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   return {
     allowedTools,
     permissionRequest,
+    permissionRequestRef,
     showPermissionRequest,
     closePermissionRequest,
     allowToolTemporary,

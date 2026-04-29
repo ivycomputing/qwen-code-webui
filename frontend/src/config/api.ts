@@ -6,6 +6,7 @@ export const API_CONFIG = {
     VERSION: "/api/version",
     CHAT: "/api/chat",
     ABORT: "/api/abort",
+    PERMISSION_RESPOND: "/api/permission/respond",
     PROJECTS: "/api/projects",
     HISTORIES: "/api/projects",
     CONVERSATIONS: "/api/projects",
@@ -26,6 +27,11 @@ export const getAbortUrl = (requestId: string) => {
 // Helper function to get chat URL
 export const getChatUrl = () => {
   return addTokenToUrl(API_CONFIG.ENDPOINTS.CHAT);
+};
+
+// Helper function to get permission respond URL
+export const getPermissionRespondUrl = () => {
+  return addTokenToUrl(API_CONFIG.ENDPOINTS.PERMISSION_RESPOND);
 };
 
 // Helper function to get projects URL
