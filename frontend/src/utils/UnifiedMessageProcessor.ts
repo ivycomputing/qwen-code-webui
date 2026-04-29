@@ -213,11 +213,12 @@ export class UnifiedMessageProcessor {
         ? contentItem.content
         : JSON.stringify(contentItem.content);
 
-    // Check for permission errors - but skip tool use errors which should be displayed as regular results
+    // Check for permission errors - but skip tool use errors and proactive denials
     if (
       options.isStreaming &&
       contentItem.is_error &&
-      !isToolUseError(content)
+      !isToolUseError(content) &&
+      !content.includes("[proactive]")
     ) {
       this.handlePermissionError(contentItem, context);
       return;

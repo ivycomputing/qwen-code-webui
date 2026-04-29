@@ -13,6 +13,8 @@ import { useChatState } from "../hooks/chat/useChatState";
 import { usePermissions, type CommandLoopRequest } from "../hooks/chat/usePermissions";
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
+import { sendPermissionResponse } from "../hooks/chat/useAbortController";
+import { extractToolInfo, generateToolPatterns } from "../utils/toolUtils";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
 import { useSettings } from "../hooks/useSettings";
 import { useExpandThinking } from "../hooks/useSettings";
@@ -403,6 +405,7 @@ export function ChatPage() {
   const {
     allowedTools,
     permissionRequest,
+    permissionRequestRef,
     showPermissionRequest,
     closePermissionRequest,
     allowToolTemporary,
@@ -635,6 +638,23 @@ export function ChatPage() {
             // Auto-abort the request
             createAbortHandler(requestId)();
           },
+          // Proactive canUseTool permission request
+          onPermissionRequest: (event) => {
+            notificationTriggeredRef.current = true;
+            const { toolName: extractedName, commands } = extractToolInfo(event.toolName, event.toolInput);
+            const patterns = generateToolPatterns(extractedName, commands);
+            showPermissionRequest(
+              extractedName, patterns, "", undefined,
+              event.permissionId, event.toolInput, event.suggestions,
+            );
+            showPermissionNotification();
+          },
+          // Cleanup orphan permission dialog after SDK timeout/stream resume
+          onPermissionOrphanCleanup: () => {
+            if (permissionRequestRef.current?.permissionId) {
+              closePermissionRequest();
+            }
+          },
           // Thinking timeout
           thinkingTimeout: {
             onThinkingTimeout: handleThinkingTimeout,
@@ -760,7 +780,16 @@ export function ChatPage() {
       return;
     }
 
-    // Add all patterns temporarily
+    // Proactive canUseTool flow — stream still open, just respond
+    if (permissionRequest.permissionId) {
+      sendPermissionResponse(permissionRequest.permissionId, "allow", {
+        updatedInput: permissionRequest.toolInput || {},
+      });
+      closePermissionRequest();
+      return;
+    }
+
+    // Legacy reactive flow — abort + new request with expanded allowedTools
     let updatedAllowedTools = allowedTools;
     permissionRequest.patterns.forEach((pattern) => {
       updatedAllowedTools = allowToolTemporary(pattern, updatedAllowedTools);
@@ -805,7 +834,19 @@ export function ChatPage() {
       return;
     }
 
-    // Add all patterns permanently
+    // Proactive canUseTool flow — update state for future queries + respond
+    if (permissionRequest.permissionId) {
+      permissionRequest.patterns.forEach((pattern) => {
+        allowToolPermanent(pattern, allowedTools);
+      });
+      sendPermissionResponse(permissionRequest.permissionId, "allow", {
+        updatedInput: permissionRequest.toolInput || {},
+      });
+      closePermissionRequest();
+      return;
+    }
+
+    // Legacy reactive flow
     let updatedAllowedTools = allowedTools;
     permissionRequest.patterns.forEach((pattern) => {
       updatedAllowedTools = allowToolPermanent(pattern, updatedAllowedTools);
@@ -854,14 +895,23 @@ export function ChatPage() {
       return;
     }
 
+    // Proactive canUseTool flow — send deny response, stream continues
+    if (permissionRequest.permissionId) {
+      const denyMessage = loopMessage || `User denied this tool call`;
+      sendPermissionResponse(permissionRequest.permissionId, "deny", {
+        message: denyMessage,
+      });
+      closePermissionRequest();
+      return;
+    }
+
+    // Legacy reactive flow
     closePermissionRequest();
 
     if (currentSessionId) {
       if (loopMessage) {
-        // Loop detected - send interrupt message to stop AI from retrying
         sendMessage(loopMessage, allowedTools, true);
       } else {
-        // Normal denial - send a message to inform AI that user denied
         sendMessage(
           `The user denied the permission request for ${toolName}. Please stop retrying and ask the user what they would like to do instead.`,
           allowedTools,
