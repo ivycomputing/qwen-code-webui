@@ -49,13 +49,18 @@ export function useChatState(options: ChatStateOptions = {}) {
   }, []);
 
   const updateLastMessage = useCallback((updates: Partial<ChatMessage> | string) => {
-    setMessages((prev) =>
-      prev.map((msg, index) =>
-        index === prev.length - 1 && msg.type === "chat"
-          ? { ...msg, ...(typeof updates === "string" ? { content: updates } : updates) }
-          : msg,
-      ),
-    );
+    setMessages((prev) => {
+      for (let i = prev.length - 1; i >= 0; i--) {
+        const msg = prev[i];
+        if (msg.type === "chat" && (msg as ChatMessage).role === "assistant") {
+          const merged = typeof updates === "string"
+            ? { ...msg, content: updates }
+            : { ...msg, ...updates };
+          return [...prev.slice(0, i), merged as ChatMessage, ...prev.slice(i + 1)];
+        }
+      }
+      return prev;
+    });
   }, []);
 
   const updateThinkingMessage = useCallback((content: string) => {
