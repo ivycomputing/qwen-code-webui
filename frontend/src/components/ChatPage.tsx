@@ -21,7 +21,6 @@ import { useExpandThinking } from "../hooks/useSettings";
 import { useModel } from "../hooks/useModel";
 import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
 import { useTabNotification } from "../hooks/useTabNotification";
-import { generateId } from "../utils/id";
 import { calculateTokenUsage, calculateContextBreakdown } from "../utils/tokenUsage";
 import type { ContextUsageData } from "../utils/tokenUsage";
 import { ContextUsagePanel } from "./chat/ContextUsagePanel";
@@ -759,22 +758,25 @@ export function ChatPage() {
 
   // Clear conversation handler
   const handleClearConversation = useCallback(() => {
-    // Clear messages and generate a new session ID to start fresh
-    // The old history files remain on server but won't be loaded
+    // Abort any in-flight request to prevent stale messages
+    if (isRemoteWorkspace && remoteChat.session) {
+      remoteChat.abortCurrentRequest();
+    } else {
+      abortRequest(currentRequestId, isLoading, resetRequestState);
+    }
     setMessages([]);
-    setCurrentSessionId(generateId());
+    setCurrentSessionId(null);
     setHasShownInitMessage(false);
     setHasReceivedInit(false);
     setShowClearConfirm(false);
     navigate({ search: "" });
-    // Add a system message to indicate context was cleared
     addMessage({
       type: "chat",
       role: "assistant",
       content: t("slashCommands.contextCleared"),
       timestamp: Date.now(),
     });
-  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, setHasReceivedInit, addMessage, t, navigate, generateId]);
+  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, setHasReceivedInit, addMessage, t, navigate, abortRequest, currentRequestId, isLoading, resetRequestState, isRemoteWorkspace, remoteChat.abortCurrentRequest, remoteChat.session]);
 
   // Permission request handlers
   const handlePermissionAllow = useCallback(async () => {
