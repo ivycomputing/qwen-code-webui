@@ -21,7 +21,6 @@ import { useExpandThinking } from "../hooks/useSettings";
 import { useModel } from "../hooks/useModel";
 import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
 import { useTabNotification } from "../hooks/useTabNotification";
-import { generateId } from "../utils/id";
 import { calculateTokenUsage, calculateContextBreakdown } from "../utils/tokenUsage";
 import type { ContextUsageData } from "../utils/tokenUsage";
 import { ContextUsagePanel } from "./chat/ContextUsagePanel";
@@ -478,6 +477,9 @@ export function ChatPage() {
   // Ref to track previous isLoading state for detecting when AI finishes responding
   const wasLoadingRef = useRef(false);
 
+  // Ref to suppress error message when abort is triggered by /clear
+  const clearAbortRef = useRef(false);
+
   // Show input notification when AI finishes responding (isLoading changes from true to false)
   useEffect(() => {
     // Update the ref to track previous state
@@ -689,14 +691,19 @@ export function ChatPage() {
           if (shouldAbort) break;
         }
       } catch (error) {
-        console.error("Failed to send message:", error);
-        addMessage({
-          type: "chat",
-          role: "assistant",
-          content: "Error: Failed to get response",
-          timestamp: Date.now(),
-        });
+        // Skip error message when abort was triggered by /clear
+        if (!clearAbortRef.current) {
+          console.error("Failed to send message:", error);
+          addMessage({
+            type: "chat",
+            role: "assistant",
+            content: "Error: Failed to get response",
+            timestamp: Date.now(),
+          });
+        }
       } finally {
+        clearAbortRef.current = false;
+
         // Note: Input notification will be shown via useEffect when isLoading becomes false.
         // Don't reset notificationTriggeredRef here - it's needed by useEffect to determine
         // whether a permission/plan notification was triggered during this session.
@@ -759,22 +766,27 @@ export function ChatPage() {
 
   // Clear conversation handler
   const handleClearConversation = useCallback(() => {
-    // Clear messages and generate a new session ID to start fresh
-    // The old history files remain on server but won't be loaded
+    // Abort any in-flight request to prevent stale messages
+    clearAbortRef.current = true;
+    if (isRemoteWorkspace && remoteChat.session) {
+      remoteChat.abortCurrentRequest();
+    } else {
+      abortRequest(currentRequestId, isLoading, resetRequestState);
+    }
+    resetRequestState();
     setMessages([]);
-    setCurrentSessionId(generateId());
+    setCurrentSessionId(null);
     setHasShownInitMessage(false);
     setHasReceivedInit(false);
     setShowClearConfirm(false);
     navigate({ search: "" });
-    // Add a system message to indicate context was cleared
     addMessage({
       type: "chat",
       role: "assistant",
       content: t("slashCommands.contextCleared"),
       timestamp: Date.now(),
     });
-  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, setHasReceivedInit, addMessage, t, navigate, generateId]);
+  }, [setMessages, setCurrentSessionId, setHasShownInitMessage, setHasReceivedInit, addMessage, t, navigate, abortRequest, currentRequestId, isLoading, resetRequestState, isRemoteWorkspace, remoteChat.abortCurrentRequest, remoteChat.session]);
 
   // Permission request handlers
   const handlePermissionAllow = useCallback(async () => {
