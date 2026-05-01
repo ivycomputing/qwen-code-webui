@@ -9,17 +9,8 @@ paths-ignore:
   - "**/*.spec.ts"
   - "**/*.spec.tsx"
 
-# Disable specific rules for demo/test files
-query-filters:
-  # Exclude insecure randomness warnings in mock/demo files
+queries:
   - exclude:
       id: js/insecure-randomness
-    from:
-      - "**/mockResponseGenerator.ts"
-      - "**/DemoPage.tsx"
-  
-  # Exclude tainted format string warnings in demo files
   - exclude:
       id: js/tainted-format-string
-    from:
-      - "**/DemoPage.tsx"
