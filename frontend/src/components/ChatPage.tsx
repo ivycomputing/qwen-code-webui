@@ -477,6 +477,9 @@ export function ChatPage() {
   // Ref to track previous isLoading state for detecting when AI finishes responding
   const wasLoadingRef = useRef(false);
 
+  // Ref to suppress error message when abort is triggered by /clear
+  const clearAbortRef = useRef(false);
+
   // Show input notification when AI finishes responding (isLoading changes from true to false)
   useEffect(() => {
     // Update the ref to track previous state
@@ -688,13 +691,18 @@ export function ChatPage() {
           if (shouldAbort) break;
         }
       } catch (error) {
-        console.error("Failed to send message:", error);
-        addMessage({
-          type: "chat",
-          role: "assistant",
-          content: "Error: Failed to get response",
-          timestamp: Date.now(),
-        });
+        // Skip error message when abort was triggered by /clear
+        if (clearAbortRef.current) {
+          clearAbortRef.current = false;
+        } else {
+          console.error("Failed to send message:", error);
+          addMessage({
+            type: "chat",
+            role: "assistant",
+            content: "Error: Failed to get response",
+            timestamp: Date.now(),
+          });
+        }
       } finally {
         // Note: Input notification will be shown via useEffect when isLoading becomes false.
         // Don't reset notificationTriggeredRef here - it's needed by useEffect to determine
@@ -759,11 +767,13 @@ export function ChatPage() {
   // Clear conversation handler
   const handleClearConversation = useCallback(() => {
     // Abort any in-flight request to prevent stale messages
+    clearAbortRef.current = true;
     if (isRemoteWorkspace && remoteChat.session) {
       remoteChat.abortCurrentRequest();
     } else {
       abortRequest(currentRequestId, isLoading, resetRequestState);
     }
+    resetRequestState();
     setMessages([]);
     setCurrentSessionId(null);
     setHasShownInitMessage(false);
