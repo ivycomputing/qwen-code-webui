@@ -31,7 +31,7 @@ interface ToolCache {
 export interface ProcessingContext {
   // Core message handling
   addMessage: (message: AllMessage) => void;
-  updateLastMessage?: (content: string) => void;
+  updateLastMessage?: (updates: Partial<ChatMessage> | string) => void;
 
   // Current assistant message state (for streaming)
   currentAssistantMessage?: ChatMessage | null;
@@ -577,16 +577,36 @@ export class UnifiedMessageProcessor {
 
       // Add assistant text message last if there is text content
       if (assistantContent.trim()) {
+        const msgUsage = message.message?.usage;
         const assistantMessage: ChatMessage = {
           type: "chat",
           role: "assistant",
           content: assistantContent.trim(),
           timestamp,
+          ...(msgUsage && {
+            usage: {
+              input_tokens: msgUsage.input_tokens ?? 0,
+              output_tokens: msgUsage.output_tokens ?? 0,
+              cache_read_input_tokens: msgUsage.cache_read_input_tokens,
+            },
+          }),
         };
         orderedMessages.push(assistantMessage);
       }
 
       return orderedMessages;
+    }
+
+    // Streaming: update usage on the last assistant message
+    if (options.isStreaming && message.message?.usage && context.updateLastMessage) {
+      const msgUsage = message.message.usage;
+      context.updateLastMessage({
+        usage: {
+          input_tokens: msgUsage.input_tokens ?? 0,
+          output_tokens: msgUsage.output_tokens ?? 0,
+          cache_read_input_tokens: msgUsage.cache_read_input_tokens,
+        },
+      });
     }
 
     return messages;

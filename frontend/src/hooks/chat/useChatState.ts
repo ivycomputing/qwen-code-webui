@@ -48,11 +48,11 @@ export function useChatState(options: ChatStateOptions = {}) {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  const updateLastMessage = useCallback((content: string) => {
+  const updateLastMessage = useCallback((updates: Partial<ChatMessage> | string) => {
     setMessages((prev) =>
       prev.map((msg, index) =>
         index === prev.length - 1 && msg.type === "chat"
-          ? { ...msg, content }
+          ? { ...msg, ...(typeof updates === "string" ? { content: updates } : updates) }
           : msg,
       ),
     );

@@ -10,7 +10,6 @@ import type { ExtendedUsage } from "@qwen-code/sdk";
 
 /**
  * Token usage information for display in the status bar
- * Uses promptTokens (current request's input tokens) instead of accumulated tokens
  */
 export interface TokenUsageInfo {
   promptTokens: number;
@@ -210,9 +209,10 @@ function isResultMessageWithUsage(
 }
 
 /**
- * Calculate token usage from the latest result message
- * Uses prompt_tokens (current request's input tokens) instead of accumulated tokens
- * This matches the context window calculation used by the API
+ * Calculate token usage from messages using three-level fallback:
+ * 1. Latest assistant ChatMessage with per-request usage (accurate, from API)
+ * 2. Latest result message usage (accumulated, used as fallback for DB reconnect etc.)
+ * 3. Zero
  *
  * @param messages Array of all messages in the conversation
  * @returns TokenUsageInfo with current prompt token count
@@ -221,24 +221,37 @@ export function calculateTokenUsage(messages: AllMessage[]): TokenUsageInfo {
   let promptTokens = 0;
   let outputTokens = 0;
 
-  // Find the latest result message with usage data
+  // Priority 1: per-request usage from latest assistant ChatMessage
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i];
-    if (isResultMessageWithUsage(message)) {
-      const usage = message.usage;
-      // Use prompt_tokens (input_tokens) from the latest message
-      // This represents the current request's prompt tokens, not accumulated
+    if (
+      message.type === "chat" &&
+      (message as ChatMessage).role === "assistant" &&
+      (message as ChatMessage).usage
+    ) {
+      const usage = (message as ChatMessage).usage!;
       promptTokens = usage.input_tokens || 0;
       outputTokens = usage.output_tokens || 0;
+      break;
+    }
+  }
 
-      break; // Only use the latest result message
+  // Priority 2: fallback to result message (accumulated, but better than zero)
+  if (promptTokens === 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (isResultMessageWithUsage(msg)) {
+        promptTokens = msg.usage.input_tokens || 0;
+        outputTokens = msg.usage.output_tokens || 0;
+        break;
+      }
     }
   }
 
   return {
     promptTokens,
     outputTokens,
-    totalTokens: promptTokens, // Use promptTokens as total for context window calculation
+    totalTokens: promptTokens,
   };
 }
 

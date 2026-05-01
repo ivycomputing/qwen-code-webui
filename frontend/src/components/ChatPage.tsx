@@ -369,19 +369,32 @@ export function ChatPage() {
     if (!tokenUsage.promptTokens || !contextWindowSize || !selectedModelName) {
       return null;
     }
-    // Extract cache_read_input_tokens from the latest result message
+    // Extract cache_read_input_tokens — prefer assistant message, fallback to result message
     let cacheReadInputTokens: number | undefined;
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (
-        msg.type === "result" &&
-        "usage" in msg &&
-        typeof msg.usage === "object" &&
-        msg.usage !== null
+        msg.type === "chat" &&
+        (msg as ChatMessage).role === "assistant" &&
+        (msg as ChatMessage).usage?.cache_read_input_tokens !== undefined
       ) {
-        const usage = msg.usage as unknown as Record<string, unknown>;
-        cacheReadInputTokens = usage.cache_read_input_tokens as number | undefined;
+        cacheReadInputTokens = (msg as ChatMessage).usage!.cache_read_input_tokens;
         break;
+      }
+    }
+    if (cacheReadInputTokens === undefined) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (
+          msg.type === "result" &&
+          "usage" in msg &&
+          typeof msg.usage === "object" &&
+          msg.usage !== null
+        ) {
+          const usage = msg.usage as unknown as Record<string, unknown>;
+          cacheReadInputTokens = usage.cache_read_input_tokens as number | undefined;
+          break;
+        }
       }
     }
     return calculateContextBreakdown(

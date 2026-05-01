@@ -11,7 +11,7 @@ export interface StreamingContext {
   currentAssistantMessage: ChatMessage | null;
   setCurrentAssistantMessage: (msg: ChatMessage | null) => void;
   addMessage: (msg: AllMessage) => void;
-  updateLastMessage: (content: string) => void;
+  updateLastMessage: (updates: Partial<ChatMessage> | string) => void;
   // Thinking message consolidation (streaming)
   currentThinkingMessage?: ThinkingMessage | null;
   setCurrentThinkingMessage?: (msg: ThinkingMessage | null) => void;
