@@ -692,9 +692,7 @@ export function ChatPage() {
         }
       } catch (error) {
         // Skip error message when abort was triggered by /clear
-        if (clearAbortRef.current) {
-          clearAbortRef.current = false;
-        } else {
+        if (!clearAbortRef.current) {
           console.error("Failed to send message:", error);
           addMessage({
             type: "chat",
@@ -704,6 +702,8 @@ export function ChatPage() {
           });
         }
       } finally {
+        clearAbortRef.current = false;
+
         // Note: Input notification will be shown via useEffect when isLoading becomes false.
         // Don't reset notificationTriggeredRef here - it's needed by useEffect to determine
         // whether a permission/plan notification was triggered during this session.
