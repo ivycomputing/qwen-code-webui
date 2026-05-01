@@ -9,7 +9,7 @@ paths-ignore:
   - "**/*.spec.ts"
   - "**/*.spec.tsx"
 
-queries:
+query-filters:
   - exclude:
       id: js/insecure-randomness
   - exclude:
