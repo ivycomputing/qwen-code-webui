@@ -14,6 +14,7 @@ import { usePermissions, type CommandLoopRequest } from "../hooks/chat/usePermis
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
 import { sendPermissionResponse } from "../hooks/chat/useAbortController";
+import type { ThinkingTimeoutContext } from "../hooks/streaming/useMessageProcessor";
 import { extractToolInfo, generateToolPatterns } from "../utils/toolUtils";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
 import { useSettings } from "../hooks/useSettings";
@@ -471,7 +472,7 @@ export function ChatPage() {
 
   // Ref for thinking timeout handler — same pattern as permissionErrorRef
   const thinkingTimeoutRef = useRef<
-    ((accumulatedContent: string, info: { reason: "idle" | "absolute"; elapsedSeconds: number }) => void) | null
+    ((accumulatedContent: string, info: ThinkingTimeoutContext) => void) | null
   >(null);
 
   // Ref to track previous isLoading state for detecting when AI finishes responding
@@ -1046,7 +1047,7 @@ export function ChatPage() {
   const handleThinkingTimeout = useCallback(
     (
       accumulatedContent: string,
-      info: { reason: "idle" | "absolute"; elapsedSeconds: number },
+      info: ThinkingTimeoutContext,
     ) => {
       // Abort the request
       if (isLoading && currentRequestId) {

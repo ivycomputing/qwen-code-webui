@@ -699,10 +699,10 @@ describe("useStreamParser", () => {
       vi.advanceTimersByTime(5 * 60 * 1000);
 
       expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
-      expect(onThinkingTimeout).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ reason: "idle" }),
-      );
+      const [_content, info] = onThinkingTimeout.mock.calls[0];
+      expect(info.reason).toBe("idle");
+      expect(info.elapsedSeconds).toBeGreaterThanOrEqual(300);
+      expect(info.elapsedSeconds).toBeLessThanOrEqual(310);
     });
 
     it("should not fire timeout when thinking ends normally before 5 minutes", () => {
@@ -811,10 +811,40 @@ describe("useStreamParser", () => {
       vi.advanceTimersByTime(30 * 1000);
 
       expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
-      expect(onThinkingTimeout).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ reason: "absolute" }),
+      const [_content, info] = onThinkingTimeout.mock.calls[0];
+      expect(info.reason).toBe("absolute");
+      expect(info.elapsedSeconds).toBeGreaterThanOrEqual(870);
+      expect(info.elapsedSeconds).toBeLessThanOrEqual(920);
+    });
+
+    it("should not restart timer after timeout abort when buffered chunk arrives", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      // Start thinking
+      result.current.processStreamLine(
+        JSON.stringify({
+          type: "claude_json",
+          data: makeThinkingAssistantMessage("Thinking..."),
+        }),
+        mockContext,
       );
+
+      // Trigger idle timeout
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
+
+      // Simulate buffered chunk arriving after abort — should NOT restart timer
+      result.current.processStreamLine(
+        JSON.stringify({
+          type: "claude_json",
+          data: makeThinkingAssistantMessage("Late chunk"),
+        }),
+        mockContext,
+      );
+
+      // Advance another 5 minutes — no second timeout
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1); // still 1, not 2
     });
   });
 });

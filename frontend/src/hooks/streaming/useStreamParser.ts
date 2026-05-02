@@ -54,9 +54,12 @@ export function useStreamParser() {
       const nextDeadline = Math.min(idleDeadline, absoluteDeadline);
       const delay = Math.max(0, nextDeadline - Date.now());
 
-      clearTimeout(thinkingTimerRef.current!);
+      if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current);
       thinkingTimerRef.current = setTimeout(() => {
         const now = Date.now();
+        // When absolute fires first: idleDeadline > now (since lastActivity was
+        // recently updated by content chunks), so isIdle is false and reason
+        // correctly resolves to "absolute".
         const isIdle = now >= idleDeadline;
         const reason = isIdle ? ("idle" as const) : ("absolute" as const);
         const elapsedSeconds = Math.round((now - thinkingStartedAtRef.current) / 1000);
