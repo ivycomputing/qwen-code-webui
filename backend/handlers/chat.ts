@@ -19,6 +19,16 @@ function mapPermissionMode(mode?: string): PermissionMode | undefined {
 }
 
 /**
+ * Read-only tools that are safe to auto-approve within a single request after
+ * the user approves them once. High-risk tools (write_file, edit, run_shell_command)
+ * always require per-call confirmation for safety.
+ *
+ * Tool names use snake_case to match the SDK's canUseTool callback format.
+ * See qwen-code-cli/packages/core/src/tools/tool-names.ts for the canonical list.
+ */
+const READ_ONLY_TOOLS = new Set(["read_file", "glob", "grep_search", "list_directory"]);
+
+/**
  * Executes a Qwen command and sends StreamResponse objects via the provided enqueue callback.
  * Supports canUseTool callback for proactive permission handling.
  */
@@ -38,8 +48,14 @@ async function executeQwenCommand(
 ): Promise<void> {
   let abortController: AbortController;
   const localPendingIds = new Set<string>();
-  // Remember tools the user already approved during this request — avoids
-  // repeated permission dialogs for the same tool within one streaming session.
+  // Read-only tools approved by the user during this request — auto-approved on
+  // subsequent calls within the same streaming session. Scope is limited to a
+  // single executeQwenCommand invocation; the Set is discarded on request end.
+  //
+  // This is independent of the frontend's `allowedTools` (ChatRequest.allowedTools →
+  // SDK allowedTools option), which persists across requests and handles the legacy
+  // reactive permission flow. When a tool is in SDK `allowedTools`, the `canUseTool`
+  // callback is not invoked at all, so the two mechanisms never conflict.
   const localAllowedTools = new Set<string>();
 
   try {
@@ -73,7 +89,9 @@ async function executeQwenCommand(
         return { behavior: "deny", message: "Request aborted" };
       }
 
-      // Auto-approve if user already allowed this tool during this request
+      // Auto-approve read-only tools the user already allowed during this request.
+      // High-risk tools (write_file, edit, run_shell_command, etc.) always require
+      // per-call confirmation regardless of prior approval.
       if (localAllowedTools.has(toolName)) {
         logger.chat.debug("canUseTool: auto-approving previously allowed tool {toolName}", { toolName });
         return { behavior: "allow", updatedInput: input };
@@ -122,8 +140,9 @@ async function executeQwenCommand(
           resolve: (result) => {
             abortController.signal.removeEventListener("abort", onAbort);
             localPendingIds.delete(permissionId);
-            // Remember approval so subsequent calls to the same tool are auto-approved
-            if (result.behavior === "allow") {
+            // Only remember read-only tools for auto-approve; high-risk tools
+            // always require per-call user confirmation.
+            if (result.behavior === "allow" && READ_ONLY_TOOLS.has(toolName)) {
               localAllowedTools.add(toolName);
             }
             resolve(result);
@@ -184,6 +203,13 @@ async function executeQwenCommand(
     if (ac) {
       ac.abort();
       requestAbortControllers.delete(requestId);
+    }
+    // Audit log: record which tools were auto-approved during this request
+    if (localAllowedTools.size > 0) {
+      logger.chat.debug("Request {requestId} auto-approved tools: {tools}", {
+        requestId,
+        tools: [...localAllowedTools],
+      });
     }
     // Clean up unresolved pending permissions for this request
     for (const id of localPendingIds) {
