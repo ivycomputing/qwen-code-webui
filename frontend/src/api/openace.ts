@@ -162,10 +162,10 @@ export async function createOpenAceProject(
   });
   
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({}));
     throw new Error(error.error || `Failed to create project: ${response.statusText}`);
   }
-  
+
   return response.json();
 }
 
@@ -174,16 +174,16 @@ export async function createOpenAceProject(
  */
 export async function deleteOpenAceProject(projectId: number): Promise<{ success: boolean }> {
   const url = buildOpenAceUrl(`/api/projects/${projectId}`);
-  
+
   const response = await fetch(url, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
     },
   });
-  
+
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({}));
     throw new Error(error.error || `Failed to delete project: ${response.statusText}`);
   }
   
@@ -228,7 +228,7 @@ export async function checkPath(path: string): Promise<CheckPathResponse> {
   });
   
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({}));
     return {
       valid: false,
       exists: false,
@@ -281,7 +281,7 @@ export async function deleteLocalProject(encodedProjectName: string): Promise<{ 
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({}));
     throw new Error(error.error || `Failed to delete project: ${response.statusText}`);
   }
 

@@ -38,6 +38,9 @@ async function executeQwenCommand(
 ): Promise<void> {
   let abortController: AbortController;
   const localPendingIds = new Set<string>();
+  // Remember tools the user already approved during this request — avoids
+  // repeated permission dialogs for the same tool within one streaming session.
+  const localAllowedTools = new Set<string>();
 
   try {
     // Process commands that start with '/'
@@ -68,6 +71,12 @@ async function executeQwenCommand(
       // Defense 1: check main query abort (not SDK's per-request signal)
       if (abortController.signal.aborted) {
         return { behavior: "deny", message: "Request aborted" };
+      }
+
+      // Auto-approve if user already allowed this tool during this request
+      if (localAllowedTools.has(toolName)) {
+        logger.chat.debug("canUseTool: auto-approving previously allowed tool {toolName}", { toolName });
+        return { behavior: "allow", updatedInput: input };
       }
 
       const permissionId = crypto.randomUUID();
@@ -113,6 +122,10 @@ async function executeQwenCommand(
           resolve: (result) => {
             abortController.signal.removeEventListener("abort", onAbort);
             localPendingIds.delete(permissionId);
+            // Remember approval so subsequent calls to the same tool are auto-approved
+            if (result.behavior === "allow") {
+              localAllowedTools.add(toolName);
+            }
             resolve(result);
           },
           abortSignal: abortController.signal,

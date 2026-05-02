@@ -71,6 +71,7 @@ export function ProjectSelector() {
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
   const [deleteProject, setDeleteProject] = useState<OpenAceProject | ProjectInfo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Ref for the project list container to enable keyboard focus
@@ -201,6 +202,7 @@ export function ProjectSelector() {
 
   const handleDeleteClick = (project: ProjectInfo | OpenAceProject, e: React.MouseEvent) => {
     e.stopPropagation();
+    setDeleteError(null);
     setDeleteProject(project);
   };
 
@@ -208,6 +210,7 @@ export function ProjectSelector() {
     if (!deleteProject) return;
 
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       if (integrated) {
         // Open-ACE mode - use project id
@@ -222,8 +225,8 @@ export function ProjectSelector() {
       await loadProjects();
       setDeleteProject(null);
     } catch (err) {
-      console.error("Failed to delete project:", err);
-      // Show error - could add a toast notification here
+      const message = err instanceof Error ? err.message : "Failed to delete project";
+      setDeleteError(message);
     } finally {
       setIsDeleting(false);
     }
@@ -402,15 +405,16 @@ export function ProjectSelector() {
         {/* Delete Confirmation Modal */}
         <ConfirmModal
           isOpen={deleteProject !== null}
-          onClose={() => setDeleteProject(null)}
+          onClose={() => { setDeleteProject(null); setDeleteError(null); }}
           onConfirm={handleConfirmDelete}
           title={t("projectSelector.removeProject")}
-          message={t("projectSelector.removeConfirmMessage", { 
+          message={t("projectSelector.removeConfirmMessage", {
             name: deleteProject ? getDeleteConfirmName(deleteProject) : ''
           })}
           confirmText={t("projectSelector.remove")}
           variant="danger"
           isLoading={isDeleting}
+          errorMessage={deleteError ?? undefined}
         />
       </div>
     </div>

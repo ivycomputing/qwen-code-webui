@@ -127,7 +127,7 @@
     "select": "选择",
     "removeProject": "移除项目",
     "remove": "移除",
-    "removeConfirmMessage": "确定要移除 \"{{name}}\" 吗？这将删除项目的聊天历史，但不会影响磁盘上的实际目录。"
+    "removeConfirmMessage": "确定要移除 \"{{name}}\" 吗？这将删除项目的配置和会话历史，但不会影响磁盘上的实际目录。"
   },
   "slashCommands": {
     "skillsDescription": "显示可用技能",
