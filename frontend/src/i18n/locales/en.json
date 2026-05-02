@@ -127,7 +127,7 @@
     "select": "Select",
     "removeProject": "Remove Project",
     "remove": "Remove",
-    "removeConfirmMessage": "Are you sure you want to remove \"{{name}}\"? This will delete the project's chat history but won't affect the actual directory on disk."
+    "removeConfirmMessage": "Are you sure you want to remove \"{{name}}\"? This will delete the project's configuration and conversation history but won't affect the actual directory on disk."
   },
   "slashCommands": {
     "skillsDescription": "Show available skills",

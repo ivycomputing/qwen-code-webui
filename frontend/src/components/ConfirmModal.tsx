@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   cancelText?: string;
   variant?: "danger" | "warning" | "info";
   isLoading?: boolean;
+  errorMessage?: string;
 }
 
 export function ConfirmModal({
@@ -24,6 +25,7 @@ export function ConfirmModal({
   cancelText = "Cancel",
   variant = "warning",
   isLoading = false,
+  errorMessage,
 }: ConfirmModalProps) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -93,6 +95,11 @@ export function ConfirmModal({
                     <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                       {message}
                     </p>
+                    {errorMessage && (
+                      <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                        {errorMessage}
+                      </p>
+                    )}
                   </div>
                 </div>
 

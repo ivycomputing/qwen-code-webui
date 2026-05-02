@@ -49,11 +49,12 @@ export function createApp(
   const pendingPermissions = new Map<string, PendingPermission>();
 
   // CORS middleware
+  // allowMethods intentionally omitted to use Hono defaults
+  // (GET, HEAD, PUT, POST, DELETE, PATCH, OPTIONS)
   app.use(
     "*",
     cors({
       origin: "*",
-      allowMethods: ["GET", "POST", "OPTIONS"],
       allowHeaders: ["Content-Type"],
     }),
   );

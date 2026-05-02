@@ -1,9 +1,11 @@
 import { Context } from "hono";
+import { resolve, sep } from "node:path";
 import type { ProjectInfo, ProjectsResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 import { readDir, stat, remove } from "../utils/fs.ts";
 import { getHomeDir } from "../utils/os.ts";
 import { decodeProjectPath } from "../utils/projectMapping.ts";
+import { validateEncodedProjectName } from "../history/pathUtils.ts";
 
 /**
  * Handles GET /api/projects requests
@@ -154,17 +156,29 @@ export async function handleDeleteProjectRequest(c: Context) {
       return c.json({ error: "Project name is required" }, 400);
     }
 
+    // Validate encoded name against dangerous characters
+    if (!validateEncodedProjectName(encodedProjectName)) {
+      return c.json({ error: "Invalid project name" }, 400);
+    }
+
     const homeDir = getHomeDir();
     if (!homeDir) {
       return c.json({ error: "Home directory not found" }, 500);
     }
 
     const projectsDir = `${homeDir}/.qwen/projects`;
-    const projectPath = `${projectsDir}/${encodedProjectName}`;
+
+    // Resolve and verify the path stays within projectsDir.
+    // Note: resolve(projectsDir, "") returns projectsDir itself, which is safe
+    // but will fail the isDirectory check below.
+    const resolved = resolve(projectsDir, encodedProjectName);
+    if (!resolved.startsWith(projectsDir + sep)) {
+      return c.json({ error: "Invalid project name" }, 400);
+    }
 
     // Check if project directory exists
     try {
-      const dirInfo = await stat(projectPath);
+      const dirInfo = await stat(resolved);
       if (!dirInfo.isDirectory) {
         return c.json({ error: "Project not found" }, 404);
       }
@@ -173,7 +187,7 @@ export async function handleDeleteProjectRequest(c: Context) {
     }
 
     // Delete the project directory
-    await remove(projectPath);
+    await remove(resolved);
 
     logger.api.info("Deleted project: {encodedProjectName}", { encodedProjectName });
 
