@@ -14,6 +14,7 @@ import {
   createTodoMessageFromInput,
 } from "./messageConversion";
 import { isThinkingContentItem } from "./messageTypes";
+import type { ThinkingTimeoutContext } from "../hooks/streaming/useMessageProcessor";
 import { extractToolInfo, generateToolPatterns } from "./toolUtils";
 import type { CommandLoopRequest } from "../hooks/chat/usePermissions";
 
@@ -75,10 +76,7 @@ export interface ProcessingContext {
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
 
   // Thinking timeout
-  onThinkingTimeout?: (
-    accumulatedContent: string,
-    info: { reason: "idle" | "absolute"; elapsedSeconds: number },
-  ) => void;
+  onThinkingTimeout?: (accumulatedContent: string, info: ThinkingTimeoutContext) => void;
 }
 
 /**
