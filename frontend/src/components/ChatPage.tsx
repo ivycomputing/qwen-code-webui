@@ -302,7 +302,7 @@ export function ChatPage() {
             },
             // Thinking timeout
             thinkingTimeout: {
-              onThinkingTimeout: (content) => thinkingTimeoutRef.current?.(content),
+              onThinkingTimeout: (content, info) => thinkingTimeoutRef.current?.(content, info),
             },
           },
           onPermissionRequest: (event) => {
@@ -471,7 +471,7 @@ export function ChatPage() {
 
   // Ref for thinking timeout handler — same pattern as permissionErrorRef
   const thinkingTimeoutRef = useRef<
-    ((accumulatedContent: string, info?: { reason: "idle" | "absolute"; elapsedSeconds: number }) => void) | null
+    ((accumulatedContent: string, info: { reason: "idle" | "absolute"; elapsedSeconds: number }) => void) | null
   >(null);
 
   // Ref to track previous isLoading state for detecting when AI finishes responding
@@ -1046,7 +1046,7 @@ export function ChatPage() {
   const handleThinkingTimeout = useCallback(
     (
       accumulatedContent: string,
-      info?: { reason: "idle" | "absolute"; elapsedSeconds: number },
+      info: { reason: "idle" | "absolute"; elapsedSeconds: number },
     ) => {
       // Abort the request
       if (isLoading && currentRequestId) {
@@ -1056,12 +1056,10 @@ export function ChatPage() {
       }
 
       // Show timeout notification with thinking content
-      const reason = info?.reason ?? "idle";
-      const elapsed = info?.elapsedSeconds ?? 5 * 60;
       setThinkingTimeoutInfo({
         content: accumulatedContent,
-        elapsed,
-        reason,
+        elapsed: info.elapsedSeconds,
+        reason: info.reason,
       });
     },
     [isLoading, currentRequestId, abortRequest, resetRequestState, isRemoteWorkspace, remoteChat],
