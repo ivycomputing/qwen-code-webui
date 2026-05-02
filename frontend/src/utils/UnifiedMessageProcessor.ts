@@ -14,6 +14,7 @@ import {
   createTodoMessageFromInput,
 } from "./messageConversion";
 import { isThinkingContentItem } from "./messageTypes";
+import type { ThinkingTimeoutContext } from "../hooks/streaming/useMessageProcessor";
 import { extractToolInfo, generateToolPatterns } from "./toolUtils";
 import type { CommandLoopRequest } from "../hooks/chat/usePermissions";
 
@@ -75,7 +76,7 @@ export interface ProcessingContext {
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
 
   // Thinking timeout
-  onThinkingTimeout?: (accumulatedContent: string) => void;
+  onThinkingTimeout?: (accumulatedContent: string, info: ThinkingTimeoutContext) => void;
 }
 
 /**
@@ -526,6 +527,10 @@ export class UnifiedMessageProcessor {
     else if (message.message?.content && Array.isArray(message.message.content)) {
       for (const item of message.message.content) {
         if (item.type === "text") {
+          // Regular text content — clear thinking state when text starts
+          if (options.isStreaming) {
+            context.setCurrentThinkingMessage?.(null);
+          }
           if (options.isStreaming) {
             this.handleAssistantText(item, context, options);
           } else {

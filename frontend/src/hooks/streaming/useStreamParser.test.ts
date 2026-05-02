@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useStreamParser } from "./useStreamParser";
 import type { StreamingContext } from "./useMessageProcessor";
@@ -633,6 +633,163 @@ describe("useStreamParser", () => {
           content: expect.stringContaining("grep_search"),
         }),
       );
+    });
+  });
+
+
+  describe("Thinking Timeout", () => {
+    let onThinkingTimeout: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      onThinkingTimeout = vi.fn();
+      mockContext.currentThinkingMessage = null;
+      mockContext.setCurrentThinkingMessage = vi.fn((msg) => {
+        mockContext.currentThinkingMessage = msg;
+      });
+      mockContext.updateThinkingMessage = vi.fn((content) => {
+        if (mockContext.currentThinkingMessage) {
+          mockContext.currentThinkingMessage = { ...mockContext.currentThinkingMessage, content };
+        }
+      });
+      mockContext.thinkingTimeout = { onThinkingTimeout };
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function makeThinkingMessage(text: string) {
+      return {
+        type: "assistant" as const,
+        session_id: "test-session",
+        uuid: generateId(),
+        parent_tool_use_id: null,
+        message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
+          content: [{ type: "thinking" as const, thinking: text }],
+          stop_reason: "tool_use" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        },
+      };
+    }
+
+    function makeTextMessage(text: string) {
+      return {
+        type: "assistant" as const,
+        session_id: "test-session",
+        uuid: generateId(),
+        parent_tool_use_id: null,
+        message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
+          content: [{ type: "text" as const, text }],
+          stop_reason: "end_turn" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        },
+      };
+    }
+
+    it("should fire idle timeout after 5 minutes with no new output", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Analyzing...") }),
+        mockContext,
+      );
+
+      vi.advanceTimersByTime(5 * 60 * 1000);
+
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
+      const [_content, info] = onThinkingTimeout.mock.calls[0];
+      expect(info.reason).toBe("idle");
+      expect(info.elapsedSeconds).toBeGreaterThanOrEqual(300);
+      expect(info.elapsedSeconds).toBeLessThanOrEqual(310);
+    });
+
+    it("should not fire timeout when thinking ends normally before 5 minutes", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Quick thought...") }),
+        mockContext,
+      );
+
+      // End thinking by sending text content
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeTextMessage("Done thinking") }),
+        mockContext,
+      );
+
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1000);
+      expect(onThinkingTimeout).not.toHaveBeenCalled();
+    });
+
+    it("should not restart timer when thinking was not started (ref is null)", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeTextMessage("No thinking here") }),
+        mockContext,
+      );
+
+      vi.advanceTimersByTime(15 * 60 * 1000);
+      expect(onThinkingTimeout).not.toHaveBeenCalled();
+    });
+
+    it("should fire absolute timeout after 15 minutes even with active output", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Start") }),
+        mockContext,
+      );
+
+      // Keep sending content every 4 min 50 sec to prevent idle timeout
+      for (let i = 0; i < 3; i++) {
+        vi.advanceTimersByTime(4 * 60 * 1000 + 50 * 1000);
+        result.current.processStreamLine(
+          JSON.stringify({ type: "claude_json", data: makeThinkingMessage(`Start\nchunk ${i}`) }),
+          mockContext,
+        );
+      }
+
+      // Total ~14.5 min. Advance to cross 15 min absolute threshold
+      vi.advanceTimersByTime(30 * 1000);
+
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
+      const [_content, info] = onThinkingTimeout.mock.calls[0];
+      expect(info.reason).toBe("absolute");
+      expect(info.elapsedSeconds).toBeGreaterThanOrEqual(870);
+      expect(info.elapsedSeconds).toBeLessThanOrEqual(910);
+    });
+
+    it("should not restart timer after timeout abort when buffered chunk arrives", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Thinking...") }),
+        mockContext,
+      );
+
+      // Trigger idle timeout
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
+
+      // Simulate buffered chunk arriving after abort — thinkingAbortedRef prevents restart
+      result.current.processStreamLine(
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Late chunk") }),
+        mockContext,
+      );
+
+      // Advance another 5 minutes — should NOT fire again
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
     });
   });
 });
