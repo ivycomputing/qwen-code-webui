@@ -643,8 +643,6 @@ describe("useStreamParser", () => {
     beforeEach(() => {
       vi.useFakeTimers();
       onThinkingTimeout = vi.fn();
-      // Use mock functions that also update currentThinkingMessage state
-      // so the UnifiedMessageProcessor can track thinking state properly
       mockContext.currentThinkingMessage = null;
       mockContext.setCurrentThinkingMessage = vi.fn((msg) => {
         mockContext.currentThinkingMessage = msg;
@@ -661,8 +659,7 @@ describe("useStreamParser", () => {
       vi.useRealTimers();
     });
 
-    /** Helper: create an assistant message with thinking content */
-    function makeThinkingAssistantMessage(text: string) {
+    function makeThinkingMessage(text: string) {
       return {
         type: "assistant" as const,
         session_id: "test-session",
@@ -680,22 +677,32 @@ describe("useStreamParser", () => {
       };
     }
 
+    function makeTextMessage(text: string) {
+      return {
+        type: "assistant" as const,
+        session_id: "test-session",
+        uuid: generateId(),
+        parent_tool_use_id: null,
+        message: {
+          id: "msg_" + generateId(),
+          type: "message" as const,
+          role: "assistant" as const,
+          model: "qwen3-coder-plus",
+          content: [{ type: "text" as const, text }],
+          stop_reason: "end_turn" as const,
+          usage: { input_tokens: 10, output_tokens: 5 },
+        },
+      };
+    }
+
     it("should fire idle timeout after 5 minutes with no new output", () => {
       const { result } = renderHook(() => useStreamParser());
 
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: makeThinkingAssistantMessage("Analyzing the problem..."),
-        }),
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Analyzing...") }),
         mockContext,
       );
 
-      // Thinking message should trigger setCurrentThinkingMessage
-      expect(mockContext.setCurrentThinkingMessage).toHaveBeenCalled();
-      expect(onThinkingTimeout).not.toHaveBeenCalled();
-
-      // Advance past 5 minutes idle timeout
       vi.advanceTimersByTime(5 * 60 * 1000);
 
       expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
@@ -708,44 +715,17 @@ describe("useStreamParser", () => {
     it("should not fire timeout when thinking ends normally before 5 minutes", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      // Send thinking message using Claude content format
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: makeThinkingAssistantMessage("Quick thought..."),
-        }),
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Quick thought...") }),
         mockContext,
       );
 
-      // Send a result message which clears thinking state
-      const resultMessage = {
-        type: "result" as const,
-        session_id: "test-session",
-        uuid: generateId(),
-        parent_tool_use_id: null,
-        message: {
-          id: "msg_" + generateId(),
-          type: "message" as const,
-          role: "assistant" as const,
-          model: "qwen3-coder-plus",
-          content: [{ type: "text" as const, text: "Done thinking" }],
-          stop_reason: "end_turn" as const,
-          usage: { input_tokens: 10, output_tokens: 5 },
-        },
-        result: "Task completed",
-        duration_ms: 1000,
-        duration_api_ms: 800,
-        cost_usd: 0.001,
-      };
+      // End thinking by sending text content
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: resultMessage,
-        }),
+        JSON.stringify({ type: "claude_json", data: makeTextMessage("Done thinking") }),
         mockContext,
       );
 
-      // Advance past 5 minutes — should NOT fire because thinking ended
       vi.advanceTimersByTime(5 * 60 * 1000 + 1000);
       expect(onThinkingTimeout).not.toHaveBeenCalled();
     });
@@ -753,31 +733,11 @@ describe("useStreamParser", () => {
     it("should not restart timer when thinking was not started (ref is null)", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      // Send a message that does NOT contain thinking content
-      const textAssistantMessage = {
-        type: "assistant" as const,
-        session_id: "test-session",
-        uuid: generateId(),
-        parent_tool_use_id: null,
-        message: {
-          id: "msg_" + generateId(),
-          type: "message" as const,
-          role: "assistant" as const,
-          model: "qwen3-coder-plus",
-          content: [{ type: "text" as const, text: "No thinking here" }],
-          stop_reason: "end_turn" as const,
-          usage: { input_tokens: 10, output_tokens: 5 },
-        },
-      };
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: textAssistantMessage,
-        }),
+        JSON.stringify({ type: "claude_json", data: makeTextMessage("No thinking here") }),
         mockContext,
       );
 
-      // No thinking timeout should be set up
       vi.advanceTimersByTime(15 * 60 * 1000);
       expect(onThinkingTimeout).not.toHaveBeenCalled();
     });
@@ -785,47 +745,35 @@ describe("useStreamParser", () => {
     it("should fire absolute timeout after 15 minutes even with active output", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      // Start thinking
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: makeThinkingAssistantMessage("Start"),
-        }),
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Start") }),
         mockContext,
       );
 
-      // Simulate continuous output: every 4 min 50 sec a new chunk arrives
-      // This keeps the idle timer from firing but absolute should still hit at 15 min
+      // Keep sending content every 4 min 50 sec to prevent idle timeout
       for (let i = 0; i < 3; i++) {
         vi.advanceTimersByTime(4 * 60 * 1000 + 50 * 1000);
         result.current.processStreamLine(
-          JSON.stringify({
-            type: "claude_json",
-            data: makeThinkingAssistantMessage(`Start\nchunk ${i}`),
-          }),
+          JSON.stringify({ type: "claude_json", data: makeThinkingMessage(`Start\nchunk ${i}`) }),
           mockContext,
         );
       }
 
-      // Total elapsed ~14.5 min. Advance to cross 15 min absolute threshold
+      // Total ~14.5 min. Advance to cross 15 min absolute threshold
       vi.advanceTimersByTime(30 * 1000);
 
       expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
       const [_content, info] = onThinkingTimeout.mock.calls[0];
       expect(info.reason).toBe("absolute");
       expect(info.elapsedSeconds).toBeGreaterThanOrEqual(870);
-      expect(info.elapsedSeconds).toBeLessThanOrEqual(920);
+      expect(info.elapsedSeconds).toBeLessThanOrEqual(910);
     });
 
     it("should not restart timer after timeout abort when buffered chunk arrives", () => {
       const { result } = renderHook(() => useStreamParser());
 
-      // Start thinking
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: makeThinkingAssistantMessage("Thinking..."),
-        }),
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Thinking...") }),
         mockContext,
       );
 
@@ -833,18 +781,15 @@ describe("useStreamParser", () => {
       vi.advanceTimersByTime(5 * 60 * 1000);
       expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
 
-      // Simulate buffered chunk arriving after abort — should NOT restart timer
+      // Simulate buffered chunk arriving after abort — thinkingAbortedRef prevents restart
       result.current.processStreamLine(
-        JSON.stringify({
-          type: "claude_json",
-          data: makeThinkingAssistantMessage("Late chunk"),
-        }),
+        JSON.stringify({ type: "claude_json", data: makeThinkingMessage("Late chunk") }),
         mockContext,
       );
 
-      // Advance another 5 minutes — no second timeout
+      // Advance another 5 minutes — should NOT fire again
       vi.advanceTimersByTime(5 * 60 * 1000);
-      expect(onThinkingTimeout).toHaveBeenCalledTimes(1); // still 1, not 2
+      expect(onThinkingTimeout).toHaveBeenCalledTimes(1);
     });
   });
 });

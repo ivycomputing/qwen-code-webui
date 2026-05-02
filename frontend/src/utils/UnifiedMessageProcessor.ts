@@ -529,6 +529,10 @@ export class UnifiedMessageProcessor {
     else if (message.message?.content && Array.isArray(message.message.content)) {
       for (const item of message.message.content) {
         if (item.type === "text") {
+          // Regular text content — clear thinking state when text starts
+          if (options.isStreaming) {
+            context.setCurrentThinkingMessage?.(null);
+          }
           if (options.isStreaming) {
             this.handleAssistantText(item, context, options);
           } else {
