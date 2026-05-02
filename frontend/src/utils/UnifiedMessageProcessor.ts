@@ -75,7 +75,10 @@ export interface ProcessingContext {
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
 
   // Thinking timeout
-  onThinkingTimeout?: (accumulatedContent: string) => void;
+  onThinkingTimeout?: (
+    accumulatedContent: string,
+    info: { reason: "idle" | "absolute"; elapsedSeconds: number },
+  ) => void;
 }
 
 /**

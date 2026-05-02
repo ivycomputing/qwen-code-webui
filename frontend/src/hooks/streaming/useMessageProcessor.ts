@@ -2,9 +2,17 @@ import type { AllMessage, ChatMessage, ThinkingMessage } from "../../types";
 import { useMessageConverter } from "../useMessageConverter";
 import type { CommandLoopRequest } from "../chat/usePermissions";
 
+/** Context data provided when a thinking timeout fires */
+export interface ThinkingTimeoutContext {
+  /** Whether the timeout was caused by idle (no new output) or absolute (total time exceeded) */
+  reason: "idle" | "absolute";
+  /** Seconds since the relevant threshold was crossed */
+  elapsedSeconds: number;
+}
+
 export interface ThinkingTimeoutInfo {
   /** Triggered when thinking exceeds the timeout */
-  onThinkingTimeout: (accumulatedContent: string) => void;
+  onThinkingTimeout: (accumulatedContent: string, info: ThinkingTimeoutContext) => void;
 }
 
 export interface StreamingContext {

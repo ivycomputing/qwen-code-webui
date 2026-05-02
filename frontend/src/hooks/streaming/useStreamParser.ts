@@ -18,7 +18,8 @@ import {
   type ProcessingContext,
 } from "../../utils/UnifiedMessageProcessor";
 
-const THINKING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const THINKING_IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — no new output
+const THINKING_ABSOLUTE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes — total thinking time
 
 export function useStreamParser() {
   // Create a single unified processor instance
@@ -26,8 +27,10 @@ export function useStreamParser() {
 
   // Thinking timeout tracking
   const thinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const thinkingStartRef = useRef<number>(0);
+  const thinkingLastActivityRef = useRef<number>(0); // timestamp of last content chunk
+  const thinkingStartedAtRef = useRef<number>(0); // timestamp when thinking began
   const thinkingContentRef = useRef<string>("");
+  const thinkingAbortedRef = useRef(false); // prevents new timers after timeout abort
 
   const clearThinkingTimer = useCallback(() => {
     if (thinkingTimerRef.current) {
@@ -35,6 +38,40 @@ export function useStreamParser() {
       thinkingTimerRef.current = null;
     }
   }, []);
+
+  /** Compute the next deadline as the minimum of idle and absolute timeouts */
+  const scheduleThinkingTimer = useCallback(
+    (
+      onTimeout: (
+        content: string,
+        info: { reason: "idle" | "absolute"; elapsedSeconds: number },
+      ) => void,
+    ) => {
+      const idleDeadline =
+        thinkingLastActivityRef.current + THINKING_IDLE_TIMEOUT_MS;
+      const absoluteDeadline =
+        thinkingStartedAtRef.current + THINKING_ABSOLUTE_TIMEOUT_MS;
+      const nextDeadline = Math.min(idleDeadline, absoluteDeadline);
+      const delay = Math.max(0, nextDeadline - Date.now());
+
+      clearTimeout(thinkingTimerRef.current!);
+      thinkingTimerRef.current = setTimeout(() => {
+        const now = Date.now();
+        const isIdle = now >= idleDeadline;
+        const reason = isIdle ? ("idle" as const) : ("absolute" as const);
+        const elapsedSeconds = Math.round((now - thinkingStartedAtRef.current) / 1000);
+        console.warn(
+          `Thinking timeout (${reason}): ${isIdle ? "no new output for" : "total"} ${elapsedSeconds}s, auto-aborting`,
+        );
+        onTimeout(thinkingContentRef.current, { reason, elapsedSeconds });
+        // Mark as aborted and clear ref so buffered chunks after abort
+        // don't restart the timer
+        thinkingAbortedRef.current = true;
+        thinkingTimerRef.current = null;
+      }, delay);
+    },
+    [],
+  );
 
   // Convert StreamingContext to ProcessingContext
   const adaptContext = useCallback(
@@ -52,27 +89,36 @@ export function useStreamParser() {
         currentThinkingMessage: context.currentThinkingMessage,
         setCurrentThinkingMessage: (msg) => {
           context.setCurrentThinkingMessage?.(msg);
-          if (msg && context.thinkingTimeout) {
+          if (msg && context.thinkingTimeout && !thinkingAbortedRef.current) {
             // Start thinking timer when a new thinking message begins
             if (!thinkingTimerRef.current) {
-              thinkingStartRef.current = Date.now();
+              const now = Date.now();
+              thinkingStartedAtRef.current = now;
+              thinkingLastActivityRef.current = now;
               thinkingContentRef.current = msg.content;
-              thinkingTimerRef.current = setTimeout(() => {
-                const elapsed = Math.round((Date.now() - thinkingStartRef.current) / 1000);
-                const content = thinkingContentRef.current;
-                console.warn(`Thinking timeout after ${elapsed}s, auto-aborting`);
-                context.thinkingTimeout!.onThinkingTimeout(content);
-              }, THINKING_TIMEOUT_MS);
+              scheduleThinkingTimer(
+                context.thinkingTimeout.onThinkingTimeout,
+              );
             }
           } else if (!msg) {
-            // Thinking ended — clear timer
+            // Thinking ended — clear timer and reset refs
             clearThinkingTimer();
+            thinkingLastActivityRef.current = 0;
+            thinkingStartedAtRef.current = 0;
+            thinkingAbortedRef.current = false;
           }
         },
         updateThinkingMessage: (content: string) => {
           context.updateThinkingMessage?.(content);
-          // Track latest thinking content for timeout notification
           thinkingContentRef.current = content;
+          // Reset idle timer on each new content chunk so timeout only fires
+          // when there is truly no new output
+          if (thinkingTimerRef.current && context.thinkingTimeout && !thinkingAbortedRef.current) {
+            thinkingLastActivityRef.current = Date.now();
+            scheduleThinkingTimer(
+              context.thinkingTimeout.onThinkingTimeout,
+            );
+          }
         },
 
         // Session handling
@@ -99,7 +145,7 @@ export function useStreamParser() {
         onThinkingTimeout: context.thinkingTimeout?.onThinkingTimeout,
       };
     },
-    [clearThinkingTimer],
+    [clearThinkingTimer, scheduleThinkingTimer],
   );
 
   const processQwenData = useCallback(

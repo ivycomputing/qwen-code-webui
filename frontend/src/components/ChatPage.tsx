@@ -471,7 +471,7 @@ export function ChatPage() {
 
   // Ref for thinking timeout handler — same pattern as permissionErrorRef
   const thinkingTimeoutRef = useRef<
-    ((accumulatedContent: string) => void) | null
+    ((accumulatedContent: string, info?: { reason: "idle" | "absolute"; elapsedSeconds: number }) => void) | null
   >(null);
 
   // Ref to track previous isLoading state for detecting when AI finishes responding
@@ -1040,10 +1040,14 @@ export function ChatPage() {
   const [thinkingTimeoutInfo, setThinkingTimeoutInfo] = useState<{
     content: string;
     elapsed: number;
+    reason: "idle" | "absolute";
   } | null>(null);
 
   const handleThinkingTimeout = useCallback(
-    (accumulatedContent: string) => {
+    (
+      accumulatedContent: string,
+      info?: { reason: "idle" | "absolute"; elapsedSeconds: number },
+    ) => {
       // Abort the request
       if (isLoading && currentRequestId) {
         abortRequest(currentRequestId, isLoading, resetRequestState);
@@ -1052,9 +1056,12 @@ export function ChatPage() {
       }
 
       // Show timeout notification with thinking content
+      const reason = info?.reason ?? "idle";
+      const elapsed = info?.elapsedSeconds ?? 5 * 60;
       setThinkingTimeoutInfo({
         content: accumulatedContent,
-        elapsed: 5 * 60, // 5 minutes
+        elapsed,
+        reason,
       });
     },
     [isLoading, currentRequestId, abortRequest, resetRequestState, isRemoteWorkspace, remoteChat],
@@ -1573,10 +1580,14 @@ export function ChatPage() {
                 </svg>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                    {t("thinkingTimeout.title", "Thinking timeout — auto-aborted")}
+                    {thinkingTimeoutInfo.reason === "idle"
+                      ? t("thinkingTimeout.stalledTitle", "Thinking stalled — auto-aborted")
+                      : t("thinkingTimeout.title", "Thinking timeout — auto-aborted")}
                   </p>
                   <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                    {t("thinkingTimeout.description", "AI thinking exceeded {{minutes}} minutes and was auto-aborted. Here's what the AI was thinking about:", { minutes: thinkingTimeoutInfo.elapsed / 60 })}
+                    {thinkingTimeoutInfo.reason === "idle"
+                      ? t("thinkingTimeout.stalledDescription", "AI produced no new output for {{minutes}} minutes and was auto-aborted. Here's what the AI was thinking about:", { minutes: Math.round(thinkingTimeoutInfo.elapsed / 60) })
+                      : t("thinkingTimeout.description", "AI thinking exceeded {{minutes}} minutes total and was auto-aborted. Here's what the AI was thinking about:", { minutes: Math.round(thinkingTimeoutInfo.elapsed / 60) })}
                   </p>
                   {thinkingTimeoutInfo.content && (
                     <details className="mt-2">
