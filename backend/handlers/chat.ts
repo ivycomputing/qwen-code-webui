@@ -5,6 +5,9 @@ import { logger } from "../utils/logger.ts";
 import { checkLoop, type LoopState } from "../utils/loopDetector.ts";
 import type { PendingPermission } from "./permission.ts";
 
+/** Track number of concurrent chat requests for diagnostics */
+let _activeChatCount = 0;
+
 /**
  * Maps UI permission mode to Qwen SDK permission mode
  * Qwen SDK uses 'auto-edit' instead of 'acceptEdits'
@@ -58,6 +61,10 @@ async function executeQwenCommand(
   // callback is not invoked at all, so the two mechanisms never conflict.
   const localAllowedTools = new Set<string>();
 
+  const startTime = Date.now();
+  let firstMessageLatencyMs: number | null = null;
+  let messageCount = 0;
+
   try {
     // Process commands that start with '/'
     let processedMessage = message;
@@ -74,6 +81,18 @@ async function executeQwenCommand(
     logger.chat.debug(
       "Executing Qwen query with permissionMode: {permissionMode} (mapped: {mappedPermissionMode})",
       { permissionMode, mappedPermissionMode },
+    );
+
+    _activeChatCount++;
+    logger.chat.info(
+      "[DIAG] Chat request START requestId={requestId} activeCount={activeCount} "
+      + "concurrentRequests={concurrentRequests} pendingPermissions={pendingPermissions}",
+      {
+        requestId,
+        activeCount: _activeChatCount,
+        concurrentRequests: requestAbortControllers.size,
+        pendingPermissions: pendingPermissions.size,
+      },
     );
 
     const loopState: LoopState = { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 };
@@ -167,6 +186,15 @@ async function executeQwenCommand(
         timeout: { canUseTool: 300_000 },
       },
     })) {
+      messageCount++;
+      if (firstMessageLatencyMs === null) {
+        firstMessageLatencyMs = Date.now() - startTime;
+        logger.chat.info(
+          "[DIAG] First SDK message received requestId={requestId} latencyMs={latencyMs}",
+          { requestId, latencyMs: firstMessageLatencyMs },
+        );
+      }
+
       // Backend loop detection — failsafe if frontend detection fails
       const loopResult = checkLoop(sdkMessage, loopState);
       if (loopResult) {
@@ -191,19 +219,51 @@ async function executeQwenCommand(
     }
 
     if (!enqueue({ type: "done" })) return;
+
+    logger.chat.info(
+      "[DIAG] Chat request COMPLETE requestId={requestId} durationMs={durationMs} "
+      + "messageCount={messageCount} firstLatencyMs={firstLatencyMs}",
+      {
+        requestId,
+        durationMs: Date.now() - startTime,
+        messageCount,
+        firstLatencyMs: firstMessageLatencyMs,
+      },
+    );
   } catch (error) {
-    logger.chat.error("Qwen Code execution failed: {error}", { error });
+    logger.chat.error(
+      "[DIAG] Chat request ERROR requestId={requestId} durationMs={durationMs} "
+      + "messageCount={messageCount} error={error}",
+      {
+        requestId,
+        durationMs: Date.now() - startTime,
+        messageCount,
+        error,
+      },
+    );
     enqueue({
       type: "error",
       error: error instanceof Error ? error.message : String(error),
     });
   } finally {
+    _activeChatCount--;
     // Ensure CLI subprocess is killed on any exit path (issue #84)
     const ac = requestAbortControllers.get(requestId);
     if (ac) {
       ac.abort();
       requestAbortControllers.delete(requestId);
     }
+
+    logger.chat.info(
+      "[DIAG] Chat request FINALLY requestId={requestId} durationMs={durationMs} "
+      + "activeCount={activeCount} concurrentRequests={concurrentRequests}",
+      {
+        requestId,
+        durationMs: Date.now() - startTime,
+        activeCount: _activeChatCount,
+        concurrentRequests: requestAbortControllers.size,
+      },
+    );
     // Audit log: record which tools were auto-approved during this request
     if (localAllowedTools.size > 0) {
       logger.chat.debug("Request {requestId} auto-approved tools: {tools}", {
@@ -240,6 +300,16 @@ export async function handleChatRequest(
   logger.chat.debug(
     "Chat request permissionMode: {permissionMode}",
     { permissionMode: chatRequest.permissionMode },
+  );
+
+  logger.chat.info(
+    "[DIAG] handleChatRequest ENTRY requestId={requestId} "
+    + "concurrentRequests={concurrentRequests} pendingPermissions={pendingPermissions}",
+    {
+      requestId: chatRequest.requestId,
+      concurrentRequests: requestAbortControllers.size,
+      pendingPermissions: pendingPermissions.size,
+    },
   );
 
   const encoder = new TextEncoder();
@@ -284,9 +354,15 @@ export async function handleChatRequest(
       // Client disconnected — kill CLI subprocess to prevent infinite retry loops
       const ac = requestAbortControllers.get(chatRequest.requestId);
       if (ac) {
-        logger.chat.info("Client disconnected, aborting CLI subprocess for request {requestId}", {
-          requestId: chatRequest.requestId,
-        });
+        logger.chat.info(
+          "[DIAG] Client DISCONNECTED requestId={requestId} activeCount={activeCount} "
+          + "concurrentRequests={concurrentRequests}",
+          {
+            requestId: chatRequest.requestId,
+            activeCount: _activeChatCount,
+            concurrentRequests: requestAbortControllers.size,
+          },
+        );
         ac.abort();
       }
     },

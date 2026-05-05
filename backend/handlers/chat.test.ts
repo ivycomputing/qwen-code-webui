@@ -22,6 +22,7 @@ vi.mock("../utils/logger", () => ({
     chat: {
       debug: vi.fn(),
       error: vi.fn(),
+      info: vi.fn(),
     },
   },
 }));
@@ -31,9 +32,11 @@ const mockQuery = vi.mocked(query);
 describe("Chat Handler - Permission Mode Tests", () => {
   let mockContext: Context;
   let requestAbortControllers: Map<string, AbortController>;
+  let pendingPermissions: Map<string, any>;
 
   beforeEach(() => {
     requestAbortControllers = new Map();
+    pendingPermissions = new Map();
 
     // Create mock context
     mockContext = {
@@ -83,6 +86,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const response = await handleChatRequest(
         mockContext,
         requestAbortControllers,
+        pendingPermissions,
       );
 
       expect(mockQuery).toHaveBeenCalledWith({
@@ -122,7 +126,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test message",
@@ -156,7 +160,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test message",
@@ -190,7 +194,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test message",
@@ -224,7 +228,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       const queryCall = mockQuery.mock.calls[0][0];
       expect(queryCall.options).not.toHaveProperty("permissionMode");
@@ -257,7 +261,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test message with all params",
@@ -298,7 +302,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       // Should strip the slash and pass "help" to SDK
       expect(mockQuery).toHaveBeenCalledWith({
@@ -333,7 +337,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Regular message",
@@ -395,6 +399,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const response = await handleChatRequest(
         mockContext,
         requestAbortControllers,
+        pendingPermissions,
       );
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
@@ -456,6 +461,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const response = await handleChatRequest(
         mockContext,
         requestAbortControllers,
+        pendingPermissions,
       );
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
@@ -502,6 +508,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const response = await handleChatRequest(
         mockContext,
         requestAbortControllers,
+        pendingPermissions,
       );
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
@@ -553,7 +560,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test message",
@@ -593,7 +600,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       const queryCall = mockQuery.mock.calls[0][0];
       expect(queryCall.options).not.toHaveProperty("authType");
@@ -630,7 +637,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
         throw: vi.fn(),
       } as any);
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(mockQuery).toHaveBeenCalledWith({
         prompt: "Test all params with auth",
@@ -676,6 +683,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
       const response = await handleChatRequest(
         mockContext,
         requestAbortControllers,
+        pendingPermissions,
       );
 
       // Read the response to ensure the generator completes
@@ -720,7 +728,7 @@ describe("Chat Handler - Permission Mode Tests", () => {
           }) as any,
       );
 
-      await handleChatRequest(mockContext, requestAbortControllers);
+      await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
 
       expect(capturedController).toBeInstanceOf(AbortController);
     });
