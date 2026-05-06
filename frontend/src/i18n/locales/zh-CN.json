@@ -25,7 +25,13 @@
     "created": "项目创建成功！",
     "failedToCreate": "创建项目失败",
     "tryAgain": "重试",
-    "invalidPath": "路径无效"
+    "invalidPath": "路径无效",
+    "workspaceType": "工作区：",
+    "local": "本地",
+    "remote": "远程",
+    "selectRemoteMachine": "选择远程机器",
+    "selectDirectoryOnMachine": "选择 {{machine}} 上的目录",
+    "remoteWorkspaceOn": "{{machine}} 上的远程工作区"
   },
   "directoryBrowser": {
     "home": "主目录",

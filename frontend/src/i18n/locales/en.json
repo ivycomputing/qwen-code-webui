@@ -25,7 +25,13 @@
     "created": "Project Created!",
     "failedToCreate": "Failed to create project",
     "tryAgain": "Try Again",
-    "invalidPath": "Invalid path"
+    "invalidPath": "Invalid path",
+    "workspaceType": "Workspace:",
+    "local": "Local",
+    "remote": "Remote",
+    "selectRemoteMachine": "Select Remote Machine",
+    "selectDirectoryOnMachine": "Select Directory on {{machine}}",
+    "remoteWorkspaceOn": "Remote workspace on {{machine}}"
   },
   "directoryBrowser": {
     "home": "Home",
