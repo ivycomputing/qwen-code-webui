@@ -216,7 +216,7 @@ export function AddProjectModal({
                     {/* Workspace Type Toggle */}
                     <div className="flex items-center gap-4 mb-4">
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Workspace:
+                        {t("project.workspaceType")}
                       </span>
                       <div className="flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden">
                         <button
@@ -229,7 +229,7 @@ export function AddProjectModal({
                           }`}
                         >
                           <ComputerDesktopIcon className="h-4 w-4" />
-                          Local
+                          {t("project.local")}
                         </button>
                         <button
                           type="button"
@@ -241,7 +241,7 @@ export function AddProjectModal({
                           }`}
                         >
                           <ServerIcon className="h-4 w-4" />
-                          Remote
+                          {t("project.remote")}
                         </button>
                       </div>
                     </div>
@@ -262,7 +262,7 @@ export function AddProjectModal({
                         <div className="space-y-4">
                           <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                              Select Remote Machine
+                              {t("project.selectRemoteMachine")}
                             </label>
                             <RemoteMachineSelector
                               onSelect={(machine) => setSelectedMachine(machine)}
@@ -272,7 +272,7 @@ export function AddProjectModal({
                           {selectedMachine && (
                             <div>
                               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Select Directory on {selectedMachine.machine_name}
+                                {t("project.selectDirectoryOnMachine", { machine: selectedMachine.machine_name })}
                               </label>
                               <RemoteDirectoryBrowser
                                 machineId={selectedMachine.machine_id}
@@ -294,7 +294,7 @@ export function AddProjectModal({
                       <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                         <ServerIcon className="h-5 w-5 text-purple-500" />
                         <span className="text-sm text-purple-700 dark:text-purple-300">
-                          Remote workspace on <strong>{selectedMachine.machine_name}</strong>
+                          {t("project.remoteWorkspaceOn", { machine: selectedMachine.machine_name })}
                           {selectedMachine.hostname && ` (${selectedMachine.hostname})`}
                         </span>
                       </div>
