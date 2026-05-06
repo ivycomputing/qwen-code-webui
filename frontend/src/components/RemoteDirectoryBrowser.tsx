@@ -55,7 +55,7 @@ export function RemoteDirectoryBrowser({
         }
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to browse remote directory"
+          err instanceof Error ? err.message : t("remoteDirectory.failedToBrowse")
         );
       } finally {
         setLoading(false);
@@ -120,7 +120,7 @@ export function RemoteDirectoryBrowser({
           />
         </svg>
         <span className="text-slate-600 dark:text-slate-400">
-          Loading remote directory...
+          {t("remoteDirectory.loadingRemote")}
         </span>
       </div>
     );
@@ -145,7 +145,7 @@ export function RemoteDirectoryBrowser({
       {/* Header with close button */}
       <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-700/50 rounded-t-lg border-b border-slate-200 dark:border-slate-600">
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-          Remote Machine
+          {t("remoteDirectory.remoteMachine")}
         </span>
         <button
           onClick={onClose}
@@ -210,7 +210,7 @@ export function RemoteDirectoryBrowser({
         {directories.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-500 dark:text-slate-400">
             <FolderIcon className="h-12 w-12 mb-2 opacity-50" />
-            <p className="text-sm">No subdirectories found</p>
+            <p className="text-sm">{t("remoteDirectory.noSubdirectories")}</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -235,11 +235,11 @@ export function RemoteDirectoryBrowser({
                       }}
                       className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50"
                     >
-                      Select
+                      {t("common.select")}
                     </button>
                   )}
                   <span className="text-xs text-slate-400 dark:text-slate-500">
-                    {dir.isWritable ? "Writable" : "Read-only"}
+                    {dir.isWritable ? t("directoryBrowser.writable") : t("directoryBrowser.readOnly")}
                   </span>
                 </div>
               </button>
@@ -254,7 +254,7 @@ export function RemoteDirectoryBrowser({
           onClick={handleSelectCurrent}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
         >
-          Select This Folder
+          {t("directoryBrowser.selectThisFolder")}
         </button>
       </div>
     </div>

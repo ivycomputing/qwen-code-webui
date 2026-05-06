@@ -44,18 +44,16 @@ function getStatusDotColor(status: RemoteMachine["status"]): string {
   }
 }
 
-function getStatusLabel(status: RemoteMachine["status"]): string {
-  // This function is used in a non-component context for the title attribute
-  // For the visible status label, we use inline translated text
+function getStatusLabel(status: RemoteMachine["status"], t: (key: string) => string): string {
   switch (status) {
     case "online":
-      return "Online";
+      return t("chat.statusOnline");
     case "busy":
-      return "Busy";
+      return t("chat.statusBusy");
     case "offline":
-      return "Offline";
+      return t("chat.statusOffline");
     case "error":
-      return "Error";
+      return t("chat.statusError");
     default:
       return status;
   }
@@ -77,7 +75,7 @@ export function RemoteMachineSelector({
       const response = await fetchRemoteMachines();
       setMachines(response.machines || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load remote machines");
+      setError(err instanceof Error ? err.message : t("remoteMachine.failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -115,7 +113,7 @@ export function RemoteMachineSelector({
           />
         </svg>
         <span className="text-slate-600 dark:text-slate-400">
-          Loading remote machines...
+          {t("remoteMachine.loading")}
         </span>
       </div>
     );
@@ -130,7 +128,7 @@ export function RemoteMachineSelector({
           className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300"
         >
           <ArrowPathIcon className="h-4 w-4" />
-          Retry
+          {t("common.retry")}
         </button>
       </div>
     );
@@ -141,14 +139,14 @@ export function RemoteMachineSelector({
       <div className="flex flex-col items-center justify-center p-8">
         <ComputerDesktopIcon className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-3" />
         <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">
-          No remote machines available
+          {t("remoteMachine.noMachines")}
         </p>
         <button
           onClick={loadMachines}
           className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300"
         >
           <ArrowPathIcon className="h-4 w-4" />
-          Refresh
+          {t("chat.refreshMachines")}
         </button>
       </div>
     );
@@ -159,7 +157,7 @@ export function RemoteMachineSelector({
       {/* Header with refresh */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">
-          Remote Machines
+          {t("remoteMachine.title")}
         </h3>
         <button
           onClick={loadMachines}
@@ -190,7 +188,7 @@ export function RemoteMachineSelector({
                 {/* Status dot */}
                 <span
                   className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusDotColor(machine.status)}`}
-                  title={getStatusLabel(machine.status)}
+                  title={getStatusLabel(machine.status, t)}
                 />
 
                 {/* OS icon */}
@@ -232,12 +230,12 @@ export function RemoteMachineSelector({
       {selectedMachine && (
         <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-600">
           <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">
-            Machine Details
+            {t("remoteMachine.machineDetails")}
           </h4>
           <div className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
             {selectedMachine.os_type && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">OS</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("remoteMachine.os")}</span>
                 <span className="font-mono">
                   {selectedMachine.os_type}
                   {selectedMachine.os_version ? ` ${selectedMachine.os_version}` : ""}
@@ -246,15 +244,15 @@ export function RemoteMachineSelector({
             )}
             {selectedMachine.capabilities?.cpu_count != null && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">CPU</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("remoteMachine.cpu")}</span>
                 <span className="font-mono">
-                  {selectedMachine.capabilities.cpu_count} cores
+                  {selectedMachine.capabilities.cpu_count} {t("remoteMachine.cores")}
                 </span>
               </div>
             )}
             {selectedMachine.capabilities?.memory_gb != null && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Memory</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("remoteMachine.memory")}</span>
                 <span className="font-mono">
                   {selectedMachine.capabilities.memory_gb} GB
                 </span>
@@ -262,13 +260,13 @@ export function RemoteMachineSelector({
             )}
             {selectedMachine.capabilities?.gpu && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">GPU</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("remoteMachine.gpu")}</span>
                 <span className="font-mono">{selectedMachine.capabilities.gpu}</span>
               </div>
             )}
             {selectedMachine.capabilities?.disk_gb != null && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Disk</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("remoteMachine.disk")}</span>
                 <span className="font-mono">
                   {selectedMachine.capabilities.disk_gb} GB
                 </span>
@@ -276,7 +274,7 @@ export function RemoteMachineSelector({
             )}
             {selectedMachine.last_heartbeat && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Last heartbeat</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("remoteMachine.lastHeartbeat")}</span>
                 <span className="font-mono text-xs">
                   {new Date(selectedMachine.last_heartbeat).toLocaleString()}
                 </span>

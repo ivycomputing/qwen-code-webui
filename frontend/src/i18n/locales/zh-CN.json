@@ -86,7 +86,16 @@
     "statusOnline": "在线",
     "statusBusy": "忙碌",
     "statusOffline": "离线",
-    "statusError": "错误"
+    "statusError": "错误",
+    "errorFailedResponse": "错误：未能获取回复",
+    "backToChat": "返回对话",
+    "backToHistory": "返回历史记录",
+    "conversationHistory": "对话历史",
+    "chat": "对话",
+    "loadingHistory": "正在加载对话历史...",
+    "errorLoadingConversation": "加载对话失败",
+    "startNewConversation": "开始新对话",
+    "dismiss": "关闭"
   },
   "permission": {
     "title": "需要权限确认",
@@ -156,5 +165,35 @@
     "estimatedInfo": "子分类基于可见消息按比例估算，实际分布可能不同。",
     "cacheInfo": "系统开销基于 API 缓存数据（更准确）。子分类已按比例缩放。",
     "autoCompressInfo": "自动压缩在 70% 时触发"
+  },
+  "remoteMachine": {
+    "loading": "正在加载远程机器...",
+    "failedToLoad": "加载远程机器失败",
+    "noMachines": "没有可用的远程机器",
+    "title": "远程机器",
+    "machineDetails": "机器详情",
+    "lastHeartbeat": "最近心跳",
+    "os": "操作系统",
+    "cpu": "CPU",
+    "cores": "核心",
+    "memory": "内存",
+    "gpu": "GPU",
+    "disk": "磁盘"
+  },
+  "remoteDirectory": {
+    "loadingRemote": "正在加载远程目录...",
+    "failedToBrowse": "浏览远程目录失败",
+    "remoteMachine": "远程机器",
+    "noSubdirectories": "未找到子目录"
+  },
+  "history": {
+    "loadingProject": "正在加载项目...",
+    "loadingConversations": "正在加载对话...",
+    "errorLoadingHistory": "加载历史记录失败",
+    "noConversations": "暂无对话记录",
+    "startChatting": "开始对话以在此处查看对话历史。",
+    "session": "会话：",
+    "messages": "条消息",
+    "failedToLoad": "加载对话失败"
   }
 }
