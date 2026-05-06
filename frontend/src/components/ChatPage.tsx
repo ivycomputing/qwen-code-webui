@@ -698,7 +698,7 @@ export function ChatPage() {
           addMessage({
             type: "chat",
             role: "assistant",
-            content: "Error: Failed to get response",
+            content: t("chat.errorFailedResponse"),
             timestamp: Date.now(),
           });
         }
@@ -1242,7 +1242,7 @@ export function ChatPage() {
               <button
                 onClick={isHistoryView ? handleBackToChat : handleBackToHistory}
                 className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
-                aria-label={isHistoryView ? "Back to chat" : "Back to history"}
+                aria-label={isHistoryView ? t("chat.backToChat") : t("chat.backToHistory")}
               >
                 <ChevronLeftIcon className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </button>
@@ -1252,7 +1252,7 @@ export function ChatPage() {
                 <div className="flex items-center">
                   {isHistoryView ? (
                     <h1 className="text-slate-800 dark:text-slate-100 text-lg sm:text-xl font-bold tracking-tight">
-                      Conversation History
+                      {t("chat.conversationHistory")}
                     </h1>
                   ) : isRemoteWorkspace ? (
                     <button
@@ -1261,7 +1261,7 @@ export function ChatPage() {
                       aria-label={t("chat.backToProjects")}
                       title={t("chat.backToProjects")}
                     >
-                      {workingDirectory || "Chat"}
+                      {workingDirectory || t("chat.chat")}
                     </button>
                   ) : sessionId ? (
                     <>
@@ -1281,7 +1281,7 @@ export function ChatPage() {
                       aria-label={t("chat.backToProjects")}
                       title={t("chat.backToProjects")}
                     >
-                      {workingDirectory || "Chat"}
+                      {workingDirectory || t("chat.chat")}
                     </button>
                   )}
                 </div>
@@ -1358,7 +1358,7 @@ export function ChatPage() {
             <div className="text-center">
               <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-slate-600 dark:text-slate-400">
-                Loading conversation history...
+                {t("chat.loadingHistory")}
               </p>
             </div>
           </div>
@@ -1382,7 +1382,7 @@ export function ChatPage() {
                 </svg>
               </div>
               <h2 className="text-slate-800 dark:text-slate-100 text-xl font-semibold mb-2">
-                Error Loading Conversation
+                {t("chat.errorLoadingConversation")}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
                 {historyError}
@@ -1391,7 +1391,7 @@ export function ChatPage() {
                 onClick={() => navigate({ search: "" })}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Start New Conversation
+                {t("chat.startNewConversation")}
               </button>
             </div>
           </div>
@@ -1548,7 +1548,7 @@ export function ChatPage() {
                 <button
                   onClick={handleCommandLoopAbort}
                   className="text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-200 flex-shrink-0"
-                  aria-label="Dismiss"
+                  aria-label={t("chat.dismiss")}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1602,7 +1602,7 @@ export function ChatPage() {
                 <button
                   onClick={() => setThinkingTimeoutInfo(null)}
                   className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 flex-shrink-0"
-                  aria-label="Dismiss"
+                  aria-label={t("chat.dismiss")}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

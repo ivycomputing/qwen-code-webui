@@ -86,7 +86,16 @@
     "statusOnline": "Online",
     "statusBusy": "Busy",
     "statusOffline": "Offline",
-    "statusError": "Error"
+    "statusError": "Error",
+    "errorFailedResponse": "Error: Failed to get response",
+    "backToChat": "Back to chat",
+    "backToHistory": "Back to history",
+    "conversationHistory": "Conversation History",
+    "chat": "Chat",
+    "loadingHistory": "Loading conversation history...",
+    "errorLoadingConversation": "Error Loading Conversation",
+    "startNewConversation": "Start New Conversation",
+    "dismiss": "Dismiss"
   },
   "permission": {
     "title": "Permission Required",
@@ -156,5 +165,35 @@
     "estimatedInfo": "Sub-categories are proportionally estimated from visible messages. Actual distribution may vary.",
     "cacheInfo": "Overhead is based on API cache data (more accurate). Sub-categories are proportionally scaled to match.",
     "autoCompressInfo": "Auto-compress triggers at 70%"
+  },
+  "remoteMachine": {
+    "loading": "Loading remote machines...",
+    "failedToLoad": "Failed to load remote machines",
+    "noMachines": "No remote machines available",
+    "title": "Remote Machines",
+    "machineDetails": "Machine Details",
+    "lastHeartbeat": "Last heartbeat",
+    "os": "OS",
+    "cpu": "CPU",
+    "cores": "cores",
+    "memory": "Memory",
+    "gpu": "GPU",
+    "disk": "Disk"
+  },
+  "remoteDirectory": {
+    "loadingRemote": "Loading remote directory...",
+    "failedToBrowse": "Failed to browse remote directory",
+    "remoteMachine": "Remote Machine",
+    "noSubdirectories": "No subdirectories found"
+  },
+  "history": {
+    "loadingProject": "Loading project...",
+    "loadingConversations": "Loading conversations...",
+    "errorLoadingHistory": "Error Loading History",
+    "noConversations": "No Conversations Yet",
+    "startChatting": "Start chatting to see your conversation history here.",
+    "session": "Session: ",
+    "messages": "messages",
+    "failedToLoad": "Failed to load conversations"
   }
 }
