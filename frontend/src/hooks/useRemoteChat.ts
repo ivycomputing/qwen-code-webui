@@ -70,6 +70,13 @@ export function useRemoteChat(options?: RemoteChatOptions) {
       if (parsed.type === "claude_json" && parsed.data?.type === "result") {
         setIsLoading(false);
       }
+
+      // Handle error events from the remote agent (e.g. CLI crash, send failure)
+      if (parsed.type === "error") {
+        setIsLoading(false);
+        setError(parsed.data || "Unknown remote error");
+        return; // Don't forward to onStreamLine
+      }
     } catch { /* not JSON, ignore */ }
 
     // Forward to stream processor
