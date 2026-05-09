@@ -587,6 +587,7 @@ export function ChatPage() {
       // Local state for this streaming session
       let localHasReceivedInit = false;
       let shouldAbort = false;
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
       try {
         const response = await fetch(getChatUrl(), {
@@ -622,7 +623,7 @@ export function ChatPage() {
 
         if (!response.body) throw new Error("No response body");
 
-        const reader = response.body.getReader();
+        reader = response.body.getReader();
         const decoder = new TextDecoder();
 
         const streamingContext: StreamingContext = {
@@ -724,6 +725,14 @@ export function ChatPage() {
           setCurrentSessionId(null);
         }
       } finally {
+        // Release the reader to free the HTTP connection.
+        // Without this, the browser keeps connections open and eventually
+        // hits its per-host connection limit (6 for HTTP/1.1), causing
+        // persistent "Failed to fetch" on all subsequent requests.
+        if (reader) {
+          try { reader.releaseLock(); } catch { /* already released */ }
+        }
+
         clearAbortRef.current = false;
 
         // Note: Input notification will be shown via useEffect when isLoading becomes false.
