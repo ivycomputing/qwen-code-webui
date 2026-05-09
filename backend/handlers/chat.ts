@@ -407,7 +407,7 @@ export async function handleChatRequest(
     headers: {
       "Content-Type": "application/x-ndjson",
       "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      "Transfer-Encoding": "chunked",
     },
   });
 }
