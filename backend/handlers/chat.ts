@@ -338,6 +338,8 @@ export async function handleChatRequest(
 
   const encoder = new TextEncoder();
 
+  let keepaliveId: ReturnType<typeof setInterval> | undefined;
+
   const stream = new ReadableStream({
     async start(controller) {
       const enqueue = (response: StreamResponse): boolean => {
@@ -348,6 +350,11 @@ export async function handleChatRequest(
           return false;
         }
       };
+
+      // Send keepalive newlines to prevent browser timeout (ERR_INCOMPLETE_CHUNKED_ENCODING)
+      keepaliveId = setInterval(() => {
+        try { controller.enqueue(encoder.encode("\n")); } catch { clearInterval(keepaliveId); }
+      }, 15_000);
 
       try {
         await executeQwenCommand(
@@ -364,8 +371,10 @@ export async function handleChatRequest(
           chatRequest.model,
           authType,
         );
+        clearInterval(keepaliveId);
         controller.close();
       } catch (error) {
+        clearInterval(keepaliveId);
         const errorResponse: StreamResponse = {
           type: "error",
           error: error instanceof Error ? error.message : String(error),
@@ -376,6 +385,7 @@ export async function handleChatRequest(
       }
     },
     cancel() {
+      clearInterval(keepaliveId);
       // Client disconnected — kill CLI subprocess to prevent infinite retry loops
       const ac = requestAbortControllers.get(chatRequest.requestId);
       if (ac) {
