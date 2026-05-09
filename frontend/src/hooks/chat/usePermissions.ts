@@ -406,9 +406,10 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       }
 
       // "Input closed" is a session-level fatal error — always detect immediately
+      // Match the full SDK error format to avoid false positives from benign "Operation Cancelled"
       const lowerContent = content.toLowerCase();
       const isInputClosed = lowerContent.includes("input closed") ||
-        lowerContent.includes("operation cancelled");
+        (lowerContent.includes("operation cancelled") && lowerContent.includes("input closed"));
 
       if (isInputClosed) {
         autoRejectionCountRef.current = 0;

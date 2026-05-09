@@ -575,18 +575,32 @@ describe("usePermissions - Auto-Rejection Loop Detection", () => {
     expect(loopRequest!.errorOutput).toContain("Input closed");
   });
 
-  it("should detect Operation Cancelled on first auto-rejection (fatal)", () => {
+  it("should detect full SDK error format on first auto-rejection (fatal)", () => {
     const { result } = renderHook(() => usePermissions());
 
     let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.recordAutoRejection(
         "edit",
-        "Operation Cancelled"
+        "[Operation Cancelled] Reason: Error: Input closed"
       );
     });
 
     expect(loopRequest).not.toBeNull();
+  });
+
+  it("should NOT treat standalone Operation Cancelled as fatal", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "Operation Cancelled"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
   });
 
   it("should not detect loop on first non-fatal auto-rejection", () => {

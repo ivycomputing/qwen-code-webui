@@ -410,6 +410,7 @@ export async function handleChatRequest(
     headers: {
       "Content-Type": "application/x-ndjson",
       "Cache-Control": "no-cache",
+      // Explicit chunked encoding prevents @hono/node-server from buffering the response
       "Transfer-Encoding": "chunked",
     },
   });

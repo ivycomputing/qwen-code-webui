@@ -13,7 +13,7 @@
 
 const LOOP_ERROR_PATTERNS: [string, RegExp][] = [
   ["input_closed", /input\s+closed/i],
-  ["input_closed", /operation\s+cancelled/i],
+  ["input_closed", /operation\s+cancelled.*input\s+closed/i],
   ["permission_denied", /permission denied/i],
   ["proactive_denied", /denied this tool call.*proactive/i],
   ["stdin_closed", /stdin.*closed/i],
