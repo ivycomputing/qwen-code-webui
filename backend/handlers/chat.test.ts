@@ -474,13 +474,16 @@ describe("Chat Handler - Permission Mode Tests", () => {
       }
 
       const lines = allChunks.trim().split("\n");
-      expect(lines).toHaveLength(1);
+      expect(lines).toHaveLength(2);
 
       const errorResponse = JSON.parse(lines[0]);
       expect(errorResponse).toEqual({
         type: "error",
         error: "SDK execution failed",
       });
+
+      const doneResponse = JSON.parse(lines[1]);
+      expect(doneResponse).toEqual({ type: "done" });
     });
 
     // TODO: Re-enable when AbortError is properly exported from Claude SDK

@@ -102,6 +102,9 @@ export interface LoopState {
 const DEFAULT_THRESHOLD = 3;
 const LOOP_WINDOW_MS = 300_000; // 5 minutes
 
+/** Fatal fingerprints — always abort on first occurrence (no recovery possible) */
+const FATAL_FINGERPRINTS = new Set(["input_closed"]);
+
 /**
  * Check if an SDK message indicates a loop.
  * Returns loop info if detected, null otherwise.
@@ -124,6 +127,7 @@ export function checkLoop(
     return null;
   }
 
+  const effectiveThreshold = FATAL_FINGERPRINTS.has(fingerprint) ? 1 : threshold;
   const now = Date.now();
 
   // Reset if different fingerprint or time window expired
@@ -138,7 +142,7 @@ export function checkLoop(
     state.errorCount++;
   }
 
-  if (state.errorCount >= threshold) {
+  if (state.errorCount >= effectiveThreshold) {
     return { detected: true, fingerprint, count: state.errorCount };
   }
 

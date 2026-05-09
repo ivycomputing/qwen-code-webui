@@ -47,7 +47,7 @@ async function main(runtime: NodeRuntime) {
   }
 
   // Create application
-  const app = createApp(runtime, {
+  const { app, shutdown } = createApp(runtime, {
     debugMode: args.debug,
     staticPath,
     cliPath,
@@ -56,6 +56,15 @@ async function main(runtime: NodeRuntime) {
     openaceApiUrl: args.openaceApiUrl,
     authType: args.authType,
   });
+
+  // Graceful shutdown: kill CLI subprocesses on SIGTERM/SIGINT
+  const handleSignal = () => {
+    shutdown();
+    // Give CLI subprocesses time to die after receiving SIGTERM via ac.abort()
+    setTimeout(() => process.exit(0), 3000);
+  };
+  process.on("SIGTERM", handleSignal);
+  process.on("SIGINT", handleSignal);
 
   // Start server (only show this message when everything is ready)
   logger.cli.info(`🚀 Server starting on ${args.host}:${args.port}`);

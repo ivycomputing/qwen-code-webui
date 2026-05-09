@@ -559,61 +559,9 @@ describe("usePermissions - Command Result Loop Detection", () => {
 });
 
 describe("usePermissions - Auto-Rejection Loop Detection", () => {
-  it("should not detect loop on first auto-rejection", () => {
+  it("should detect Input closed on first auto-rejection (fatal)", () => {
     const { result } = renderHook(() => usePermissions());
 
-    let loopRequest: CommandLoopRequest | null = null;
-
-    act(() => {
-      loopRequest = result.current.recordAutoRejection(
-        "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
-      );
-    });
-
-    expect(loopRequest).toBeNull();
-  });
-
-  it("should not detect loop on second auto-rejection", () => {
-    const { result } = renderHook(() => usePermissions());
-
-    act(() => {
-      result.current.recordAutoRejection(
-        "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
-      );
-    });
-
-    let loopRequest: CommandLoopRequest | null = null;
-    act(() => {
-      loopRequest = result.current.recordAutoRejection(
-        "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
-      );
-    });
-
-    expect(loopRequest).toBeNull();
-  });
-
-  it("should detect loop on third same-tool auto-rejection", () => {
-    const { result } = renderHook(() => usePermissions());
-
-    // First two auto-rejections
-    act(() => {
-      result.current.recordAutoRejection(
-        "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
-      );
-    });
-
-    act(() => {
-      result.current.recordAutoRejection(
-        "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
-      );
-    });
-
-    // Third - should trigger
     let loopRequest: CommandLoopRequest | null = null;
     act(() => {
       loopRequest = result.current.recordAutoRejection(
@@ -627,21 +575,98 @@ describe("usePermissions - Auto-Rejection Loop Detection", () => {
     expect(loopRequest!.errorOutput).toContain("Input closed");
   });
 
-  it("should reset counter for different tool auto-rejection", () => {
+  it("should detect Operation Cancelled on first auto-rejection (fatal)", () => {
     const { result } = renderHook(() => usePermissions());
 
-    // Two auto-rejections for run_shell_command
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "edit",
+        "Operation Cancelled"
+      );
+    });
+
+    expect(loopRequest).not.toBeNull();
+  });
+
+  it("should not detect loop on first non-fatal auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "Permission denied"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should not detect loop on second non-fatal auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
     act(() => {
       result.current.recordAutoRejection(
         "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
+      );
+    });
+
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "Permission denied"
+      );
+    });
+
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should detect loop on third same-tool non-fatal auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "Permission denied"
       );
     });
 
     act(() => {
       result.current.recordAutoRejection(
         "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
+      );
+    });
+
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "Permission denied"
+      );
+    });
+
+    expect(loopRequest).not.toBeNull();
+    expect(loopRequest!.toolName).toBe("run_shell_command");
+  });
+
+  it("should reset counter for different tool auto-rejection", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "Permission denied"
+      );
+    });
+
+    act(() => {
+      result.current.recordAutoRejection(
+        "run_shell_command",
+        "Permission denied"
       );
     });
 
@@ -649,7 +674,7 @@ describe("usePermissions - Auto-Rejection Loop Detection", () => {
     act(() => {
       result.current.recordAutoRejection(
         "write_file",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
       );
     });
 
@@ -658,50 +683,58 @@ describe("usePermissions - Auto-Rejection Loop Detection", () => {
     act(() => {
       loopRequest = result.current.recordAutoRejection(
         "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
       );
     });
 
     expect(loopRequest).toBeNull();
   });
 
-  it("should respect disabled loop detection flag", () => {
+  it("should respect disabled loop detection flag for non-fatal errors", () => {
     const { result } = renderHook(() => usePermissions());
 
-    // Disable loop detection
     act(() => {
       result.current.disableCommandResultLoopDetection();
     });
 
-    // Try 5 auto-rejections - should never trigger
+    // Non-fatal auto-rejections should not trigger
     let loopRequest: CommandLoopRequest | null = null;
     for (let i = 0; i < 5; i++) {
       act(() => {
         loopRequest = result.current.recordAutoRejection(
           "run_shell_command",
-          "[Operation Cancelled] Reason: Error: Input closed"
+          "Permission denied"
         );
       });
     }
 
     expect(loopRequest).toBeNull();
+
+    // Input closed should still trigger even when disabled
+    act(() => {
+      loopRequest = result.current.recordAutoRejection(
+        "run_shell_command",
+        "[Operation Cancelled] Reason: Error: Input closed"
+      );
+    });
+
+    expect(loopRequest).not.toBeNull();
   });
 
-  it("should reset auto-rejection counter", () => {
+  it("should reset non-fatal auto-rejection counter", () => {
     const { result } = renderHook(() => usePermissions());
 
-    // Two auto-rejections
     act(() => {
       result.current.recordAutoRejection(
         "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
       );
     });
 
     act(() => {
       result.current.recordAutoRejection(
         "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
       );
     });
 
@@ -715,7 +748,7 @@ describe("usePermissions - Auto-Rejection Loop Detection", () => {
     act(() => {
       loopRequest = result.current.recordAutoRejection(
         "run_shell_command",
-        "[Operation Cancelled] Reason: Error: Input closed"
+        "Permission denied"
       );
     });
 

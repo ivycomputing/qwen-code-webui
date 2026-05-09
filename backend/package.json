@@ -53,7 +53,7 @@
     "prepublishOnly": "npm run build && npm run test"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.11",
+    "@hono/node-server": "1.19.11",
     "@logtape/logtape": "^1.0.0",
     "@logtape/pretty": "^1.0.0",
     "@qwen-code/sdk": "^0.1.4",

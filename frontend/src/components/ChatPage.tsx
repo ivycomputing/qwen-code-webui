@@ -298,6 +298,10 @@ export function ChatPage() {
               commandLoopShowRef.current?.(request);
               // Auto-abort the remote request
               remoteChat.abortCurrentRequest();
+              // Clear sessionId on fatal session errors
+              if (request.errorOutput?.toLowerCase().includes("input closed")) {
+                setCurrentSessionId(null);
+              }
             },
             onAutoRejection: (toolName, content) => {
               return recordAutoRejection(toolName, content);
@@ -661,6 +665,10 @@ export function ChatPage() {
             showCommandLoopRequest(request);
             // Auto-abort the request
             createAbortHandler(requestId)();
+            // Clear sessionId on fatal session errors
+            if (request.errorOutput?.toLowerCase().includes("input closed")) {
+              setCurrentSessionId(null);
+            }
           },
           // Proactive canUseTool permission request
           onPermissionRequest: (event) => {

@@ -397,8 +397,6 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
    */
   const recordAutoRejection = useCallback(
     (toolName: string, content: string): CommandLoopRequest | null => {
-      if (loopDetectionDisabledRef.current) return null;
-
       const config = loopDetectionConfigRef.current;
       const now = Date.now();
 
@@ -407,21 +405,32 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
         autoRejectionCountRef.current = 0;
       }
 
-      // "Input closed" is a session-level problem — count across all tools
+      // "Input closed" is a session-level fatal error — always detect immediately
       const lowerContent = content.toLowerCase();
       const isInputClosed = lowerContent.includes("input closed") ||
         lowerContent.includes("operation cancelled");
 
-      // Skip loop detection for excluded tools (but always track Input closed)
-      if (!isInputClosed && config.excludedTools.has(toolName)) return null;
-      const trackingKey = isInputClosed ? "__input_closed__" : toolName;
+      if (isInputClosed) {
+        autoRejectionCountRef.current = 0;
+        return {
+          isOpen: true,
+          toolName,
+          command: toolName,
+          errorOutput: content.substring(0, 200),
+        };
+      }
+
+      if (loopDetectionDisabledRef.current) return null;
+
+      // Skip loop detection for excluded tools
+      if (config.excludedTools.has(toolName)) return null;
 
       // Check if same tracking key as last auto-rejection
-      if (lastAutoRejectionToolRef.current === trackingKey) {
+      if (lastAutoRejectionToolRef.current === toolName) {
         autoRejectionCountRef.current++;
       } else {
         autoRejectionCountRef.current = 1;
-        lastAutoRejectionToolRef.current = trackingKey;
+        lastAutoRejectionToolRef.current = toolName;
       }
 
       lastAutoRejectionTimeRef.current = now;

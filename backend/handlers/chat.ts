@@ -226,9 +226,12 @@ async function executeQwenCommand(
           { fingerprint: loopResult.fingerprint, count: loopResult.count },
         );
         abortController.abort();
+        const errorMessage = loopResult.fingerprint === "input_closed"
+          ? "CLI session ended unexpectedly. Please send a new message."
+          : `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x)`;
         if (!enqueue({
           type: "error",
-          error: `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x)`,
+          error: errorMessage,
         })) break;
         break;
       }

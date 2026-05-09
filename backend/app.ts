@@ -39,7 +39,7 @@ export interface AppConfig {
 export function createApp(
   runtime: Runtime,
   config: AppConfig,
-): Hono<ConfigContext> {
+): { app: Hono<ConfigContext>; shutdown: () => void } {
   const app = new Hono<ConfigContext>();
 
   // Store AbortControllers for each request (shared with chat handler)
@@ -47,6 +47,18 @@ export function createApp(
 
   // Store pending permission requests for canUseTool callback
   const pendingPermissions = new Map<string, PendingPermission>();
+
+  /** Abort all active CLI subprocesses — called on server shutdown */
+  const shutdown = () => {
+    for (const [, ac] of requestAbortControllers) {
+      ac.abort();
+    }
+    requestAbortControllers.clear();
+    for (const [, pending] of pendingPermissions) {
+      pending.resolve({ behavior: "deny", message: "Server shutting down" });
+    }
+    pendingPermissions.clear();
+  };
 
   // CORS middleware
   // allowMethods intentionally omitted to use Hono defaults
@@ -130,5 +142,5 @@ export function createApp(
     }
   });
 
-  return app;
+  return { app, shutdown };
 }
