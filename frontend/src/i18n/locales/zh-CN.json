@@ -94,6 +94,7 @@
     "statusOffline": "离线",
     "statusError": "错误",
     "errorFailedResponse": "错误：未能获取回复",
+    "errorStreamStall": "连接已断开，你可以发送新消息继续对话。",
     "backToChat": "返回对话",
     "backToHistory": "返回历史记录",
     "conversationHistory": "对话历史",

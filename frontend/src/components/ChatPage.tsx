@@ -593,10 +593,35 @@ export function ChatPage() {
       let shouldAbort = false;
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
+      // Stream stall detection: abort fetch if no data received for 60s.
+      // Backend sends keepalive \n every 15s, so 60s = 4 missed keepalives.
+      const STREAM_STALL_TIMEOUT_MS = 60_000;
+      const fetchAbortController = new AbortController();
+      let stallTimerId: ReturnType<typeof setTimeout> | null = null;
+
+      const resetStallTimer = () => {
+        if (stallTimerId) clearTimeout(stallTimerId);
+        stallTimerId = setTimeout(() => {
+          if (document.hidden) {
+            resetStallTimer();
+            return;
+          }
+          console.warn("[Stream stall] No data for 60s, aborting fetch");
+          fetchAbortController.abort();
+        }, STREAM_STALL_TIMEOUT_MS);
+      };
+      resetStallTimer();
+
+      const onVisibilityChange = () => {
+        if (!document.hidden) resetStallTimer();
+      };
+      document.addEventListener("visibilitychange", onVisibilityChange);
+
       try {
         const response = await fetch(getChatUrl(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: fetchAbortController.signal,
           body: JSON.stringify({
             message: content,
             requestId,
@@ -698,6 +723,8 @@ export function ChatPage() {
           const { done, value } = await reader.read();
           if (done || shouldAbort) break;
 
+          resetStallTimer();
+
           lineBuffer += decoder.decode(value, { stream: true });
           const lines = lineBuffer.split("\n");
           lineBuffer = lines.pop() || "";
@@ -716,8 +743,19 @@ export function ChatPage() {
           processStreamLine(lineBuffer.trim(), streamingContext);
         }
       } catch (error) {
-        // Skip error message when abort was triggered by /clear
-        if (!clearAbortRef.current) {
+        // Stall timeout abort → show friendly message
+        if (
+          error instanceof DOMException && error.name === "AbortError"
+          && fetchAbortController.signal.aborted
+        ) {
+          addMessage({
+            type: "chat",
+            role: "assistant",
+            content: t("chat.errorStreamStall"),
+            timestamp: Date.now(),
+          });
+          setCurrentSessionId(null);
+        } else if (!clearAbortRef.current) {
           console.error("Failed to send message:", error);
           const errorText = error instanceof Error
             ? error.message
@@ -733,6 +771,12 @@ export function ChatPage() {
           setCurrentSessionId(null);
         }
       } finally {
+        if (stallTimerId) {
+          clearTimeout(stallTimerId);
+          stallTimerId = null;
+        }
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+
         // Release the reader to free the HTTP connection.
         // Without this, the browser keeps connections open and eventually
         // hits its per-host connection limit (6 for HTTP/1.1), causing

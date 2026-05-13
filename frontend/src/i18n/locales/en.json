@@ -94,6 +94,7 @@
     "statusOffline": "Offline",
     "statusError": "Error",
     "errorFailedResponse": "Error: Failed to get response",
+    "errorStreamStall": "Connection lost. You can send a new message to continue.",
     "backToChat": "Back to chat",
     "backToHistory": "Back to history",
     "conversationHistory": "Conversation History",
