@@ -25,6 +25,7 @@ import { useOpenAceSessionTracker } from "../hooks/useOpenAceSessionTracker";
 import { useTabNotification } from "../hooks/useTabNotification";
 import { calculateTokenUsage, calculateContextBreakdown } from "../utils/tokenUsage";
 import type { ContextUsageData } from "../utils/tokenUsage";
+import { createStallDetector } from "../utils/streamStallDetector";
 import { ContextUsagePanel } from "./chat/ContextUsagePanel";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
@@ -595,27 +596,8 @@ export function ChatPage() {
 
       // Stream stall detection: abort fetch if no data received for 60s.
       // Backend sends keepalive \n every 15s, so 60s = 4 missed keepalives.
-      const STREAM_STALL_TIMEOUT_MS = 60_000;
       const fetchAbortController = new AbortController();
-      let stallTimerId: ReturnType<typeof setTimeout> | null = null;
-
-      const resetStallTimer = () => {
-        if (stallTimerId) clearTimeout(stallTimerId);
-        stallTimerId = setTimeout(() => {
-          if (document.hidden) {
-            resetStallTimer();
-            return;
-          }
-          console.warn("[Stream stall] No data for 60s, aborting fetch");
-          fetchAbortController.abort();
-        }, STREAM_STALL_TIMEOUT_MS);
-      };
-      resetStallTimer();
-
-      const onVisibilityChange = () => {
-        if (!document.hidden) resetStallTimer();
-      };
-      document.addEventListener("visibilitychange", onVisibilityChange);
+      const stallDetector = createStallDetector(fetchAbortController);
 
       try {
         const response = await fetch(getChatUrl(), {
@@ -723,7 +705,7 @@ export function ChatPage() {
           const { done, value } = await reader.read();
           if (done || shouldAbort) break;
 
-          resetStallTimer();
+          stallDetector.onData();
 
           lineBuffer += decoder.decode(value, { stream: true });
           const lines = lineBuffer.split("\n");
@@ -743,7 +725,9 @@ export function ChatPage() {
           processStreamLine(lineBuffer.trim(), streamingContext);
         }
       } catch (error) {
-        // Stall timeout abort → show friendly message
+        // Distinguish stall abort from other abort sources (e.g. /clear uses
+        // a separate AbortController via createAbortHandler). Check
+        // fetchAbortController.signal.aborted to identify our stall timeout.
         if (
           error instanceof DOMException && error.name === "AbortError"
           && fetchAbortController.signal.aborted
@@ -771,11 +755,7 @@ export function ChatPage() {
           setCurrentSessionId(null);
         }
       } finally {
-        if (stallTimerId) {
-          clearTimeout(stallTimerId);
-          stallTimerId = null;
-        }
-        document.removeEventListener("visibilitychange", onVisibilityChange);
+        stallDetector.dispose();
 
         // Release the reader to free the HTTP connection.
         // Without this, the browser keeps connections open and eventually
