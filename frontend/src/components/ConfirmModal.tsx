@@ -88,12 +88,6 @@ export function ConfirmModal({
             >
               <Dialog.Panel
                 className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left align-middle shadow-xl transition-all"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isLoading) {
-                    e.preventDefault();
-                    onConfirm();
-                  }
-                }}
               >
                 <div className="flex items-start gap-4">
                   <div className={`flex-shrink-0 ${styles.icon}`}>
