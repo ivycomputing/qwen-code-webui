@@ -688,8 +688,9 @@ export class UnifiedMessageProcessor {
             localContext,
             options,
           );
-        } else if (part.text) {
-          // Text content in parts
+        } else if (part.text && !message.parent_tool_use_id) {
+          // Text content in parts — skip if parent_tool_use_id is set
+          // (AI-generated sub-agent prompt, not actual user input)
           const userMessage: ChatMessage = {
             type: "chat",
             role: "user",
@@ -711,8 +712,9 @@ export class UnifiedMessageProcessor {
             options,
             toolUseResult,
           );
-        } else if (contentItem.type === "text") {
-          // Regular text content
+        } else if (contentItem.type === "text" && !message.parent_tool_use_id) {
+          // Regular text content — skip if parent_tool_use_id is set
+          // (AI-generated sub-agent prompt, not actual user input)
           const userMessage: ChatMessage = {
             type: "chat",
             role: "user",
@@ -722,8 +724,8 @@ export class UnifiedMessageProcessor {
           localContext.addMessage(userMessage);
         }
       }
-    } else if (typeof messageContent === "string") {
-      // Simple string content
+    } else if (typeof messageContent === "string" && !message.parent_tool_use_id) {
+      // Simple string content — skip if parent_tool_use_id is set
       const userMessage: ChatMessage = {
         type: "chat",
         role: "user",
