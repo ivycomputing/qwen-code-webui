@@ -374,6 +374,19 @@ describe("useStreamParser", () => {
       });
     });
 
+    it("should handle heartbeat without producing messages", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({ type: "heartbeat" }),
+        mockContext,
+      );
+
+      expect(mockContext.addMessage).not.toHaveBeenCalled();
+      expect(mockContext.updateLastMessage).not.toHaveBeenCalled();
+      expect(mockContext.setCurrentAssistantMessage).not.toHaveBeenCalled();
+    });
+
     it("should handle aborted stream responses", () => {
       const { result } = renderHook(() => useStreamParser());
 

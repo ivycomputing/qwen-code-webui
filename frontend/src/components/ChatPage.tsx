@@ -706,7 +706,9 @@ export function ChatPage() {
           if (done || shouldAbort) break;
 
           stallDetector.onData();
-
+          // NOTE: Must be called before processStreamLine() below. Heartbeats
+          // arrive as NDJSON lines — if this call were moved after line parsing,
+          // the stall timer would never be reset and would falsely trigger.
           lineBuffer += decoder.decode(value, { stream: true });
           const lines = lineBuffer.split("\n");
           lineBuffer = lines.pop() || "";

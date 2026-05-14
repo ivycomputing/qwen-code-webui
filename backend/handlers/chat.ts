@@ -13,6 +13,12 @@ let _activeChatCount = 0;
 const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1_000;
 
 /**
+ * Keepalive heartbeat interval. Frontend stall detector triggers after 60s
+ * of silence, so 4 missed heartbeats (4 × 15s) = stall detected.
+ */
+const KEEPALIVE_INTERVAL_MS = 15_000;
+
+/**
  * Maps UI permission mode to Qwen SDK permission mode
  * Qwen SDK uses 'auto-edit' instead of 'acceptEdits'
  */
@@ -403,7 +409,7 @@ export async function handleChatRequest(
       // because structured NDJSON is more likely to be flushed as a complete chunk.
       keepaliveId = setInterval(() => {
         try { controller.enqueue(encoder.encode('{"type":"heartbeat"}\n')); } catch { clearInterval(keepaliveId); }
-      }, 15_000);
+      }, KEEPALIVE_INTERVAL_MS);
 
       try {
         await executeQwenCommand(
