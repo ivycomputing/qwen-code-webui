@@ -235,7 +235,7 @@ async function executeQwenCommand(
         ...(model ? { model } : {}),
         ...(authType ? { authType } : {}),
         canUseTool,
-        timeout: { canUseTool: 86_400_000 },
+        timeout: { canUseTool: 86_400_000, controlRequest: 86_400_000 },
       },
     })) {
       messageCount++;
