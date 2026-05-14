@@ -7,7 +7,6 @@
 import { spawn, type SpawnOptions } from "node:child_process";
 import process from "node:process";
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
 import type { CommandResult, Runtime } from "./types.ts";
 import type { MiddlewareHandler } from "hono";
 import { serveStatic } from "@hono/node-server/serve-static";
