@@ -7,7 +7,8 @@
  */
 
 import { dirname, join } from "node:path";
-import { exists, mkdir, readTextFile, rename, writeTextFile } from "./fs.ts";
+import { randomUUID } from "node:crypto";
+import { exists, mkdir, readTextFile, remove, rename, writeTextFile } from "./fs.ts";
 import { getHomeDir } from "./os.ts";
 import { logger } from "./logger.ts";
 
@@ -81,7 +82,11 @@ async function migrateFromOldPath(): Promise<void> {
     const content = await readTextFile(oldPath);
     JSON.parse(content);
 
-    await writeTextFile(newPath, content);
+    const tmpPath = join(configDir, `${MAPPING_FILE_NAME}.${randomUUID()}.tmp`);
+    await writeTextFile(tmpPath, content);
+    await rename(tmpPath, newPath);
+
+    await remove(oldPath);
     logger.api.info("Migrated project mapping from {oldPath} to {newPath}", {
       oldPath,
       newPath,
@@ -132,7 +137,7 @@ export async function writeProjectPathMapping(
       return;
     }
 
-    const tmpPath = join(dirname(mappingFilePath), `${MAPPING_FILE_NAME}.tmp`);
+    const tmpPath = join(dirname(mappingFilePath), `${MAPPING_FILE_NAME}.${randomUUID()}.tmp`);
     await writeTextFile(tmpPath, JSON.stringify(mapping, null, 2));
     await rename(tmpPath, mappingFilePath);
   } catch (error) {
@@ -174,6 +179,9 @@ export async function decodeProjectPath(
   return null;
 }
 
+// Qwen Code replaces all non-alphanumeric chars (/ \ : . _ -) with '-',
+// so the encoding is lossy — the same encoded name could map to multiple paths.
+// We try plausible combinations to find one that exists on disk.
 async function tryHeuristicDecode(
   encodedName: string,
   pathExists: (path: string) => Promise<boolean>,
