@@ -38,11 +38,6 @@ export async function handleProjectsRequest(c: Context) {
           // Directory names are encoded project paths (e.g., "-Users-rhuang-workspace")
           const encodedName = entry.name;
 
-          // Skip hidden files like .mapping.json
-          if (encodedName.startsWith(".")) {
-            continue;
-          }
-
           // Convert encoded name back to path using mapping file and heuristics
           const decodedPath = await decodeProjectPath(
             encodedName,

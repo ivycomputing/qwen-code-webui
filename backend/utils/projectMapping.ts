@@ -6,43 +6,98 @@
  * chars with '-') is lossy and cannot be reversed for paths containing hyphens.
  */
 
-import { join } from "node:path";
-import { exists, readTextFile, writeTextFile } from "./fs.ts";
+import { dirname, join } from "node:path";
+import { exists, mkdir, readTextFile, rename, writeTextFile } from "./fs.ts";
 import { getHomeDir } from "./os.ts";
 import { logger } from "./logger.ts";
 
-/**
- * Mapping file name stored in ~/.qwen/projects/
- */
-const MAPPING_FILE_NAME = ".mapping.json";
+const CONFIG_DIR_NAME = ".qwen-code-webui";
+const MAPPING_FILE_NAME = "project-mapping.json";
 
-/**
- * Project path mapping structure
- * Maps encoded project names to their actual paths
- */
+const OLD_MAPPING_FILE_NAME = ".mapping.json";
+
 export interface ProjectPathMapping {
   [encodedName: string]: string;
 }
 
-/**
- * Get the path to the mapping file
- */
-function getMappingFilePath(): string | null {
+function getConfigDir(): string | null {
   const homeDir = getHomeDir();
   if (!homeDir) {
     return null;
   }
-  return join(homeDir, ".qwen", "projects", MAPPING_FILE_NAME);
+  return join(homeDir, CONFIG_DIR_NAME);
+}
+
+function getMappingFilePath(): string | null {
+  const configDir = getConfigDir();
+  if (!configDir) {
+    return null;
+  }
+  return join(configDir, MAPPING_FILE_NAME);
+}
+
+function getOldMappingFilePath(): string | null {
+  const homeDir = getHomeDir();
+  if (!homeDir) {
+    return null;
+  }
+  return join(homeDir, ".qwen", "projects", OLD_MAPPING_FILE_NAME);
+}
+
+async function ensureConfigDir(): Promise<string | null> {
+  const configDir = getConfigDir();
+  if (!configDir) {
+    return null;
+  }
+  if (!(await exists(configDir))) {
+    await mkdir(configDir);
+  }
+  return configDir;
 }
 
 /**
- * Read the project path mapping from file
+ * One-time migration from ~/.qwen/projects/.mapping.json to ~/.qwen-code-webui/project-mapping.json
  */
+async function migrateFromOldPath(): Promise<void> {
+  const oldPath = getOldMappingFilePath();
+  const newPath = getMappingFilePath();
+  if (!oldPath || !newPath) {
+    return;
+  }
+
+  try {
+    if (!(await exists(oldPath))) {
+      return;
+    }
+    if (await exists(newPath)) {
+      return;
+    }
+
+    const configDir = await ensureConfigDir();
+    if (!configDir) {
+      return;
+    }
+
+    const content = await readTextFile(oldPath);
+    JSON.parse(content);
+
+    await writeTextFile(newPath, content);
+    logger.api.info("Migrated project mapping from {oldPath} to {newPath}", {
+      oldPath,
+      newPath,
+    });
+  } catch (error) {
+    logger.api.warn("Failed to migrate project mapping: {error}", { error });
+  }
+}
+
 export async function readProjectPathMapping(): Promise<ProjectPathMapping> {
   const mappingFilePath = getMappingFilePath();
   if (!mappingFilePath) {
     return {};
   }
+
+  await migrateFromOldPath();
 
   try {
     if (!(await exists(mappingFilePath))) {
@@ -58,7 +113,7 @@ export async function readProjectPathMapping(): Promise<ProjectPathMapping> {
 }
 
 /**
- * Write the project path mapping to file
+ * Write the project path mapping to file using atomic write (tmp + rename).
  */
 export async function writeProjectPathMapping(
   mapping: ProjectPathMapping,
@@ -72,7 +127,14 @@ export async function writeProjectPathMapping(
   }
 
   try {
-    await writeTextFile(mappingFilePath, JSON.stringify(mapping, null, 2));
+    const configDir = await ensureConfigDir();
+    if (!configDir) {
+      return;
+    }
+
+    const tmpPath = join(dirname(mappingFilePath), `${MAPPING_FILE_NAME}.tmp`);
+    await writeTextFile(tmpPath, JSON.stringify(mapping, null, 2));
+    await rename(tmpPath, mappingFilePath);
   } catch (error) {
     logger.api.error("Failed to write project path mapping: {error}", {
       error,
@@ -80,9 +142,6 @@ export async function writeProjectPathMapping(
   }
 }
 
-/**
- * Update the mapping for a single project
- */
 export async function updateProjectPathMapping(
   encodedName: string,
   actualPath: string,
@@ -92,37 +151,22 @@ export async function updateProjectPathMapping(
   await writeProjectPathMapping(mapping);
 }
 
-/**
- * Try to decode an encoded project name to its actual path
- * Uses multiple strategies:
- * 1. Check if the path is stored in the mapping file
- * 2. Try heuristic decoding and verify if the path exists
- *
- * @param encodedName - The encoded project name (e.g., "-Users-rhuang-workspace-ai-token-analyzer")
- * @param pathExists - A function to check if a path exists
- * @returns The decoded path, or null if cannot be determined
- */
 export async function decodeProjectPath(
   encodedName: string,
   pathExists: (path: string) => Promise<boolean>,
 ): Promise<string | null> {
-  // Strategy 1: Check mapping file first
   const mapping = await readProjectPathMapping();
   if (mapping[encodedName]) {
     const mappedPath = mapping[encodedName];
-    // Verify the mapped path still exists
     if (await pathExists(mappedPath)) {
       return mappedPath;
     }
-    // Path no longer exists, remove from mapping
     delete mapping[encodedName];
     await writeProjectPathMapping(mapping);
   }
 
-  // Strategy 2: Try heuristic decoding
   const decodedPath = await tryHeuristicDecode(encodedName, pathExists);
   if (decodedPath) {
-    // Store the successful mapping for future use
     await updateProjectPathMapping(encodedName, decodedPath);
     return decodedPath;
   }
@@ -130,38 +174,21 @@ export async function decodeProjectPath(
   return null;
 }
 
-/**
- * Try heuristic decoding strategies
- *
- * The encoding replaces all non-alphanumeric characters with '-':
- * - "/" -> "-"
- * - "-" (hyphen in original path) -> "-"
- * - "." -> "-"
- * - "_" -> "-"
- * - etc.
- *
- * We try different combinations to find a path that exists.
- */
 async function tryHeuristicDecode(
   encodedName: string,
   pathExists: (path: string) => Promise<boolean>,
 ): Promise<string | null> {
-  // Remove leading "-" (represents the leading "/" in Unix paths)
   if (!encodedName.startsWith("-")) {
     return null;
   }
 
   const encoded = encodedName.slice(1);
 
-  // Strategy 2a: Try simple decode (all "-" -> "/")
-  // This works for paths without hyphens
   const simplePath = "/" + encoded.replace(/-/g, "/");
   if (await pathExists(simplePath)) {
     return simplePath;
   }
 
-  // Strategy 2b: Try to find the correct path by exploring combinations
-  // We use a recursive approach to try different interpretations of "-"
   const possiblePaths = generatePossiblePaths(encoded);
 
   for (const path of possiblePaths) {
@@ -173,34 +200,17 @@ async function tryHeuristicDecode(
   return null;
 }
 
-/**
- * Generate possible decoded paths from an encoded string
- *
- * This generates paths by treating each "-" as either:
- * - A path separator "/"
- * - An original hyphen "-"
- *
- * To avoid exponential explosion, we limit the number of hyphens we try
- * to interpret as original hyphens.
- */
 function generatePossiblePaths(encoded: string): string[] {
   const results: string[] = [];
   const segments = encoded.split("-");
 
-  // Limit the number of combinations to avoid performance issues
-  // We'll try treating up to 3 hyphens as original hyphens
   const maxHyphensToTry = 3;
 
-  // Generate combinations where some "-" are treated as hyphens
   generateCombinations(segments, 0, [], results, maxHyphensToTry);
 
-  // Prepend "/" to make absolute paths
   return results.map((path) => "/" + path);
 }
 
-/**
- * Recursively generate path combinations
- */
 function generateCombinations(
   segments: string[],
   index: number,
@@ -215,15 +225,11 @@ function generateCombinations(
 
   const segment = segments[index];
 
-  // Always try treating "-" as "/"
   current.push(segment);
   generateCombinations(segments, index + 1, current, results, hyphensRemaining);
   current.pop();
 
-  // If we have hyphens remaining, try treating "-" as original hyphen
-  // (join current segment with next segment(s) using "-")
   if (hyphensRemaining > 0 && index < segments.length - 1) {
-    // Try joining with 1, 2, or more consecutive segments
     for (let len = 2; len <= Math.min(3, segments.length - index); len++) {
       if (hyphensRemaining >= len - 1) {
         const combined = segments.slice(index, index + len).join("-");

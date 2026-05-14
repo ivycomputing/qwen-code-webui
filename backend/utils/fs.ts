@@ -102,6 +102,20 @@ export async function* readDir(path: string): AsyncIterable<DirectoryEntry> {
 }
 
 /**
+ * Create a directory, including parent directories as needed
+ */
+export async function mkdir(path: string): Promise<void> {
+  await fs.mkdir(path, { recursive: true });
+}
+
+/**
+ * Rename a file or directory
+ */
+export async function rename(oldPath: string, newPath: string): Promise<void> {
+  await fs.rename(oldPath, newPath);
+}
+
+/**
  * Remove a file or directory recursively
  */
 export async function remove(path: string): Promise<void> {
