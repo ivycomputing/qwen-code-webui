@@ -15,7 +15,7 @@ import {
 } from "./messageConversion";
 import { isThinkingContentItem } from "./messageTypes";
 import type { ThinkingTimeoutContext } from "../hooks/streaming/useMessageProcessor";
-import { extractToolInfo, generateToolPatterns } from "./toolUtils";
+import { extractToolInfo } from "./toolUtils";
 import { TOOL_NAMES } from "./toolNames";
 import type { CommandLoopRequest } from "../hooks/chat/usePermissions";
 
