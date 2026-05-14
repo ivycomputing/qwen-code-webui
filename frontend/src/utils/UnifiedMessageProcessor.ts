@@ -53,13 +53,7 @@ export interface ProcessingContext {
   shouldShowInitMessage?: () => boolean;
   onInitMessageShown?: () => void;
 
-  // Permission/Error handling
-  onPermissionError?: (
-    toolName: string,
-    patterns: string[],
-    toolUseId: string,
-    requestId?: string,
-  ) => void;
+  // Error handling
   onAbortRequest?: () => void;
 
   // Auto-rejection loop detection (SDK-level rejections, e.g. stdin closed)
@@ -138,53 +132,6 @@ export class UnifiedMessageProcessor {
     return this.toolUseCache.get(id);
   }
 
-  /**
-   * Handle permission errors during streaming
-   */
-  private handlePermissionError(
-    contentItem: { tool_use_id?: string; content?: string | unknown[] },
-    context: ProcessingContext,
-  ): void {
-    // Get cached tool_use information first (needed for both paths)
-    const toolUseId = contentItem.tool_use_id || "";
-    const cachedToolInfo = this.getCachedToolInfo(toolUseId);
-
-    // Extract tool information for permission handling
-    const { toolName, commands } = extractToolInfo(
-      cachedToolInfo?.name,
-      cachedToolInfo?.input,
-    );
-
-    // Check for auto-rejection loop before aborting
-    if (context.onAutoRejection) {
-      const content =
-        typeof contentItem.content === "string"
-          ? contentItem.content
-          : JSON.stringify(contentItem.content);
-      const loopRequest = context.onAutoRejection(toolName, content);
-      if (loopRequest && context.onShowCommandLoopRequest) {
-        // Loop detected - show loop dialog and abort
-        if (context.onAbortRequest) {
-          context.onAbortRequest();
-        }
-        context.onShowCommandLoopRequest(loopRequest);
-        return;
-      }
-    }
-
-    // No loop - normal permission error handling
-    if (context.onAbortRequest) {
-      context.onAbortRequest();
-    }
-
-    // Compute patterns based on tool type
-    const patterns = generateToolPatterns(toolName, commands);
-
-    // Notify parent component about permission error
-    if (context.onPermissionError) {
-      context.onPermissionError(toolName, patterns, toolUseId);
-    }
-  }
 
   /**
    * Process tool_result content item
@@ -215,15 +162,34 @@ export class UnifiedMessageProcessor {
         ? contentItem.content
         : JSON.stringify(contentItem.content);
 
-    // Check for permission errors - but skip tool use errors and proactive denials
+    // is_error tool_results: check for auto-rejection loops, but do NOT show
+    // permission dialogs. The proactive canUseTool flow handles real permission
+    // requests; execution errors (file_not_found etc.) should pass through as
+    // normal tool results so the model can adjust. See issue #127.
     if (
       options.isStreaming &&
       contentItem.is_error &&
       !isToolUseError(content) &&
       !content.includes("[proactive]")
     ) {
-      this.handlePermissionError(contentItem, context);
-      return;
+      // Only abort the stream if an auto-rejection loop is detected
+      if (context.onAutoRejection) {
+        const toolUseId = contentItem.tool_use_id || "";
+        const cachedToolInfo = this.getCachedToolInfo(toolUseId);
+        const { toolName } = extractToolInfo(
+          cachedToolInfo?.name,
+          cachedToolInfo?.input,
+        );
+        const loopRequest = context.onAutoRejection(toolName, content);
+        if (loopRequest && context.onShowCommandLoopRequest) {
+          if (context.onAbortRequest) {
+            context.onAbortRequest();
+          }
+          context.onShowCommandLoopRequest(loopRequest);
+          return;
+        }
+      }
+      // No loop detected — fall through to normal tool_result processing
     }
 
     const cachedToolInfo = this.getCachedToolInfo(toolUseId);

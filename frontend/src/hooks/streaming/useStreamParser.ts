@@ -179,8 +179,7 @@ export function useStreamParser() {
         shouldShowInitMessage: context.shouldShowInitMessage,
         onInitMessageShown: context.onInitMessageShown,
 
-        // Permission/Error handling
-        onPermissionError: context.onPermissionError,
+        // Error handling
         onAbortRequest: context.onAbortRequest,
 
         // Auto-rejection loop detection

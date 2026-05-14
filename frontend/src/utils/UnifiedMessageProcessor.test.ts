@@ -123,7 +123,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           autoRejectionCalls.push({ toolName, content });
           return null;
         },
-        onPermissionError: () => {},
         onAbortRequest: () => {},
       });
 
@@ -180,20 +179,14 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
       expect(permissionErrorCalled).toBe(false);
     });
 
-    it("should show permission dialog when no auto-rejection loop", () => {
+    it("should NOT show permission dialog when no auto-rejection loop", () => {
       const processor = createProcessor();
-      let permissionErrorCalled = false;
-      let loopRequestShown = false;
+      const messages: any[] = [];
 
       const context = createMockContext({
         onAutoRejection: () => null,
-        onShowCommandLoopRequest: () => {
-          loopRequestShown = true;
-        },
-        onPermissionError: () => {
-          permissionErrorCalled = true;
-        },
-        onAbortRequest: () => {},
+        onShowCommandLoopRequest: () => {},
+        addMessage: (msg) => messages.push(msg),
       });
 
       sendToolUse(processor, context, "tool-noloop-1", "run_shell_command", {
@@ -206,8 +199,10 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         "[Operation Cancelled] Reason: Error: Input closed",
       );
 
-      expect(permissionErrorCalled).toBe(true);
-      expect(loopRequestShown).toBe(false);
+      // Error tool_result should pass through as normal tool_result, not trigger permission dialog
+      const resultMsg = messages.find((m) => m.type === "tool_result");
+      expect(resultMsg).toBeDefined();
+      expect(resultMsg.content).toContain("Input closed");
     });
 
     it("should not trigger auto-rejection for tool_use_error", () => {
@@ -219,7 +214,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           autoRejectionCalled = true;
           return null;
         },
-        onPermissionError: () => {},
         onAbortRequest: () => {},
       });
 
@@ -299,7 +293,7 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
       expect(loopRequestShown!.toolName).toBe("run_shell_command");
     });
 
-    it("should NOT call onCommandResultLoop for is_error tool results", () => {
+    it("should call onCommandResultLoop for is_error tool results too", () => {
       const processor = createProcessor();
       let commandLoopCalled = false;
 
@@ -309,8 +303,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           return null;
         },
         onAutoRejection: () => null,
-        onPermissionError: () => {},
-        onAbortRequest: () => {},
       });
 
       sendToolUse(processor, context, "tool-err-1", "run_shell_command", {
@@ -323,13 +315,13 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         "[Operation Cancelled] Input closed",
       );
 
-      // is_error tool results should NOT trigger command result loop detection
-      expect(commandLoopCalled).toBe(false);
+      // is_error tool results now pass through to command result loop detection
+      expect(commandLoopCalled).toBe(true);
     });
   });
 
   describe("Three detection mechanisms independence", () => {
-    it("should route is_error and non-error results to different detection paths", () => {
+    it("should route is_error results through both auto-rejection and command result detection", () => {
       const processor = createProcessor();
       const autoRejectionCalls: string[] = [];
       const commandResultCalls: string[] = [];
@@ -343,11 +335,9 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           commandResultCalls.push(toolName);
           return null;
         },
-        onPermissionError: () => {},
-        onAbortRequest: () => {},
       });
 
-      // 1. is_error → auto-rejection path
+      // 1. is_error → auto-rejection + command result path
       sendToolUse(processor, context, "tool-ind-1", "run_shell_command", {
         command: "ssh",
       });
@@ -358,7 +348,7 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         "Input closed",
       );
 
-      // 2. non-error → command result path
+      // 2. non-error → command result path only
       sendToolUse(processor, context, "tool-ind-2", "run_shell_command", {
         command: "go build",
       });
@@ -370,9 +360,10 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
       );
 
       expect(autoRejectionCalls).toHaveLength(1);
-      expect(commandResultCalls).toHaveLength(1);
+      expect(commandResultCalls).toHaveLength(2);
       expect(autoRejectionCalls[0]).toBe("run_shell_command");
       expect(commandResultCalls[0]).toBe("run_shell_command");
+      expect(commandResultCalls[1]).toBe("run_shell_command");
     });
   });
 
@@ -386,7 +377,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           autoRejectionCalls.push(toolName);
           return null;
         },
-        onPermissionError: () => {},
         onAbortRequest: () => {},
       });
 
@@ -418,16 +408,12 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
   });
 
   describe("onAutoRejection is optional", () => {
-    it("should fall back to permission error when onAutoRejection is not provided", () => {
+    it("should pass is_error tool_result through as normal result when onAutoRejection is not provided", () => {
       const processor = createProcessor();
-      let permissionErrorCalled = false;
+      const messages: any[] = [];
 
       const context = createMockContext({
-        // No onAutoRejection
-        onPermissionError: () => {
-          permissionErrorCalled = true;
-        },
-        onAbortRequest: () => {},
+        addMessage: (msg) => messages.push(msg),
       });
 
       sendToolUse(processor, context, "tool-noar-1", "run_shell_command", {
@@ -440,7 +426,10 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         "Input closed",
       );
 
-      expect(permissionErrorCalled).toBe(true);
+      // Without onAutoRejection, error should pass through as normal tool_result
+      const resultMsg = messages.find((m) => m.type === "tool_result");
+      expect(resultMsg).toBeDefined();
+      expect(resultMsg.content).toContain("Input closed");
     });
   });
 });
@@ -541,7 +530,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push({ toolName, content });
           return null;
         },
-        onPermissionError: () => {},
         onAbortRequest: () => {},
       });
 
@@ -701,7 +689,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push({ toolName, content });
           return null;
         },
-        onPermissionError: () => {},
         onAbortRequest: () => {},
       });
 
@@ -872,7 +859,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push(toolName);
           return null;
         },
-        onPermissionError: () => {},
         onAbortRequest: () => {},
       });
 
