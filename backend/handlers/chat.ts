@@ -4,6 +4,7 @@ import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 import { checkLoop, type LoopState } from "../utils/loopDetector.ts";
 import type { PendingPermission } from "./permission.ts";
+import type { ServerResponse } from "node:http";
 
 /** Track number of concurrent chat requests for diagnostics */
 let _activeChatCount = 0;
@@ -351,6 +352,7 @@ export async function handleChatRequest(
 ) {
   const chatRequest: ChatRequest = await c.req.json();
   const { cliPath, authType } = c.var.config as { cliPath: string; authType?: AuthType };
+  const outgoing = (c.env as { outgoing?: ServerResponse })?.outgoing;
 
   logger.chat.debug(
     "Received chat request {*}",
@@ -381,6 +383,12 @@ export async function handleChatRequest(
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Ensure small keepalive chunks are flushed immediately (fixes stall
+      // detector false positives caused by TCP/HTTP buffering of single-byte \n)
+      if (outgoing?.socket) {
+        outgoing.socket.setNoDelay(true);
+      }
+
       const enqueue = (response: StreamResponse): boolean => {
         try {
           controller.enqueue(encoder.encode(JSON.stringify(response) + "\n"));
@@ -390,9 +398,11 @@ export async function handleChatRequest(
         }
       };
 
-      // Send keepalive newlines to prevent browser timeout (ERR_INCOMPLETE_CHUNKED_ENCODING)
+      // Send keepalive heartbeat to prevent browser timeout (ERR_INCOMPLETE_CHUNKED_ENCODING)
+      // and stall detector false positives. Using a JSON heartbeat instead of bare \n
+      // because structured NDJSON is more likely to be flushed as a complete chunk.
       keepaliveId = setInterval(() => {
-        try { controller.enqueue(encoder.encode("\n")); } catch { clearInterval(keepaliveId); }
+        try { controller.enqueue(encoder.encode('{"type":"heartbeat"}\n')); } catch { clearInterval(keepaliveId); }
       }, 15_000);
 
       try {

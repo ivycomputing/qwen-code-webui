@@ -82,7 +82,7 @@ export class DenoRuntime implements Runtime {
   serve(
     port: number,
     hostname: string,
-    handler: (req: Request) => Response | Promise<Response>,
+    handler: (req: Request, env?: unknown) => Response | Promise<Response>,
   ): Promise<void> {
     const server = Deno.serve({ port, hostname }, handler);
     // Return the finished promise which resolves when server closes

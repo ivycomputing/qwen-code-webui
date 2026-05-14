@@ -29,7 +29,7 @@ export interface Runtime {
   serve(
     port: number,
     hostname: string,
-    handler: (req: Request) => Response | Promise<Response>,
+    handler: (req: Request, env?: unknown) => Response | Promise<Response>,
   ): Promise<void>;
 
   // Static file serving (different middleware)

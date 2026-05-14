@@ -1,5 +1,5 @@
 export interface StreamResponse {
-  type: "claude_json" | "error" | "done" | "aborted" | "permission_request";
+  type: "claude_json" | "error" | "done" | "aborted" | "permission_request" | "heartbeat";
   data?: unknown; // SDKMessage object for claude_json type (Qwen SDK message)
   error?: string;
   // Fields for permission_request type

@@ -305,6 +305,9 @@ export function useStreamParser() {
           };
           context.addMessage(abortedMessage);
           context.setCurrentAssistantMessage(null);
+        } else if (data.type === "heartbeat") {
+          // Backend keepalive — resets stall detector via stallDetector.onData()
+          // in ChatPage.tsx (called before this function). Nothing to do here.
         }
       } catch (parseError) {
         console.error("Failed to parse stream line:", parseError);
