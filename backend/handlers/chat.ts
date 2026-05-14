@@ -8,6 +8,9 @@ import type { PendingPermission } from "./permission.ts";
 /** Track number of concurrent chat requests for diagnostics */
 let _activeChatCount = 0;
 
+/** 24-hour timeout for user-facing operations (permission prompts, control requests) */
+const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1_000;
+
 /**
  * Maps UI permission mode to Qwen SDK permission mode
  * Qwen SDK uses 'auto-edit' instead of 'acceptEdits'
@@ -235,7 +238,7 @@ async function executeQwenCommand(
         ...(model ? { model } : {}),
         ...(authType ? { authType } : {}),
         canUseTool,
-        timeout: { canUseTool: 86_400_000, controlRequest: 86_400_000 },
+        timeout: { canUseTool: SESSION_TIMEOUT_MS, controlRequest: SESSION_TIMEOUT_MS },
       },
     })) {
       messageCount++;
