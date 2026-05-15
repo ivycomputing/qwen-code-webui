@@ -1,6 +1,6 @@
 # Claude Code Web UI - Development Tasks
 
-.PHONY: format format-check lint typecheck test build dev clean
+.PHONY: format format-check lint typecheck test build dev clean setup
 
 # Formatting
 format: format-frontend format-backend
@@ -60,6 +60,10 @@ check: format-check lint typecheck test build-frontend
 # Install dependencies
 install:
 	cd frontend && npm ci
+
+# Setup git hooks (run after cloning)
+setup:
+	git config core.hooksPath .githooks
 
 # Format specific files (usage: make format-files FILES="file1 file2")
 format-files:

@@ -1,0 +1,15 @@
+name: Protect Main Branch
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  check-direct-push:
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'Merge pull request')"
+    steps:
+      - name: Reject direct push to main
+        run: |
+          echo "::error::Direct pushes to main are not allowed. Please use a pull request."
+          exit 1
