@@ -264,7 +264,12 @@ async function executeQwenCommand(
         ...(authType ? { authType } : {}),
         stderr: true,
         canUseTool,
-        timeout: { canUseTool: SESSION_TIMEOUT_MS, controlRequest: SESSION_TIMEOUT_MS },
+        timeout: {
+          canUseTool: SESSION_TIMEOUT_MS,
+          controlRequest: SESSION_TIMEOUT_MS,
+          mcpRequest: SESSION_TIMEOUT_MS,
+          streamClose: SESSION_TIMEOUT_MS,
+        },
       },
     })) {
       messageCount++;
