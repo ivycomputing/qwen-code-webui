@@ -13,30 +13,36 @@ export interface StallDetector {
 
 export function createStallDetector(
   abortController: AbortController,
-  timeoutMs: number = 60_000,
+  timeoutMs?: number,
 ): StallDetector {
+  // Allow override via VITE_STALL_TIMEOUT_MS environment variable (in milliseconds)
+  // Default: 60 seconds = 60000 ms
+  const effectiveTimeoutMs = timeoutMs ?? 
+    (import.meta.env.VITE_STALL_TIMEOUT_MS 
+      ? parseInt(import.meta.env.VITE_STALL_TIMEOUT_MS, 10) 
+      : 60_000);
   let stallTimerId: ReturnType<typeof setTimeout> | null = null;
   let lastDataTime = Date.now();
 
   const scheduleCheck = () => {
     if (stallTimerId) clearTimeout(stallTimerId);
-    stallTimerId = setTimeout(onTimeout, timeoutMs);
+    stallTimerId = setTimeout(onTimeout, effectiveTimeoutMs);
   };
 
   const onTimeout = () => {
     // Tab hidden → browser throttles reader.read() delivery; re-schedule.
     if (document.hidden) {
-      stallTimerId = setTimeout(onTimeout, timeoutMs);
+      stallTimerId = setTimeout(onTimeout, effectiveTimeoutMs);
       return;
     }
     // Tab visible but not enough time has actually elapsed (e.g. woke from
     // sleep during a re-scheduled check) — wait the remaining time.
     const elapsed = Date.now() - lastDataTime;
-    if (elapsed < timeoutMs) {
-      stallTimerId = setTimeout(onTimeout, timeoutMs - elapsed);
+    if (elapsed < effectiveTimeoutMs) {
+      stallTimerId = setTimeout(onTimeout, effectiveTimeoutMs - elapsed);
       return;
     }
-    console.warn(`[Stream stall] No data for ${timeoutMs / 1000}s, aborting fetch`);
+    console.warn(`[Stream stall] No data for ${effectiveTimeoutMs / 1000}s, aborting fetch`);
     abortController.abort();
   };
 

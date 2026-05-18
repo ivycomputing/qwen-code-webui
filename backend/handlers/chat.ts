@@ -17,14 +17,24 @@ let _activeChatCount = 0;
  */
 const activeSessions = new Map<string, string>();
 
-/** 24-hour timeout for user-facing operations (permission prompts, control requests) */
-const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1_000;
+/**
+ * Timeout for user-facing operations (permission prompts, control requests).
+ * Can be overridden via SESSION_TIMEOUT_MS environment variable (in milliseconds).
+ * Default: 24 hours = 86400000 ms
+ */
+const SESSION_TIMEOUT_MS = process.env.SESSION_TIMEOUT_MS
+  ? parseInt(process.env.SESSION_TIMEOUT_MS, 10)
+  : 24 * 60 * 60 * 1_000;
 
 /**
  * Keepalive heartbeat interval. Frontend stall detector triggers after 60s
  * of silence, so 4 missed heartbeats (4 × 15s) = stall detected.
+ * Can be overridden via KEEPALIVE_INTERVAL_MS environment variable (in milliseconds).
+ * Default: 15 seconds = 15000 ms
  */
-const KEEPALIVE_INTERVAL_MS = 15_000;
+const KEEPALIVE_INTERVAL_MS = process.env.KEEPALIVE_INTERVAL_MS
+  ? parseInt(process.env.KEEPALIVE_INTERVAL_MS, 10)
+  : 15_000;
 
 /**
  * Maps UI permission mode to Qwen SDK permission mode
