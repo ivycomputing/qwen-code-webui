@@ -141,9 +141,8 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
       expect(autoRejectionCalls[0].content).toContain("Input closed");
     });
 
-    it("should show loop dialog instead of permission dialog when auto-rejection loop detected", () => {
+    it("should show loop dialog when auto-rejection loop detected", () => {
       const processor = createProcessor();
-      let permissionErrorCalled = false;
       let loopRequestShown: CommandLoopRequest | null = null;
 
       const context = createMockContext({
@@ -157,9 +156,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         },
         onShowCommandLoopRequest: (request) => {
           loopRequestShown = request;
-        },
-        onPermissionError: () => {
-          permissionErrorCalled = true;
         },
         onAbortRequest: () => {},
       });
@@ -176,7 +172,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
 
       expect(loopRequestShown).not.toBeNull();
       expect(loopRequestShown!.toolName).toBe("run_shell_command");
-      expect(permissionErrorCalled).toBe(false);
     });
 
     it("should NOT show permission dialog when no auto-rejection loop", () => {

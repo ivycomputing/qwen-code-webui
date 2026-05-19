@@ -600,7 +600,7 @@ export class UnifiedMessageProcessor {
     if (options.isStreaming) {
       context.setCurrentAssistantMessage?.(null);
       context.setCurrentThinkingMessage?.(null);
-      context.onResultReceived?.();
+      context.onAbortRequest?.();
     }
   }
 

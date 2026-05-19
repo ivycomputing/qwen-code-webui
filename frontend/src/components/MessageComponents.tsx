@@ -117,9 +117,10 @@ export function SystemMessageComponent({
     } else if (
       message.type === "system" &&
       "subtype" in message &&
-      message.subtype === "interrupted"
+      message.subtype === "interrupted" &&
+      "message" in message
     ) {
-      return message.message;
+      return (message as { message: string }).message;
     } else if (isHooksMessage(message)) {
       // This is a hooks message - show only the content
       // Remove ANSI escape sequences for cleaner display
