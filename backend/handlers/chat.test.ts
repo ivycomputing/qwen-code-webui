@@ -28,6 +28,13 @@ vi.mock("../utils/logger", () => ({
   },
 }));
 
+// Mock sessionBridge to pass through sessionId unchanged
+vi.mock("../utils/sessionBridge.ts", () => ({
+  bridgeSession: vi.fn((_cwd: string, sessionId: string | undefined) =>
+    Promise.resolve(sessionId),
+  ),
+}));
+
 const mockQuery = vi.mocked(query);
 
 describe("Chat Handler - Permission Mode Tests", () => {
@@ -273,6 +280,12 @@ describe("Chat Handler - Permission Mode Tests", () => {
           cwd: "/project/path",
           abortController: expect.any(AbortController),
           pathToQwenExecutable: "/path/to/claude-cli",
+          stderr: true,
+          canUseTool: expect.any(Function),
+          timeout: expect.objectContaining({
+            canUseTool: expect.any(Number),
+            controlRequest: expect.any(Number),
+          }),
         }),
       });
     });
@@ -652,6 +665,12 @@ describe("Chat Handler - Permission Mode Tests", () => {
           cwd: "/project/path",
           abortController: expect.any(AbortController),
           pathToQwenExecutable: "/path/to/claude-cli",
+          stderr: true,
+          canUseTool: expect.any(Function),
+          timeout: expect.objectContaining({
+            canUseTool: expect.any(Number),
+            controlRequest: expect.any(Number),
+          }),
         }),
       });
     });
