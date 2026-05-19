@@ -1,6 +1,7 @@
 import type {
   ChatMessage,
   SystemMessage,
+  InterruptedMessage,
   ToolMessage,
   ToolResultMessage,
   PlanMessage,
@@ -74,6 +75,10 @@ export function ChatMessageComponent({ message }: ChatMessageComponentProps) {
   );
 }
 
+function isInterruptedMessage(msg: SystemMessage): msg is SystemMessage & InterruptedMessage {
+  return msg.type === "system" && "subtype" in msg && msg.subtype === "interrupted" && "message" in msg;
+}
+
 interface SystemMessageComponentProps {
   message: SystemMessage;
 }
@@ -114,13 +119,8 @@ export function SystemMessageComponent({
       return details.join("\n");
     } else if (message.type === "error") {
       return message.message;
-    } else if (
-      message.type === "system" &&
-      "subtype" in message &&
-      message.subtype === "interrupted" &&
-      "message" in message
-    ) {
-      return (message as { message: string }).message;
+    } else if (isInterruptedMessage(message)) {
+      return message.message;
     } else if (isHooksMessage(message)) {
       // This is a hooks message - show only the content
       // Remove ANSI escape sequences for cleaner display

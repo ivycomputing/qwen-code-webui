@@ -182,6 +182,9 @@ export function useStreamParser() {
         // Error handling
         onAbortRequest: context.onAbortRequest,
 
+        // Normal completion signal
+        onResultReceived: context.onResultReceived,
+
         // Auto-rejection loop detection
         onAutoRejection: context.onAutoRejection,
 

@@ -56,6 +56,9 @@ export interface ProcessingContext {
   // Error handling
   onAbortRequest?: () => void;
 
+  // Normal completion signal
+  onResultReceived?: () => void;
+
   // Auto-rejection loop detection (SDK-level rejections, e.g. stdin closed)
   onAutoRejection?: (
     toolName: string,
@@ -600,7 +603,7 @@ export class UnifiedMessageProcessor {
     if (options.isStreaming) {
       context.setCurrentAssistantMessage?.(null);
       context.setCurrentThinkingMessage?.(null);
-      context.onAbortRequest?.();
+      context.onResultReceived?.();
     }
   }
 
