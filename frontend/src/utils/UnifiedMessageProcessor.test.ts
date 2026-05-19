@@ -144,7 +144,7 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
     it("should show loop dialog when auto-rejection loop detected", () => {
       const processor = createProcessor();
       let loopRequestShown: CommandLoopRequest | null = null;
-      let permissionErrorCalled = false;
+      let abortCalled = false;
 
       const context = createMockContext({
         onAutoRejection: (toolName, content) => {
@@ -158,9 +158,8 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         onShowCommandLoopRequest: (request) => {
           loopRequestShown = request;
         },
-        onAbortRequest: () => {},
-        onPermissionError: () => {
-          permissionErrorCalled = true;
+        onAbortRequest: () => {
+          abortCalled = true;
         },
       });
 
@@ -176,7 +175,7 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
 
       expect(loopRequestShown).not.toBeNull();
       expect(loopRequestShown!.toolName).toBe("run_shell_command");
-      expect(permissionErrorCalled).toBe(false);
+      expect(abortCalled).toBe(false);
     });
 
     it("should NOT show permission dialog when no auto-rejection loop", () => {
