@@ -40,12 +40,14 @@ export interface StreamingContext {
   onAutoRejection?: (
     toolName: string,
     content: string,
+    agentId?: string,
   ) => CommandLoopRequest | null;
   // Command result loop detection
   onCommandResultLoop?: (
     toolName: string,
     input: Record<string, unknown>,
-    result: { exitCode?: number; output: string }
+    result: { exitCode?: number; output: string },
+    agentId?: string,
   ) => CommandLoopRequest | null;
   onShowCommandLoopRequest?: (request: CommandLoopRequest) => void;
   // Proactive canUseTool permission handling

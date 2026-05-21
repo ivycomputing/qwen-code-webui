@@ -277,7 +277,7 @@ export function ChatPage() {
   // Refs for command loop detection — declared early so remote streamingContext
   // can reference them. Wired to actual functions after usePermissions is called.
   const commandLoopCheckRef = useRef<
-    ((toolName: string, input: Record<string, unknown>, result: { exitCode?: number; output: string }) => CommandLoopRequest | null) | null
+    ((toolName: string, input: Record<string, unknown>, result: { exitCode?: number; output: string }, agentId?: string) => CommandLoopRequest | null) | null
   >(null);
   const commandLoopShowRef = useRef<((request: CommandLoopRequest) => void) | null>(null);
 
@@ -311,8 +311,8 @@ export function ChatPage() {
                 setCurrentSessionId(null);
               }
             },
-            onAutoRejection: (toolName, content) => {
-              return recordAutoRejection(toolName, content);
+            onAutoRejection: (toolName, content, agentId) => {
+              return recordAutoRejection(toolName, content, agentId);
             },
             // Thinking timeout
             thinkingTimeout: {
@@ -675,8 +675,8 @@ export function ChatPage() {
             await createAbortHandler(requestId)();
           },
           // Auto-rejection loop detection
-          onAutoRejection: (toolName, content) => {
-            return recordAutoRejection(toolName, content);
+          onAutoRejection: (toolName, content, agentId) => {
+            return recordAutoRejection(toolName, content, agentId);
           },
           // Command result loop detection — auto-abort on loop
           onCommandResultLoop: checkCommandResultLoop,

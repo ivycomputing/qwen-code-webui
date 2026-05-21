@@ -276,7 +276,8 @@ async function executeQwenCommand(
       // Backend loop detection — failsafe if frontend detection fails.
       // Each agent (main session or fork) maintains its own LoopState
       // so parallel fork agents don't accumulate toward the same counter (#140).
-      const forkId = (sdkMessage as Record<string, unknown>).parent_tool_use_id as string | undefined;
+      const rawForkId = (sdkMessage as Record<string, unknown>).parent_tool_use_id;
+      const forkId = typeof rawForkId === "string" ? rawForkId : undefined;
       const ls = forkId
         ? (agentLoopStates.get(forkId) ?? { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 })
         : loopState;

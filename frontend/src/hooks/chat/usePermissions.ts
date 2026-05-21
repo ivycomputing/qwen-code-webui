@@ -122,9 +122,10 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   const loopDetectionConfigRef = useRef(DEFAULT_LOOP_DETECTION_CONFIG);
 
   // Auto-rejection loop detection state (SDK-level rejections, e.g. stdin closed)
-  const autoRejectionCountRef = useRef(0);
-  const lastAutoRejectionToolRef = useRef<string>("");
-  const lastAutoRejectionTimeRef = useRef(0);
+  // Map-based per-agent counter: key = agentId:toolName (or just toolName for main session)
+  const autoRejectionStatesRef = useRef<
+    Map<string, { count: number; lastTime: number }>
+  >(new Map());
 
   // Command result loop detection state
   const commandResultLoopConfigRef = useRef(DEFAULT_COMMAND_RESULT_LOOP_CONFIG);
@@ -407,14 +408,14 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   const disableCommandResultLoopDetection = useCallback(() => {
     commandResultsRef.current.clear();
     // Reset auto-rejection counters too
-    autoRejectionCountRef.current = 0;
-    lastAutoRejectionToolRef.current = "";
+    autoRejectionStatesRef.current.clear();
     closeCommandLoopRequest();
   }, [closeCommandLoopRequest]);
 
   /**
    * Record an auto-rejected tool call (SDK-level rejection, e.g. stdin closed)
    * Returns CommandLoopRequest if loop detected, null otherwise
+   * Each agent (main session or fork) maintains independent counters (#140).
    */
   const recordAutoRejection = useCallback(
     (toolName: string, content: string, agentId?: string): CommandLoopRequest | null => {
@@ -424,11 +425,6 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       // Build a scoped key for agent isolation
       const scopeKey = agentId ? `${agentId}:${toolName}` : toolName;
 
-      // Reset counter if outside the time window
-      if (now - lastAutoRejectionTimeRef.current > config.resetWindowMs) {
-        autoRejectionCountRef.current = 0;
-      }
-
       // "Input closed" is a session-level fatal error — always detect immediately
       // Match the full SDK error format to avoid false positives from benign "Operation Cancelled"
       const lowerContent = content.toLowerCase();
@@ -436,7 +432,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
         (lowerContent.includes("operation cancelled") && lowerContent.includes("input closed"));
 
       if (isInputClosed) {
-        autoRejectionCountRef.current = 0;
+        autoRejectionStatesRef.current.delete(scopeKey);
         return {
           isOpen: true,
           toolName,
@@ -450,19 +446,20 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       // Skip loop detection for excluded tools
       if (config.excludedTools.has(toolName)) return null;
 
-      // Check if same scoped key as last auto-rejection
-      if (lastAutoRejectionToolRef.current === scopeKey) {
-        autoRejectionCountRef.current++;
-      } else {
-        autoRejectionCountRef.current = 1;
-        lastAutoRejectionToolRef.current = scopeKey;
-      }
+      // Get or create per-key state
+      const states = autoRejectionStatesRef.current;
+      const existing = states.get(scopeKey);
+      const state = existing && now - existing.lastTime <= config.resetWindowMs
+        ? existing
+        : { count: 0, lastTime: now };
 
-      lastAutoRejectionTimeRef.current = now;
+      state.count++;
+      state.lastTime = now;
+      states.set(scopeKey, state);
 
       // Check threshold
-      if (autoRejectionCountRef.current >= config.maxConsecutiveDenials) {
-        autoRejectionCountRef.current = 0;
+      if (state.count >= config.maxConsecutiveDenials) {
+        states.delete(scopeKey);
         return {
           isOpen: true,
           toolName,
@@ -480,8 +477,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
    * Reset the auto-rejection counter
    */
   const resetAutoRejectionCounter = useCallback(() => {
-    autoRejectionCountRef.current = 0;
-    lastAutoRejectionToolRef.current = "";
+    autoRejectionStatesRef.current.clear();
   }, []);
 
   return {
