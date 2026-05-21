@@ -148,6 +148,7 @@ export class UnifiedMessageProcessor {
     context: ProcessingContext,
     options: ProcessingOptions,
     toolUseResult?: unknown,
+    isForkAgent?: boolean,
   ): void {
     // Get cached tool_use information to determine tool name
     const toolUseId = contentItem.tool_use_id || "";
@@ -169,8 +170,12 @@ export class UnifiedMessageProcessor {
     // permission dialogs. The proactive canUseTool flow handles real permission
     // requests; execution errors (file_not_found etc.) should pass through as
     // normal tool results so the model can adjust. See issue #127.
+    // Skip loop detection for fork agent messages — they have their own
+    // CLI-side LoopDetectionService and should not accumulate toward
+    // the main session's loop counters (see #140).
     if (
       options.isStreaming &&
+      !isForkAgent &&
       contentItem.is_error &&
       !isToolUseError(content) &&
       !content.includes("[proactive]")
@@ -199,8 +204,8 @@ export class UnifiedMessageProcessor {
     const toolName = cachedToolInfo?.name || "Tool";
     const toolInput = cachedToolInfo?.input || {};
 
-    // Check for command result loop detection (streaming only)
-    if (options.isStreaming && context.onCommandResultLoop) {
+    // Check for command result loop detection (streaming only, skip fork agents)
+    if (options.isStreaming && !isForkAgent && context.onCommandResultLoop) {
       // Extract exit code and output from tool result
       const exitCode = this.extractExitCode(toolUseResult, content);
       const loopRequest = context.onCommandResultLoop(toolName, toolInput, {
@@ -657,6 +662,8 @@ export class UnifiedMessageProcessor {
             },
             localContext,
             options,
+            undefined,
+            !!message.parent_tool_use_id,
           );
         } else if (part.text && !message.parent_tool_use_id) {
           // Text content in parts — skip if parent_tool_use_id is set
@@ -681,6 +688,7 @@ export class UnifiedMessageProcessor {
             localContext,
             options,
             toolUseResult,
+            !!message.parent_tool_use_id,
           );
         } else if (contentItem.type === "text" && !message.parent_tool_use_id) {
           // Regular text content — skip if parent_tool_use_id is set
@@ -721,7 +729,9 @@ export class UnifiedMessageProcessor {
     const msg = message as unknown as {
       message?: { parts?: unknown[] };
       toolCallResult?: { callId?: string; status?: string; resultDisplay?: string };
+      parent_tool_use_id?: string | null;
     };
+    const isForkAgent = !!msg.parent_tool_use_id;
 
     // Extract tool_use_id and content from functionResponse in parts
     const messageParts = msg.message?.parts;
@@ -761,6 +771,7 @@ export class UnifiedMessageProcessor {
             context,
             options,
             msg.toolCallResult,
+            isForkAgent,
           );
         }
       }

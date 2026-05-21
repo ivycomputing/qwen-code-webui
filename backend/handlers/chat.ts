@@ -269,7 +269,10 @@ async function executeQwenCommand(
       }
 
       // Backend loop detection — failsafe if frontend detection fails
-      const loopResult = checkLoop(sdkMessage, loopState);
+      // Skip for fork agent messages — they have their own CLI-side
+      // LoopDetectionService and should not affect the main session (#140)
+      const isForkMessage = !!(sdkMessage as Record<string, unknown>).parent_tool_use_id;
+      const loopResult = isForkMessage ? null : checkLoop(sdkMessage, loopState);
       if (loopResult) {
         logger.chat.error(
           "Loop detected: fingerprint={fingerprint}, count={count}, aborting CLI",
