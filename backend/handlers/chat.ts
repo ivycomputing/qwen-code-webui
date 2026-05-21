@@ -258,6 +258,8 @@ async function executeQwenCommand(
         const safetyTimer = setTimeout(() => {
           pendingPermissions.delete(permissionId);
           localPendingIds.delete(permissionId);
+          // Remember the approval so subsequent calls for the same tool auto-approve
+          localAllowedTools.add(toolName);
           safeResolve({ behavior: "allow", updatedInput: input });
         }, SAFETY_AUTO_APPROVE_MS);
 

@@ -164,9 +164,16 @@ export function PermissionInputPanel({
   const [selectedOption, setSelectedOption] = useState<Option>("allow");
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoApprovedRef = useRef(false);
+  const countdownCancelledRef = useRef(false);
 
   const effectiveSelectedOption = externalSelectedOption ?? selectedOption;
   const isShellCommand = toolName === "run_shell_command";
+
+  // Cancel countdown when user manually clicks any button
+  const cancelCountdown = useCallback(() => {
+    countdownCancelledRef.current = true;
+    setCountdown(null);
+  }, []);
 
   // Countdown timer: auto-approve when it reaches zero
   useEffect(() => {
@@ -175,6 +182,10 @@ export function PermissionInputPanel({
     setCountdown(seconds);
 
     const interval = setInterval(() => {
+      if (countdownCancelledRef.current) {
+        clearInterval(interval);
+        return;
+      }
       setCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
@@ -187,9 +198,9 @@ export function PermissionInputPanel({
     return () => clearInterval(interval);
   }, [autoApproveMs]);
 
-  // Fire auto-approve when countdown hits 0
+  // Fire auto-approve when countdown hits 0 (unless user already acted)
   useEffect(() => {
-    if (countdown === 0 && !autoApprovedRef.current) {
+    if (countdown === 0 && !autoApprovedRef.current && !countdownCancelledRef.current) {
       autoApprovedRef.current = true;
       onAllow();
     }
@@ -295,7 +306,7 @@ export function PermissionInputPanel({
       {countdown !== null && countdown > 0 && (
         <div className="mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-            Auto-approving in {countdown}s
+            {t("permission.autoApproveCountdown", { seconds: countdown })}
           </p>
           <div className="mt-1 h-1 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
             <div
@@ -315,7 +326,7 @@ export function PermissionInputPanel({
             <button
               key={key}
               data-permission-action={key}
-              onClick={() => action()}
+              onClick={() => { cancelCountdown(); action(); }}
               onMouseEnter={() => updateSelectedOption(key)}
               className={getButtonClassName(
                 key,

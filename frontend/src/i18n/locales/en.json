@@ -118,7 +118,8 @@
     "reset": "Reset Permissions",
     "resetDescription": "Clear all remembered tool permissions. You will be asked to confirm tools again.",
     "allowSpecific": "Only allow {{command}}",
-    "allowAll": "Allow {{command}}, and don't ask again for any run_shell_command"
+    "allowAll": "Allow {{command}}, and don't ask again for any run_shell_command",
+    "autoApproveCountdown": "Auto-approving in {{seconds}}s"
   },
   "quota": {
     "exceeded": "Quota Exceeded",
