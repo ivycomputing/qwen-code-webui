@@ -27,6 +27,28 @@ const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1_000;
 const KEEPALIVE_INTERVAL_MS = 15_000;
 
 /**
+ * Safety timeout for canUseTool permission prompts.
+ *
+ * The CLI (qwen-code-cli) has a hardcoded 30-second default for outgoing
+ * control requests (baseController.DEFAULT_REQUEST_TIMEOUT_MS). In
+ * approval-mode "default" the CLI sends a can_use_tool request and waits
+ * for the SDK to respond; if the user doesn't act within 30 s the CLI
+ * emits "Control request timeout" and cancels the tool.
+ *
+ * We cannot change the CLI, so the frontend shows a countdown and
+ * auto-approves the first option before the deadline. The backend also
+ * keeps a fallback auto-approve timer (slightly later) in case the
+ * frontend can't respond (e.g. tab in background).
+ *
+ * @see https://github.com/ivycomputing/qwen-code-webui/issues/139
+ */
+const CLI_CONTROL_REQUEST_TIMEOUT_MS = 30_000;
+/** Frontend countdown duration — auto-approves at this point. */
+const AUTO_APPROVE_MS = CLI_CONTROL_REQUEST_TIMEOUT_MS - 5_000; // 25 s
+/** Backend fallback — fires a few seconds after frontend should have acted. */
+const SAFETY_AUTO_APPROVE_MS = CLI_CONTROL_REQUEST_TIMEOUT_MS - 2_000; // 28 s
+
+/**
  * Maps UI permission mode to Qwen SDK permission mode
  * Qwen SDK uses 'auto-edit' instead of 'acceptEdits'
  */
@@ -207,6 +229,7 @@ async function executeQwenCommand(
           toolName,
           toolInput: input,
           suggestions,
+          autoApproveMs: AUTO_APPROVE_MS,
         })
       ) {
         localPendingIds.delete(permissionId);
@@ -219,16 +242,36 @@ async function executeQwenCommand(
       });
 
       // Defense 3: abort listener for async abort during wait
+      //
+      // The frontend shows a 25 s countdown and auto-approves. A backend
+      // fallback timer at 28 s auto-approves if the frontend can't (e.g. tab
+      // in background). Either way the CLI receives a response before its
+      // 30 s control-request timeout.  See issue #139.
       return new Promise((resolve) => {
-        const onAbort = () => {
+        let settled = false;
+        const safeResolve = (result: PermissionResult) => {
+          if (settled) return;
+          settled = true;
+          resolve(result);
+        };
+
+        const safetyTimer = setTimeout(() => {
           pendingPermissions.delete(permissionId);
           localPendingIds.delete(permissionId);
-          resolve({ behavior: "deny", message: "Request aborted" });
+          safeResolve({ behavior: "allow", updatedInput: input });
+        }, SAFETY_AUTO_APPROVE_MS);
+
+        const onAbort = () => {
+          clearTimeout(safetyTimer);
+          pendingPermissions.delete(permissionId);
+          localPendingIds.delete(permissionId);
+          safeResolve({ behavior: "deny", message: "Request aborted" });
         };
         abortController.signal.addEventListener("abort", onAbort, { once: true });
 
         pendingPermissions.set(permissionId, {
           resolve: (result, scope) => {
+            clearTimeout(safetyTimer);
             abortController.signal.removeEventListener("abort", onAbort);
             localPendingIds.delete(permissionId);
             if (result.behavior === "allow") {
@@ -239,7 +282,7 @@ async function executeQwenCommand(
                 localAllowedTools.add(toolName);
               }
             }
-            resolve(result);
+            safeResolve(result);
           },
           abortSignal: abortController.signal,
         });

@@ -11,6 +11,7 @@ interface PermissionRequest {
   permissionId?: string; // For proactive canUseTool flow
   toolInput?: Record<string, unknown>;
   suggestions?: Array<{ type: string; label: string; description?: string }>;
+  autoApproveMs?: number; // Countdown before auto-approve (local mode, issue #139)
 }
 
 interface PlanModeRequest {
@@ -149,10 +150,11 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       toolName: string, patterns: string[], toolUseId: string, requestId?: string,
       permissionId?: string, toolInput?: Record<string, unknown>,
       suggestions?: Array<{ type: string; label: string; description?: string }>,
+      autoApproveMs?: number,
     ) => {
       const req: PermissionRequest = {
         isOpen: true, toolName, patterns, toolUseId, requestId,
-        permissionId, toolInput, suggestions,
+        permissionId, toolInput, suggestions, autoApproveMs,
       };
       permissionRequestRef.current = req;
       setPermissionRequest(req);

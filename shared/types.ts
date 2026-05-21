@@ -7,6 +7,9 @@ export interface StreamResponse {
   toolName?: string;
   toolInput?: Record<string, unknown>;
   suggestions?: Array<{ type: string; label: string; description?: string }>;
+  // Countdown timer: frontend auto-approves (first option) when this many ms elapses.
+  // Used to avoid the CLI's 30-second control-request timeout in approval-mode default.
+  autoApproveMs?: number;
 }
 
 export interface ChatRequest {

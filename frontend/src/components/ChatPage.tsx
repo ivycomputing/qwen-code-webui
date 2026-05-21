@@ -699,6 +699,7 @@ export function ChatPage() {
             showPermissionRequest(
               extractedName, patterns, "", undefined,
               event.permissionId, event.toolInput, event.suggestions,
+              event.autoApproveMs,
             );
             showPermissionNotification();
           },
@@ -1257,6 +1258,7 @@ export function ChatPage() {
         onAllowPermanent: handlePermissionAllowPermanent,
         onAllowAll: handlePermissionAllowAll,
         onDeny: handlePermissionDeny,
+        autoApproveMs: permissionRequest.autoApproveMs,
       }
     : undefined;
 
