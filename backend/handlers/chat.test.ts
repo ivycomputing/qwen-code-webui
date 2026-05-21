@@ -1076,4 +1076,125 @@ describe("Chat Handler - Permission Mode Tests", () => {
       expect(capturedController).toBeInstanceOf(AbortController);
     });
   });
+
+  describe("Per-agent Loop Detection", () => {
+    it("should not trigger loop detection when fork agents send independent errors", async () => {
+      const chatRequest: ChatRequest = {
+        message: "Test parallel agents",
+        requestId: "req-agent-loop-1",
+        permissionMode: "auto-edit",
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      // 3 messages: 2 from different fork agents, 1 from main session
+      // Each has the same error but should NOT accumulate together
+      const makeErrorMsg = (id: string, forkId: string | null) => ({
+        type: "user" as const,
+        message: {
+          role: "user" as const,
+          content: [{
+            type: "tool_result" as const,
+            tool_use_id: id,
+            content: "Error: command not found",
+            is_error: true,
+          }],
+        },
+        parent_tool_use_id: forkId,
+      });
+
+      mockQuery.mockImplementation(
+        () =>
+          ({
+            [Symbol.asyncIterator]: async function* () {
+              // Fork agent A error
+              yield makeErrorMsg("err-1", "fork_a") as any;
+              // Fork agent B error
+              yield makeErrorMsg("err-2", "fork_b") as any;
+              // Main session error (1st)
+              yield makeErrorMsg("err-3", null) as any;
+              // Success to complete
+              yield {
+                type: "assistant",
+                message: { content: [{ type: "text", text: "Done" }] },
+                session_id: "sess-agent-loop",
+                parent_tool_use_id: null,
+              } as any;
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          }) as any,
+      );
+
+      const response = await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      const chunks: string[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(decoder.decode(value));
+      }
+
+      // Should NOT abort — each agent only has 1 error, below threshold
+      const allChunks = chunks.join("");
+      expect(allChunks).not.toContain("loop detected");
+    });
+
+    it("should trigger loop detection when a single fork agent accumulates enough errors", async () => {
+      const chatRequest: ChatRequest = {
+        message: "Test single fork agent loop",
+        requestId: "req-agent-loop-2",
+        permissionMode: "auto-edit",
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      const makeErrorMsg = (id: string, forkId: string | null) => ({
+        type: "user" as const,
+        message: {
+          role: "user" as const,
+          content: [{
+            type: "tool_result" as const,
+            tool_use_id: id,
+            content: "Error: command not found",
+            is_error: true,
+          }],
+        },
+        parent_tool_use_id: forkId,
+      });
+
+      mockQuery.mockImplementation(
+        () =>
+          ({
+            [Symbol.asyncIterator]: async function* () {
+              // Same fork agent sends 3 errors → should trigger loop
+              yield makeErrorMsg("err-a1", "fork_loop") as any;
+              yield makeErrorMsg("err-a2", "fork_loop") as any;
+              yield makeErrorMsg("err-a3", "fork_loop") as any;
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          }) as any,
+      );
+
+      const response = await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      const chunks: string[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(decoder.decode(value));
+      }
+
+      // Should abort with loop detected for the fork agent
+      const allChunks = chunks.join("");
+      expect(allChunks).toContain("loop detected");
+    });
+  });
 });

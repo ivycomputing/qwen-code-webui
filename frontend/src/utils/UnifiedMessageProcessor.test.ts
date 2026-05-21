@@ -875,7 +875,7 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
       expect(loopCheckCalls[0].agentId).toBe("call_agent_fork_2");
     });
 
-    it("should not trigger auto-rejection for fork agent user messages without is_error", () => {
+    it("should not trigger auto-rejection for non-error tool results (is_error=false path)", () => {
       const processor = createProcessor();
       const autoRejectionCalls: Array<{ toolName: string; content: string; agentId?: string }> = [];
 

@@ -431,7 +431,10 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       const isInputClosed = lowerContent.includes("input closed") ||
         (lowerContent.includes("operation cancelled") && lowerContent.includes("input closed"));
 
-      if (isInputClosed) {
+      // "Input closed" is a session-level fatal error — detect immediately,
+      // but only for the main session. Fork agents have their own stdin
+      // lifecycle and their "Input closed" should not abort the parent session.
+      if (isInputClosed && !agentId) {
         autoRejectionStatesRef.current.delete(scopeKey);
         return {
           isOpen: true,
