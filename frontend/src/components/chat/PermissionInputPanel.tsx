@@ -235,18 +235,20 @@ export function PermissionInputPanel({
         updateSelectedOption(options[prevIndex]);
       } else if (e.key === "Enter" && effectiveSelectedOption) {
         e.preventDefault();
+        cancelCountdown();
         if (effectiveSelectedOption === "allow") onAllow();
         else if (effectiveSelectedOption === "allowPermanent") onAllowPermanent();
         else if (effectiveSelectedOption === "deny") onDeny();
       } else if (e.key === "Escape") {
         e.preventDefault();
+        cancelCountdown();
         onDeny();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [effectiveSelectedOption, onAllow, onAllowPermanent, onDeny, updateSelectedOption, externalSelectedOption]);
+  }, [effectiveSelectedOption, onAllow, onAllowPermanent, onDeny, cancelCountdown, updateSelectedOption, externalSelectedOption]);
 
   const selectedStyles: Record<Option, { className: string; style: React.CSSProperties }> = {
     allow: {
