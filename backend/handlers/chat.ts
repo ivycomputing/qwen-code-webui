@@ -122,6 +122,11 @@ async function executeQwenCommand(
 
     const loopState: LoopState = { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 };
 
+    // Per-agent loop states keyed by parent_tool_use_id (#140).
+    // Each fork agent gets its own LoopState so parallel agents don't
+    // accumulate toward the same counter.
+    const agentLoopStates = new Map<string, LoopState>();
+
     // Create the canUseTool callback — proactive permission handling
     const canUseTool = async (
       toolName: string,
@@ -268,11 +273,17 @@ async function executeQwenCommand(
         );
       }
 
-      // Backend loop detection — failsafe if frontend detection fails
-      // Skip for fork agent messages — they have their own CLI-side
-      // LoopDetectionService and should not affect the main session (#140)
-      const isForkMessage = !!(sdkMessage as Record<string, unknown>).parent_tool_use_id;
-      const loopResult = isForkMessage ? null : checkLoop(sdkMessage, loopState);
+      // Backend loop detection — failsafe if frontend detection fails.
+      // Each agent (main session or fork) maintains its own LoopState
+      // so parallel fork agents don't accumulate toward the same counter (#140).
+      const forkId = (sdkMessage as Record<string, unknown>).parent_tool_use_id as string | undefined;
+      const ls = forkId
+        ? (agentLoopStates.get(forkId) ?? { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 })
+        : loopState;
+      if (forkId && !agentLoopStates.has(forkId)) {
+        agentLoopStates.set(forkId, ls);
+      }
+      const loopResult = checkLoop(sdkMessage, ls);
       if (loopResult) {
         logger.chat.error(
           "Loop detected: fingerprint={fingerprint}, count={count}, aborting CLI",

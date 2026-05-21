@@ -272,10 +272,13 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
   }, []);
 
   /**
-   * Generate a key for command identification
+   * Generate a key for command identification, scoped per agentId.
+   * When agentId is provided (fork agent), it becomes a key prefix so
+   * each agent's loop counters are fully independent (#140).
    */
   const generateCommandKey = useCallback(
-    (toolName: string, input: Record<string, unknown>): string => {
+    (toolName: string, input: Record<string, unknown>, agentId?: string): string => {
+      const prefix = agentId ? `${agentId}:` : "";
       // For shell commands, use the command string
       if (input.command && typeof input.command === "string") {
         // Normalize command: remove path variations, keep core structure
@@ -283,11 +286,11 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
           .replace(/\s+/g, " ")
           .trim()
           .substring(0, 100);
-        return `${toolName}:${normalizedCommand}`;
+        return `${prefix}${toolName}:${normalizedCommand}`;
       }
       // For other tools, use JSON representation (truncated)
       const inputStr = JSON.stringify(input).substring(0, 100);
-      return `${toolName}:${inputStr}`;
+      return `${prefix}${toolName}:${inputStr}`;
     },
     []
   );
@@ -300,7 +303,8 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     (
       toolName: string,
       input: Record<string, unknown>,
-      result: { exitCode?: number; output: string }
+      result: { exitCode?: number; output: string },
+      agentId?: string,
     ): CommandLoopRequest | null => {
       // Skip if loop detection is disabled for this session
       if (loopDetectionDisabledRef.current) {
@@ -325,12 +329,12 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
 
       if (!isError && !hasErrorKeywords) {
         // Clear tracking for successful results
-        const key = generateCommandKey(toolName, input);
+        const key = generateCommandKey(toolName, input, agentId);
         commandResultsRef.current.delete(key);
         return null;
       }
 
-      const key = generateCommandKey(toolName, input);
+      const key = generateCommandKey(toolName, input, agentId);
       const errorFingerprint = generateErrorFingerprint(result.output);
 
       // Get existing entry
@@ -413,9 +417,12 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
    * Returns CommandLoopRequest if loop detected, null otherwise
    */
   const recordAutoRejection = useCallback(
-    (toolName: string, content: string): CommandLoopRequest | null => {
+    (toolName: string, content: string, agentId?: string): CommandLoopRequest | null => {
       const config = loopDetectionConfigRef.current;
       const now = Date.now();
+
+      // Build a scoped key for agent isolation
+      const scopeKey = agentId ? `${agentId}:${toolName}` : toolName;
 
       // Reset counter if outside the time window
       if (now - lastAutoRejectionTimeRef.current > config.resetWindowMs) {
@@ -443,12 +450,12 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       // Skip loop detection for excluded tools
       if (config.excludedTools.has(toolName)) return null;
 
-      // Check if same tracking key as last auto-rejection
-      if (lastAutoRejectionToolRef.current === toolName) {
+      // Check if same scoped key as last auto-rejection
+      if (lastAutoRejectionToolRef.current === scopeKey) {
         autoRejectionCountRef.current++;
       } else {
         autoRejectionCountRef.current = 1;
-        lastAutoRejectionToolRef.current = toolName;
+        lastAutoRejectionToolRef.current = scopeKey;
       }
 
       lastAutoRejectionTimeRef.current = now;

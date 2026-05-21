@@ -778,13 +778,13 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
       expect(loopCheckCalls[0].toolName).toBe("run_shell_command");
     });
 
-    it("should skip auto-rejection loop detection for fork agent messages", () => {
+    it("should pass agentId for fork agent auto-rejection loop detection", () => {
       const processor = createProcessor();
-      const autoRejectionCalls: Array<{ toolName: string; content: string }> = [];
+      const autoRejectionCalls: Array<{ toolName: string; content: string; agentId?: string }> = [];
 
       const context = createMockContext({
-        onAutoRejection: (toolName, content) => {
-          autoRejectionCalls.push({ toolName, content });
+        onAutoRejection: (toolName, content, agentId) => {
+          autoRejectionCalls.push({ toolName, content, agentId });
           return null;
         },
         onAbortRequest: () => {},
@@ -822,17 +822,18 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         { isStreaming: true },
       );
 
-      // Should NOT trigger auto-rejection because it's a fork agent
-      expect(autoRejectionCalls).toHaveLength(0);
+      // Should trigger auto-rejection WITH agentId (not skipped)
+      expect(autoRejectionCalls).toHaveLength(1);
+      expect(autoRejectionCalls[0].agentId).toBe("call_agent_fork_1");
     });
 
-    it("should skip command result loop detection for fork agent messages", () => {
+    it("should pass agentId for fork agent command result loop detection", () => {
       const processor = createProcessor();
-      const loopCheckCalls: Array<{ toolName: string; result: any }> = [];
+      const loopCheckCalls: Array<{ toolName: string; result: any; agentId?: string }> = [];
 
       const context = createMockContext({
-        onCommandResultLoop: (toolName, _input, result) => {
-          loopCheckCalls.push({ toolName, result });
+        onCommandResultLoop: (toolName, _input, result, agentId) => {
+          loopCheckCalls.push({ toolName, result, agentId });
           return null;
         },
       });
@@ -869,17 +870,18 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         { isStreaming: true },
       );
 
-      // Should NOT trigger command result loop detection because it's a fork agent
-      expect(loopCheckCalls).toHaveLength(0);
+      // Should trigger command result loop check WITH agentId (not skipped)
+      expect(loopCheckCalls).toHaveLength(1);
+      expect(loopCheckCalls[0].agentId).toBe("call_agent_fork_2");
     });
 
-    it("should skip auto-rejection loop detection for fork agent user messages", () => {
+    it("should not trigger auto-rejection for fork agent user messages without is_error", () => {
       const processor = createProcessor();
-      const autoRejectionCalls: Array<{ toolName: string; content: string }> = [];
+      const autoRejectionCalls: Array<{ toolName: string; content: string; agentId?: string }> = [];
 
       const context = createMockContext({
-        onAutoRejection: (toolName, content) => {
-          autoRejectionCalls.push({ toolName, content });
+        onAutoRejection: (toolName, content, agentId) => {
+          autoRejectionCalls.push({ toolName, content, agentId });
           return null;
         },
         onAbortRequest: () => {},
@@ -890,7 +892,10 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         command: "git diff main...HEAD",
       });
 
-      // Send error result as user message with parent_tool_use_id (fork agent)
+      // Send result as user message with parent_tool_use_id (fork agent).
+      // The Qwen parts functionResponse path sets is_error=false, so
+      // auto-rejection should NOT be triggered (this is correct behavior —
+      // only tool_result messages with is_error=true trigger auto-rejection).
       processor.processMessage(
         {
           type: "user",
@@ -912,7 +917,7 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         { isStreaming: true },
       );
 
-      // Should NOT trigger auto-rejection because it's a fork agent
+      // Should NOT trigger auto-rejection because is_error is false in this path
       expect(autoRejectionCalls).toHaveLength(0);
     });
 
