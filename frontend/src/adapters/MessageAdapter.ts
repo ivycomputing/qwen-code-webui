@@ -9,6 +9,7 @@ import type {
   AllMessage,
   ToolResultMessage,
   TodoMessage,
+  AskUserQuestionMessage,
 } from "../types";
 import type {
   ChatMessageData,
@@ -29,7 +30,8 @@ export type ExtendedMessageType =
   | "result"
   | "error"
   | "plan"
-  | "todo";
+  | "todo"
+  | "ask_user_question";
 
 /**
  * Extended message format for internal processing
@@ -48,6 +50,7 @@ export interface ExtendedMessage extends ChatMessageData {
   data?: {
     plan?: string;
     todos?: TodoMessage["todos"];
+    askUserQuestion?: AskUserQuestionMessage["questions"];
     systemData?: Record<string, unknown>;
   };
 }
@@ -240,7 +243,10 @@ export function adaptMessagesToWebUI(
                         : todo.status === "in_progress"
                           ? "[-]"
                           : "[ ]";
-                    return `- ${checkbox} ${todo.content}`;
+                    const activeFormSuffix = todo.status === "in_progress" && todo.activeForm
+                      ? ` (${todo.activeForm})`
+                      : "";
+                    return `- ${checkbox} ${todo.content}${activeFormSuffix}`;
                   })
                   .join("\n"),
               },
@@ -264,6 +270,45 @@ export function adaptMessagesToWebUI(
           extendedType: "todo",
           data: {
             todos: msg.todos,
+          },
+        };
+      }
+
+      case "ask_user_question": {
+        const questionToolCall: ToolCallData = {
+          toolCallId: `ask-${msg.timestamp}`,
+          kind: "ask_user_question",
+          title: "Questions",
+          status: "completed" as const,
+          content: [
+            {
+              type: "content",
+              content: {
+                type: "text",
+                text: msg.questions
+                  .map((q) => `**${q.header}**: ${q.question}\n${q.options.map((o) => `  - ${o.label}: ${o.description}`).join("\n")}`)
+                  .join("\n\n"),
+              },
+            },
+          ],
+          timestamp: msg.timestamp,
+        };
+
+        return {
+          uuid: id,
+          timestamp,
+          type: "tool_call",
+          toolCall: questionToolCall,
+          message: {
+            role: "assistant",
+            content: JSON.stringify(msg.questions),
+          },
+          isFirst,
+          isLast,
+          original: msg,
+          extendedType: "ask_user_question",
+          data: {
+            askUserQuestion: msg.questions,
           },
         };
       }
@@ -337,7 +382,7 @@ export function filterEmptyMessages(
     if (msg.type === "tool_call") {
       return msg.toolCall !== undefined;
     }
-    if (msg.extendedType === "plan" || msg.extendedType === "todo") return true;
+    if (msg.extendedType === "plan" || msg.extendedType === "todo" || msg.extendedType === "ask_user_question") return true;
     const content = msg.message?.content;
     if (typeof content === "string") {
       return content.trim().length > 0;

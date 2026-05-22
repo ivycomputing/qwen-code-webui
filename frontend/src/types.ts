@@ -116,6 +116,21 @@ export interface TodoMessage {
   timestamp: number;
 }
 
+// AskUserQuestion item structure
+export interface AskUserQuestionItem {
+  question: string;
+  header: string;
+  options: Array<{ label: string; description: string }>;
+  multiSelect: boolean;
+}
+
+// AskUserQuestion message for displaying AI questions
+export interface AskUserQuestionMessage {
+  type: "ask_user_question";
+  questions: AskUserQuestionItem[];
+  timestamp: number;
+}
+
 // Thinking content item from Qwen SDK
 export interface ThinkingContentItem {
   type: "thinking";
@@ -144,7 +159,8 @@ export type AllMessage =
   | ToolResultMessage
   | PlanMessage
   | ThinkingMessage
-  | TodoMessage;
+  | TodoMessage
+  | AskUserQuestionMessage;
 
 // Type guard functions
 export function isChatMessage(message: AllMessage): message is ChatMessage {
@@ -181,6 +197,12 @@ export function isThinkingMessage(
 
 export function isTodoMessage(message: AllMessage): message is TodoMessage {
   return message.type === "todo";
+}
+
+export function isAskUserQuestionMessage(
+  message: AllMessage,
+): message is AskUserQuestionMessage {
+  return message.type === "ask_user_question";
 }
 
 // Permission mode types (UI-focused subset of SDK PermissionMode)

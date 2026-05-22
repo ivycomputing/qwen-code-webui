@@ -8,6 +8,7 @@ import type {
   ThinkingMessage,
   TodoMessage,
   TodoItem,
+  AskUserQuestionMessage,
   HooksMessage,
 } from "../types";
 import { TimestampComponent } from "./TimestampComponent";
@@ -402,6 +403,79 @@ export function TodoMessageComponent({ message }: TodoMessageComponentProps) {
       <div className="mt-3 text-xs text-amber-700 dark:text-amber-400">
         {message.todos.filter((t) => t.status === "completed").length} of{" "}
         {message.todos.length} completed
+      </div>
+    </MessageContainer>
+  );
+}
+
+interface AskUserQuestionMessageComponentProps {
+  message: AskUserQuestionMessage;
+}
+
+export function AskUserQuestionMessageComponent({ message }: AskUserQuestionMessageComponentProps) {
+  return (
+    <MessageContainer
+      alignment="left"
+      colorScheme="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-900 dark:text-indigo-100"
+    >
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <div className="text-xs font-semibold opacity-90 text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
+          <div
+            className="w-4 h-4 bg-indigo-500 dark:bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs"
+            aria-hidden="true"
+          >
+            ?
+          </div>
+          Questions
+        </div>
+        <TimestampComponent
+          timestamp={message.timestamp}
+          className="text-xs opacity-70 text-indigo-600 dark:text-indigo-400"
+        />
+      </div>
+
+      <div className="space-y-4">
+        {message.questions.map((q, qIndex) => (
+          <div key={qIndex} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200">
+                {q.header}
+              </span>
+              {q.multiSelect && (
+                <span className="text-xs opacity-60">(select multiple)</span>
+              )}
+            </div>
+            <div className="text-sm text-indigo-900 dark:text-indigo-100">
+              {q.question}
+            </div>
+            <div className="space-y-1.5 ml-2">
+              {q.options.map((opt, optIndex) => (
+                <div
+                  key={optIndex}
+                  className="flex items-start gap-2 px-3 py-2 rounded-md bg-indigo-100/60 dark:bg-indigo-800/40"
+                >
+                  <span className="text-sm opacity-50 mt-0.5">
+                    {q.multiSelect ? "☐" : "○"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-indigo-900 dark:text-indigo-100">
+                      {opt.label}
+                    </div>
+                    {opt.description && (
+                      <div className="text-xs opacity-70 mt-0.5 text-indigo-700 dark:text-indigo-300">
+                        {opt.description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 italic">
+        Please respond in the chat below
       </div>
     </MessageContainer>
   );

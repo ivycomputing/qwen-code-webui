@@ -74,6 +74,11 @@ function mapPermissionMode(mode?: string): PermissionMode | undefined {
 // Update this set when new read-only SDK tools are added.
 const READ_ONLY_TOOLS = new Set(["read_file", "glob", "grep_search", "list_directory", "web_fetch", "think"]);
 
+// Tools that should be auto-approved without a permission dialog because the
+// WebUI cannot provide the interactive response the tool expects. The tool
+// executes with default/empty input and the AI adjusts its follow-up.
+const AUTO_APPROVE_NO_DIALOG_TOOLS = new Set(["ask_user_question"]);
+
 function extractBaseCommand(command: string): string {
   return command.trim().split(/\s+/)[0] || "";
 }
@@ -163,6 +168,14 @@ async function executeQwenCommand(
       // Read-only tools never require confirmation — skip the dialog entirely.
       if (READ_ONLY_TOOLS.has(toolName)) {
         logger.chat.debug("canUseTool: auto-approving read-only tool {toolName}", { toolName });
+        return { behavior: "allow", updatedInput: input };
+      }
+
+      // Tools that the WebUI cannot interactively respond to — auto-approve
+      // so the tool executes with defaults. The UnifiedMessageProcessor still
+      // intercepts the tool_use to display questions as a chat message.
+      if (AUTO_APPROVE_NO_DIALOG_TOOLS.has(toolName)) {
+        logger.chat.debug("canUseTool: auto-approving tool without dialog {toolName}", { toolName });
         return { behavior: "allow", updatedInput: input };
       }
 

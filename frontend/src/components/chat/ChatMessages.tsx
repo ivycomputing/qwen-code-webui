@@ -8,6 +8,7 @@ import {
   isPlanMessage,
   isThinkingMessage,
   isTodoMessage,
+  isAskUserQuestionMessage,
 } from "../../types";
 import {
   ChatMessageComponent,
@@ -15,6 +16,7 @@ import {
   PlanMessageComponent,
   ThinkingMessageComponent,
   TodoMessageComponent,
+  AskUserQuestionMessageComponent,
   LoadingComponent,
 } from "../MessageComponents";
 import { UI_CONSTANTS } from "../../utils/constants";
@@ -96,6 +98,8 @@ export function ChatMessages({ messages, isLoading, expandThinking }: ChatMessag
       return <ThinkingMessageComponent key={key} message={message} forceExpanded={expandThinking} />;
     } else if (isTodoMessage(message)) {
       return <TodoMessageComponent key={key} message={message} />;
+    } else if (isAskUserQuestionMessage(message)) {
+      return <AskUserQuestionMessageComponent key={key} message={message} />;
     } else if (isChatMessage(message)) {
       return <ChatMessageComponent key={key} message={message} />;
     }
