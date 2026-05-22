@@ -379,7 +379,7 @@ export class UnifiedMessageProcessor {
       // Validate each question has required fields before rendering
       const validQuestions = questions?.filter(
         (q): q is { question: string; header: string; options: unknown[]; multiSelect: boolean } =>
-          typeof q === "object" && q !== null && "question" in q && "header" in q
+          typeof q === "object" && q !== null && "question" in q && "header" in q && "options" in q
       );
       if (validQuestions && validQuestions.length > 0) {
         context.addMessage({
