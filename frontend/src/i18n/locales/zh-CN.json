@@ -207,6 +207,9 @@
     "startChatting": "开始对话以在此处查看对话历史。",
     "session": "会话：",
     "messages": "条消息",
-    "failedToLoad": "加载对话失败"
+    "failedToLoad": "加载对话失败",
+    "questions": "提问",
+    "selectMultiple": "可多选",
+    "respondInChat": "请在下方聊天中回复"
   }
 }

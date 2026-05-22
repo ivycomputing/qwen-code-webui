@@ -16,6 +16,7 @@ import { MessageContainer } from "./messages/MessageContainer";
 import { CollapsibleDetails } from "./messages/CollapsibleDetails";
 import { MESSAGE_CONSTANTS } from "../utils/constants";
 import { TOOL_NAMES } from "../utils/toolNames";
+import { useTranslation } from "react-i18next";
 import {
   createEditResult,
   createBashPreview,
@@ -413,6 +414,8 @@ interface AskUserQuestionMessageComponentProps {
 }
 
 export function AskUserQuestionMessageComponent({ message }: AskUserQuestionMessageComponentProps) {
+  const { t } = useTranslation();
+
   return (
     <MessageContainer
       alignment="left"
@@ -426,7 +429,7 @@ export function AskUserQuestionMessageComponent({ message }: AskUserQuestionMess
           >
             ?
           </div>
-          Questions
+          {t("chat.questions")}
         </div>
         <TimestampComponent
           timestamp={message.timestamp}
@@ -442,7 +445,7 @@ export function AskUserQuestionMessageComponent({ message }: AskUserQuestionMess
                 {q.header}
               </span>
               {q.multiSelect && (
-                <span className="text-xs opacity-60">(select multiple)</span>
+                <span className="text-xs opacity-60">({t("chat.selectMultiple")})</span>
               )}
             </div>
             <div className="text-sm text-indigo-900 dark:text-indigo-100">
@@ -475,7 +478,7 @@ export function AskUserQuestionMessageComponent({ message }: AskUserQuestionMess
       </div>
 
       <div className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 italic">
-        Please respond in the chat below
+        {t("chat.respondInChat")}
       </div>
     </MessageContainer>
   );

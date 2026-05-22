@@ -376,10 +376,15 @@ export class UnifiedMessageProcessor {
       // Special handling for AskUserQuestion - create question message from input
       const input = (contentItem.input as { questions?: unknown }) || {};
       const questions = Array.isArray(input.questions) ? input.questions : null;
-      if (questions && questions.length > 0) {
+      // Validate each question has required fields before rendering
+      const validQuestions = questions?.filter(
+        (q): q is { question: string; header: string; options: unknown[]; multiSelect: boolean } =>
+          typeof q === "object" && q !== null && "question" in q && "header" in q
+      );
+      if (validQuestions && validQuestions.length > 0) {
         context.addMessage({
           type: "ask_user_question",
-          questions: questions as Array<{
+          questions: validQuestions as Array<{
             question: string;
             header: string;
             options: Array<{ label: string; description: string }>;

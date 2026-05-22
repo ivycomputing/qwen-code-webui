@@ -103,7 +103,10 @@
     "loadingHistory": "Loading conversation history...",
     "errorLoadingConversation": "Error Loading Conversation",
     "startNewConversation": "Start New Conversation",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "questions": "Questions",
+    "selectMultiple": "select multiple",
+    "respondInChat": "Please respond in the chat below"
   },
   "permission": {
     "title": "Permission Required",
