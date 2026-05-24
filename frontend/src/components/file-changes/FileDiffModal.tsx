@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import type { FileChange, GitDiffResponse } from "../../types/fileChanges";
@@ -31,6 +35,7 @@ export function FileDiffModal({
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("diff");
   const [diffView, setDiffView] = useState<DiffView>("unified");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fetchDiff = useCallback(async () => {
     if (!file || !workingDirectory) return;
@@ -61,6 +66,7 @@ export function FileDiffModal({
       setDiffData(null);
       setError(null);
       setViewMode("diff");
+      setIsFullscreen(false);
     }
   }, [isOpen, file, fetchDiff]);
 
@@ -84,7 +90,13 @@ export function FileDiffModal({
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
+          <div
+            className={
+              isFullscreen
+                ? "flex min-h-full items-stretch justify-stretch p-2 sm:p-4"
+                : "flex min-h-full items-center justify-center p-4"
+            }
+          >
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-200"
@@ -95,8 +107,12 @@ export function FileDiffModal({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className="w-full max-w-5xl transform overflow-hidden rounded-xl bg-white dark:bg-slate-800 shadow-xl transition-all flex flex-col"
-                style={{ maxHeight: "85vh" }}
+                className={`w-full transform overflow-hidden bg-white dark:bg-slate-800 shadow-xl transition-all flex flex-col ${
+                  isFullscreen
+                    ? "max-w-none h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] rounded-lg"
+                    : "max-w-5xl rounded-xl"
+                }`}
+                style={{ maxHeight: isFullscreen ? "none" : "85vh" }}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
@@ -117,8 +133,7 @@ export function FileDiffModal({
                         ? "+"
                         : file.status === "deleted"
                           ? "-"
-                          : "~"}
-                      {" "}
+                          : "~"}{" "}
                       {file.status === "added"
                         ? t("fileChanges.status.added")
                         : file.status === "deleted"
@@ -138,12 +153,30 @@ export function FileDiffModal({
                       )}
                     </span>
                   </div>
-                  <button
-                    onClick={onClose}
-                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setIsFullscreen((value) => !value)}
+                      className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      title={
+                        isFullscreen
+                          ? t("fileChanges.diff.exitFullscreen")
+                          : t("fileChanges.diff.fullscreen")
+                      }
+                    >
+                      {isFullscreen ? (
+                        <ArrowsPointingInIcon className="w-5 h-5" />
+                      ) : (
+                        <ArrowsPointingOutIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={onClose}
+                      className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      title={t("chat.dismiss")}
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Toolbar */}

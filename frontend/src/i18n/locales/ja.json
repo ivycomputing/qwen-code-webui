@@ -215,6 +215,8 @@
     "loading": "変更を読み込み中...",
     "error": "変更の読み込みに失敗しました",
     "refresh": "更新",
+    "showPanel": "ファイル変更を表示",
+    "hidePanel": "ファイル変更を非表示",
     "openInVSCode": "VS Codeを開く",
     "closeVSCode": "VS Codeを閉じる",
     "startingVSCode": "VS Codeを起動中...",
@@ -226,6 +228,8 @@
       "unifiedView": "統合表示",
       "fullFile": "ファイル全体",
       "diffView": "差分表示",
+      "fullscreen": "全画面",
+      "exitFullscreen": "全画面を終了",
       "noDiff": "差分は見つかりませんでした"
     },
     "status": {

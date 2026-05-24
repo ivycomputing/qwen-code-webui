@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeftIcon, ServerIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, DocumentTextIcon, ServerIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
 import type {
   ChatRequest,
@@ -98,6 +98,7 @@ export function ChatPage() {
   const [showFileChanges, setShowFileChanges] = useState(
     urlShowFileChangesPanel !== "false"
   );
+  const [isVSCodePanelOpen, setIsVSCodePanelOpen] = useState(false);
   const [selectedDiffFile, setSelectedDiffFile] = useState<FileChange | null>(null);
 
   // Remote workspace parameters
@@ -154,7 +155,7 @@ export function ChatPage() {
   // Extract and normalize working directory from URL
   // Priority: 1) URL parameter encodedProjectName, 2) URL path
   const urlEncodedProjectName = searchParams.get("encodedProjectName");
-  
+
   const workingDirectory = (() => {
     // If encodedProjectName is provided via URL parameter, resolve the actual path
     if (urlEncodedProjectName) {
@@ -223,7 +224,7 @@ export function ChatPage() {
     if (urlEncodedProjectName) {
       return urlEncodedProjectName;
     }
-    
+
     // Otherwise derive from workingDirectory
     if (!workingDirectory || !projects.length) {
       return null;
@@ -1292,6 +1293,21 @@ export function ChatPage() {
     setIsSettingsOpen(true);
   }, []);
 
+  const setFileChangesPanelVisible = useCallback((visible: boolean) => {
+    setShowFileChanges(visible);
+    if (!visible) {
+      setIsVSCodePanelOpen(false);
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set("showFileChangesPanel", visible ? "true" : "false");
+    navigate({ search: nextSearchParams.toString() }, { replace: true });
+  }, [navigate, searchParams]);
+
+  const handleToggleFileChangesPanel = useCallback(() => {
+    setFileChangesPanelVisible(!showFileChanges);
+  }, [setFileChangesPanelVisible, showFileChanges]);
+
   const handleSettingsClose = useCallback(() => {
     setIsSettingsOpen(false);
   }, []);
@@ -1536,6 +1552,34 @@ export function ChatPage() {
               />
             )}
             {!isHistoryView && <HistoryButton onClick={handleHistoryClick} />}
+            {!isHistoryView && (
+              <button
+                onClick={handleToggleFileChangesPanel}
+                className={`p-2 rounded-lg border transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md ${
+                  showFileChanges
+                    ? "bg-blue-600 dark:bg-blue-600 border-blue-700 dark:border-blue-500 scale-105"
+                    : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800"
+                }`}
+                aria-label={
+                  showFileChanges
+                    ? t("fileChanges.hidePanel")
+                    : t("fileChanges.showPanel")
+                }
+                title={
+                  showFileChanges
+                    ? t("fileChanges.hidePanel")
+                    : t("fileChanges.showPanel")
+                }
+              >
+                <DocumentTextIcon
+                  className={`w-4 h-4 ${
+                    showFileChanges
+                      ? "text-white"
+                      : "text-slate-600 dark:text-slate-400"
+                  }`}
+                />
+              </button>
+            )}
             <SettingsButton onClick={handleSettingsClick} />
           </div>
         </div>
@@ -1546,7 +1590,7 @@ export function ChatPage() {
             orientation="horizontal"
             autoSave="chat-file-changes-layout"
           >
-            <Panel defaultSize={showFileChanges ? "70%" : "100%"} minSize="30%">
+            <Panel defaultSize={showFileChanges ? "70%" : "100%"} minSize={isVSCodePanelOpen ? "20%" : "30%"}>
               <div className="h-full flex flex-col min-w-0">
         {isHistoryView ? (
           <HistoryView
@@ -1707,11 +1751,12 @@ export function ChatPage() {
             {showFileChanges && (
               <>
                 <PanelResizeHandle className="w-1 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors active:bg-blue-500" />
-                <Panel defaultSize="30%" minSize="20%" maxSize="50%">
+                <Panel defaultSize="30%" minSize="20%" maxSize={isVSCodePanelOpen ? "80%" : "65%"}>
                   <FileChangesPanel
                     workingDirectory={workingDirectory}
                     onOpenDiff={(file) => setSelectedDiffFile(file)}
-                    onClose={() => setShowFileChanges(false)}
+                    onClose={() => setFileChangesPanelVisible(false)}
+                    onVSCodeOpenChange={setIsVSCodePanelOpen}
                   />
                 </Panel>
               </>

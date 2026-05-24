@@ -64,6 +64,46 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+function isSameWorkingDirectory(a: string, b: string): boolean {
+  return resolve(a) === resolve(b);
+}
+
+async function stopOwnedVSCodeProcess(
+  processInfo: VSCodeProcess,
+  waitForExit = false,
+) {
+  if (!processInfo.childProcess) return;
+
+  removeLockFile(processInfo.workingDirectory);
+
+  const child = processInfo.childProcess;
+  const pid = processInfo.pid;
+
+  let exitPromise: Promise<void> | null = null;
+  if (waitForExit) {
+    exitPromise = new Promise((resolveExit) => {
+      child.once("exit", () => resolveExit());
+      child.once("close", () => resolveExit());
+    });
+  }
+
+  child.kill("SIGTERM");
+  setTimeout(() => {
+    try {
+      if (isProcessAlive(pid)) {
+        child.kill("SIGKILL");
+      }
+    } catch {}
+  }, 5000);
+
+  if (exitPromise) {
+    await Promise.race([
+      exitPromise,
+      new Promise<void>((resolveTimeout) => setTimeout(resolveTimeout, 2000)),
+    ]);
+  }
+}
+
 async function findCodeServer(
   runtime: AppConfig["runtime"],
 ): Promise<string | null> {
@@ -95,11 +135,25 @@ export async function handleVSCodeStartRequest(c: Context) {
 
   // Check in-memory state first (same backend process, different session)
   if (vscodeProcess && isProcessAlive(vscodeProcess.pid)) {
-    return c.json({
-      port: vscodeProcess.port,
-      url: "/vscode/",
-      alreadyRunning: true,
-    });
+    if (
+      isSameWorkingDirectory(vscodeProcess.workingDirectory, workingDirectory)
+    ) {
+      return c.json({
+        port: vscodeProcess.port,
+        url: "/vscode/",
+        alreadyRunning: true,
+      });
+    }
+
+    logger.app.info(
+      "Restarting VS Code server for requested working directory",
+    );
+    const previousProcess = vscodeProcess;
+    vscodeProcess = null;
+    await stopOwnedVSCodeProcess(previousProcess, true);
+  } else if (vscodeProcess) {
+    removeLockFile(vscodeProcess.workingDirectory);
+    vscodeProcess = null;
   }
 
   // Check lock file for existing instance (multi-user/multi-session across processes)
@@ -222,26 +276,13 @@ export async function handleVSCodeStopRequest(c: Context) {
     return c.json({ success: true, message: "Not running" });
   }
 
-  const child = vscodeProcess.childProcess;
-  const pid = vscodeProcess.pid;
-  const wd = vscodeProcess.workingDirectory;
+  const previousProcess = vscodeProcess;
 
   // Clear state immediately
   vscodeProcess = null;
-  removeLockFile(wd);
 
   // Kill the code-server process
-  if (child) {
-    child.kill("SIGTERM");
-    // Force kill after 5 seconds if still alive
-    setTimeout(() => {
-      try {
-        if (isProcessAlive(pid)) {
-          child.kill("SIGKILL");
-        }
-      } catch {}
-    }, 5000);
-  }
+  void stopOwnedVSCodeProcess(previousProcess);
 
   logger.app.info("VS Code server stopped");
   return c.json({ success: true });

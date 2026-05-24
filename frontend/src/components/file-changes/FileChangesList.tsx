@@ -1,8 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  DocumentIcon,
-  CodeBracketIcon,
-} from "@heroicons/react/24/outline";
+import { DocumentIcon, CodeBracketIcon } from "@heroicons/react/24/outline";
 import type { FileChange } from "../../types/fileChanges";
 
 interface FileChangesListProps {
@@ -13,8 +10,27 @@ interface FileChangesListProps {
 }
 
 const CODE_EXTENSIONS = new Set([
-  "ts", "tsx", "js", "jsx", "py", "rs", "go", "java", "c", "cpp", "h",
-  "html", "css", "scss", "json", "yaml", "yml", "toml", "md", "sh", "bash",
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "py",
+  "rs",
+  "go",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "html",
+  "css",
+  "scss",
+  "json",
+  "yaml",
+  "yml",
+  "toml",
+  "md",
+  "sh",
+  "bash",
 ]);
 
 function isCodeFile(path: string): boolean {
@@ -24,9 +40,13 @@ function isCodeFile(path: string): boolean {
 
 function FileIcon({ path }: { path: string }) {
   if (isCodeFile(path)) {
-    return <CodeBracketIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />;
+    return (
+      <CodeBracketIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+    );
   }
-  return <DocumentIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />;
+  return (
+    <DocumentIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+  );
 }
 
 function StatusBadge({ status }: { status: FileChange["status"] }) {
@@ -34,7 +54,8 @@ function StatusBadge({ status }: { status: FileChange["status"] }) {
   const styles = {
     modified:
       "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400",
-    added: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
+    added:
+      "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
     deleted: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
   };
   const labels = {
@@ -113,12 +134,12 @@ export function FileChangesList({
         <button
           key={file.path}
           onClick={() => onFileClick(file)}
-          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-left group transition-colors duration-150"
+          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/60 border-b border-slate-100 dark:border-slate-800 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
           title={file.path}
         >
           <FileIcon path={file.path} />
           <StatusBadge status={file.status} />
-          <span className="flex-1 text-xs text-slate-600 dark:text-slate-300 truncate font-mono group-hover:text-slate-800 dark:group-hover:text-slate-100">
+          <span className="flex-1 text-xs text-slate-600 dark:text-slate-300 truncate font-mono">
             {truncatePath(file.path)}
           </span>
           <span className="text-xs font-mono flex-shrink-0 space-x-1">

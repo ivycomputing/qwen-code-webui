@@ -215,6 +215,8 @@
     "loading": "변경 사항 로딩 중...",
     "error": "변경 사항 로딩 실패",
     "refresh": "새로고침",
+    "showPanel": "파일 변경 표시",
+    "hidePanel": "파일 변경 숨기기",
     "openInVSCode": "VS Code 열기",
     "closeVSCode": "VS Code 닫기",
     "startingVSCode": "VS Code 시작 중...",
@@ -226,6 +228,8 @@
       "unifiedView": "통합 보기",
       "fullFile": "전체 파일",
       "diffView": "차이점 보기",
+      "fullscreen": "전체 화면",
+      "exitFullscreen": "전체 화면 종료",
       "noDiff": "차이점을 찾을 수 없습니다"
     },
     "status": {

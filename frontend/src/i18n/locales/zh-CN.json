@@ -218,6 +218,8 @@
     "loading": "正在加载变更...",
     "error": "加载变更失败",
     "refresh": "刷新",
+    "showPanel": "显示文件变更",
+    "hidePanel": "隐藏文件变更",
     "openInVSCode": "打开 VS Code",
     "closeVSCode": "关闭 VS Code",
     "startingVSCode": "正在启动 VS Code...",
@@ -229,6 +231,8 @@
       "unifiedView": "合并视图",
       "fullFile": "完整文件",
       "diffView": "差异视图",
+      "fullscreen": "全屏",
+      "exitFullscreen": "退出全屏",
       "noDiff": "未发现差异"
     },
     "status": {

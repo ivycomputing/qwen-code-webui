@@ -218,6 +218,8 @@
     "loading": "Loading changes...",
     "error": "Failed to load changes",
     "refresh": "Refresh",
+    "showPanel": "Show file changes",
+    "hidePanel": "Hide file changes",
     "openInVSCode": "Open VS Code",
     "closeVSCode": "Close VS Code",
     "startingVSCode": "Starting VS Code...",
@@ -229,6 +231,8 @@
       "unifiedView": "Unified View",
       "fullFile": "Full File",
       "diffView": "Diff",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
       "noDiff": "No differences found"
     },
     "status": {

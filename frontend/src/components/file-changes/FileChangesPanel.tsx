@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FileChangesHeader } from "./FileChangesHeader";
 import { FileChangesList } from "./FileChangesList";
 import { VSCodeEditor } from "./VSCodeEditor";
@@ -10,12 +10,14 @@ interface FileChangesPanelProps {
   workingDirectory: string | undefined;
   onOpenDiff: (file: FileChange) => void;
   onClose: () => void;
+  onVSCodeOpenChange?: (isOpen: boolean) => void;
 }
 
 export function FileChangesPanel({
   workingDirectory,
   onOpenDiff,
   onClose,
+  onVSCodeOpenChange,
 }: FileChangesPanelProps) {
   const { files, isLoading, error, refresh } = useFileChanges(workingDirectory);
   const vscode = useVSCode();
@@ -35,6 +37,11 @@ export function FileChangesPanel({
     await vscode.stop();
     setShowVSCode(false);
   }, [vscode]);
+
+  useEffect(() => {
+    onVSCodeOpenChange?.(showVSCode);
+    return () => onVSCodeOpenChange?.(false);
+  }, [onVSCodeOpenChange, showVSCode]);
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700">

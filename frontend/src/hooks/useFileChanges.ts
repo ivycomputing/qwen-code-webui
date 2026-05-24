@@ -20,31 +20,44 @@ export function useFileChanges(
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const refresh = useCallback(() => {
-    setLastUpdated(new Date());
-  }, []);
+  const fetchStatus = useCallback(
+    async (showLoading = true) => {
+      if (!workingDirectory) return;
 
-  const fetchStatus = useCallback(async () => {
-    if (!workingDirectory) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const url = getGitStatusUrl(workingDirectory);
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (showLoading) {
+        setIsLoading(true);
       }
-      const data: GitStatusResponse = await response.json();
-      setFiles(data.files);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load changes");
-    } finally {
-      setIsLoading(false);
-      setLastUpdated(new Date());
-    }
-  }, [workingDirectory]);
+      if (showLoading) {
+        setError(null);
+      }
+
+      try {
+        const url = getGitStatusUrl(workingDirectory);
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data: GitStatusResponse = await response.json();
+        setFiles(data.files);
+      } catch (err) {
+        if (showLoading) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load changes",
+          );
+        }
+      } finally {
+        if (showLoading) {
+          setIsLoading(false);
+        }
+        setLastUpdated(new Date());
+      }
+    },
+    [workingDirectory],
+  );
+
+  const refresh = useCallback(() => {
+    fetchStatus(true);
+  }, [fetchStatus]);
 
   // Reset and fetch when workingDirectory changes
   // Note: fetchStatus changes identity when workingDirectory changes (useCallback dep),
@@ -62,7 +75,7 @@ export function useFileChanges(
     if (!workingDirectory) return;
 
     const interval = setInterval(() => {
-      if (document.visibilityState === "visible") fetchStatus();
+      if (document.visibilityState === "visible") fetchStatus(false);
     }, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [workingDirectory, fetchStatus]);
