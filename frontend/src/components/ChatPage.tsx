@@ -390,6 +390,9 @@ export function ChatPage() {
     }
   }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode, remoteChat.session, modelsLoading, haPoolToken]);
 
+  // Detect when remote session can't start due to missing haPoolToken in integrated mode
+  const missingPoolToken = isRemoteWorkspace && integratedMode && !isLoadedConversation && !modelsLoading && !haPoolToken && !remoteChat.session && !startSessionCalledRef.current;
+
   // Track the model used when the remote session was created
   const remoteSessionModelRef = useRef<string | null>(null);
 
@@ -1545,6 +1548,12 @@ export function ChatPage() {
                     </button>
                   )}
                 </div>
+              )}
+              {/* Missing HA pool token — cannot start remote session */}
+              {missingPoolToken && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  {modelEmptyReason || t("chat.noModelsAvailable")}
+                </p>
               )}
             </div>
           </div>

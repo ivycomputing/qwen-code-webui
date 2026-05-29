@@ -65,11 +65,11 @@ export function ModelSelector({
         <button
           type="button"
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed max-w-[260px]"
-          aria-label={emptyReason || t("chat.selectModel")}
+          aria-label={emptyReason || t("chat.noModelsAvailable")}
           disabled
-          title={emptyReason || "No models available"}
+          title={emptyReason || t("chat.noModelsAvailable")}
         >
-          <span className="truncate">{emptyReason || "No models available"}</span>
+          <span className="truncate">{emptyReason || t("chat.noModelsAvailable")}</span>
           <ChevronDownIcon className="w-3.5 h-3.5 flex-shrink-0" />
         </button>
       </div>

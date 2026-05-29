@@ -317,15 +317,14 @@ export async function fetchSessionModels(request: {
   machineId?: string;
   sessionId?: string | null;
 }): Promise<SessionModelsResponse> {
-  let url = buildOpenAceUrl(
-    `/api/workspace/session-models?workspace_type=${encodeURIComponent(request.workspaceType)}`
-  );
+  const params = new URLSearchParams({ workspace_type: request.workspaceType });
   if (request.machineId) {
-    url += `&machine_id=${encodeURIComponent(request.machineId)}`;
+    params.set("machine_id", request.machineId);
   }
   if (request.sessionId) {
-    url += `&session_id=${encodeURIComponent(request.sessionId)}`;
+    params.set("session_id", request.sessionId);
   }
+  const url = buildOpenAceUrl(`/api/workspace/session-models?${params}`);
 
   const response = await fetch(url, {
     method: "GET",

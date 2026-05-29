@@ -67,6 +67,7 @@
     "autoEdit": "自動編集",
     "yoloMode": "YOLOモード",
     "loading": "読み込み中...",
+    "noModelsAvailable": "利用可能なモデルなし",
     "selectModel": "モデルを選択",
     "startConversation": "Qwenとの会話を開始",
     "typeToBegin": "下にメッセージを入力して開始",
