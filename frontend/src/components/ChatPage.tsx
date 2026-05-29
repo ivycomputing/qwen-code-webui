@@ -120,6 +120,7 @@ export function ChatPage() {
     selectedModel,
     setSelectedModel,
     loading: modelsLoading,
+    error: modelError,
     emptyReason: modelEmptyReason,
     haPoolToken,
   } = useModel({
@@ -1550,9 +1551,14 @@ export function ChatPage() {
                 </div>
               )}
               {/* Missing HA pool token — cannot start remote session */}
-              {missingPoolToken && (
+              {missingPoolToken && modelError && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                  {modelError}
+                </p>
+              )}
+              {missingPoolToken && !modelError && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  {modelEmptyReason || t("chat.noModelsAvailable")}
+                  {t("chat.missingPoolToken")}
                 </p>
               )}
             </div>

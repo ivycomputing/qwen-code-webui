@@ -67,6 +67,7 @@
     "autoEdit": "자동 편집",
     "yoloMode": "YOLO 모드",
     "loading": "로딩 중...",
+    "missingPoolToken": "세션을 시작할 수 없음: 자격 증명 누락",
     "noModelsAvailable": "사용 가능한 모델 없음",
     "selectModel": "모델 선택",
     "startConversation": "Qwen과 대화 시작",

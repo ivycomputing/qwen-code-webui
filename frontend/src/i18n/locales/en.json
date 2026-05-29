@@ -67,6 +67,7 @@
     "autoEdit": "auto-edit",
     "yoloMode": "yolo mode",
     "loading": "Loading...",
+    "missingPoolToken": "Cannot start session: missing credentials",
     "noModelsAvailable": "No models available",
     "selectModel": "Select model",
     "startConversation": "Start a conversation with Qwen",
