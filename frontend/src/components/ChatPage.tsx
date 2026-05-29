@@ -105,6 +105,14 @@ export function ChatPage() {
   const isRemoteWorkspace = searchParams.get("workspaceType") === "remote";
   const remoteMachineId = searchParams.get("machineId") || "";
   const remoteMachineName = searchParams.get("machineName") || "";
+  const integratedMode = isIntegratedMode();
+
+  // Get current view, sessionId, and toolName from query parameters
+  const currentView = searchParams.get("view");
+  const sessionId = searchParams.get("sessionId");
+  const toolName = searchParams.get("toolName");
+  const isHistoryView = currentView === "history";
+  const isLoadedConversation = !!sessionId && !isHistoryView;
 
   // Model selection
   const {
@@ -112,7 +120,14 @@ export function ChatPage() {
     selectedModel,
     setSelectedModel,
     loading: modelsLoading,
-  } = useModel();
+    emptyReason: modelEmptyReason,
+    haPoolToken,
+  } = useModel({
+    integratedMode,
+    workspaceType: isRemoteWorkspace ? "remote" : "local",
+    machineId: isRemoteWorkspace && !isLoadedConversation ? remoteMachineId : undefined,
+    sessionId: isRemoteWorkspace && isLoadedConversation ? sessionId : undefined,
+  });
 
   // Apply URL settings on mount (Issue #70: Workspace restoration)
   useEffect(() => {
@@ -193,13 +208,6 @@ export function ChatPage() {
     // Normalize Windows paths (remove leading slash from /C:/... format)
     return normalizeWindowsPath(decodedPath);
   })();
-
-  // Get current view, sessionId, and toolName from query parameters
-  const currentView = searchParams.get("view");
-  const sessionId = searchParams.get("sessionId");
-  const toolName = searchParams.get("toolName");
-  const isHistoryView = currentView === "history";
-  const isLoadedConversation = !!sessionId && !isHistoryView;
 
   const { processStreamLine } = useClaudeStreaming();
   const { abortRequest, createAbortHandler } = useAbortController();
@@ -364,15 +372,23 @@ export function ChatPage() {
   useEffect(() => {
     if (!isRemoteWorkspace || !remoteMachineId || remoteChat.session) return;
     if (startSessionCalledRef.current) return;
+    if (modelsLoading) return;
 
     if (isLoadedConversation && sessionId) {
       startSessionCalledRef.current = true;
       remoteChat.connectSession(sessionId);
-    } else if (workingDirectory) {
+    } else if (workingDirectory && haPoolToken) {
       startSessionCalledRef.current = true;
-      remoteChat.startSession(remoteMachineId, workingDirectory, selectedModel || undefined, undefined, remotePermissionMode);
+      remoteChat.startSession(
+        remoteMachineId,
+        workingDirectory,
+        selectedModel || undefined,
+        undefined,
+        remotePermissionMode,
+        haPoolToken
+      );
     }
-  }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode, remoteChat.session]);
+  }, [isRemoteWorkspace, remoteMachineId, workingDirectory, selectedModel, isLoadedConversation, sessionId, remotePermissionMode, remoteChat.session, modelsLoading, haPoolToken]);
 
   // Track the model used when the remote session was created
   const remoteSessionModelRef = useRef<string | null>(null);
@@ -1539,6 +1555,8 @@ export function ChatPage() {
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
                 loading={modelsLoading}
+                emptyReason={modelEmptyReason}
+                integratedMode={integratedMode}
               />
             )}
             <ProjectSwitchButton onClick={handleBackToProjects} />

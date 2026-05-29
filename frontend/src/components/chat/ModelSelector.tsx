@@ -8,6 +8,8 @@ interface ModelSelectorProps {
   selectedModel: string | null;
   onSelectModel: (modelId: string | null) => void;
   loading?: boolean;
+  emptyReason?: string | null;
+  integratedMode?: boolean;
 }
 
 export function ModelSelector({
@@ -15,6 +17,8 @@ export function ModelSelector({
   selectedModel,
   onSelectModel,
   loading,
+  emptyReason,
+  integratedMode,
 }: ModelSelectorProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +57,23 @@ export function ModelSelector({
   };
 
   if (models.length === 0 && !loading) {
-    return null;
+    if (!integratedMode) {
+      return null;
+    }
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed max-w-[260px]"
+          aria-label={emptyReason || t("chat.selectModel")}
+          disabled
+          title={emptyReason || "No models available"}
+        >
+          <span className="truncate">{emptyReason || "No models available"}</span>
+          <ChevronDownIcon className="w-3.5 h-3.5 flex-shrink-0" />
+        </button>
+      </div>
+    );
   }
 
   return (

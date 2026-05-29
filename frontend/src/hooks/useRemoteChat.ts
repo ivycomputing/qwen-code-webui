@@ -117,7 +117,8 @@ export function useRemoteChat(options?: RemoteChatOptions) {
       projectPath: string,
       model?: string,
       cliTool?: string,
-      permissionMode?: string
+      permissionMode?: string,
+      haPoolToken?: string
     ) => {
       setIsLoading(true);
       setError(null);
@@ -129,7 +130,8 @@ export function useRemoteChat(options?: RemoteChatOptions) {
           projectPath,
           model,
           cliTool,
-          permissionMode
+          permissionMode,
+          haPoolToken
         );
 
         setSession(response.session);
