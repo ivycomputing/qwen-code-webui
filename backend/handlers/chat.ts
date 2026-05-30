@@ -236,16 +236,55 @@ async function executeQwenCommand(
           }))
         : undefined;
 
-      // For ask_user_question tool, extract questions from input
+      // For ask_user_question tool, extract and validate questions from input
       const confirmationType = toolName === "ask_user_question" ? "ask_user_question" : "default";
-      const questions = toolName === "ask_user_question" && input?.questions
-        ? (input.questions as Array<{
+      let questions:
+        | Array<{
             question: string;
             header: string;
             options: Array<{ label: string; description?: string }>;
             multiSelect: boolean;
-          }>)
-        : undefined;
+          }>
+        | undefined;
+
+      if (toolName === "ask_user_question" && input?.questions) {
+        // Runtime validation for questions array
+        const rawQuestions = input.questions;
+        if (
+          Array.isArray(rawQuestions) &&
+          rawQuestions.length >= 1 &&
+          rawQuestions.length <= 4 &&
+          rawQuestions.every((q) =>
+            typeof q === "object" &&
+            q !== null &&
+            typeof q.question === "string" &&
+            typeof q.header === "string" &&
+            Array.isArray(q.options) &&
+            q.options.length >= 2 &&
+            q.options.length <= 4 &&
+            q.options.every((o) =>
+              typeof o === "object" &&
+              o !== null &&
+              typeof o.label === "string"
+            ) &&
+            typeof q.multiSelect === "boolean"
+          )
+        ) {
+          questions = rawQuestions.map((q) => ({
+            question: String(q.question),
+            header: String(q.header).substring(0, 12), // Limit header to 12 chars
+            options: q.options.map((o) => ({
+              label: String(o.label),
+              description: o.description ? String(o.description) : undefined,
+            })),
+            multiSelect: Boolean(q.multiSelect),
+          }));
+        } else {
+          logger.chat.warn("Invalid questions format for ask_user_question tool", {
+            questions: rawQuestions,
+          });
+        }
+      }
 
       if (
         !enqueue({

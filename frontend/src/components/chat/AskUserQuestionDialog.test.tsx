@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AskUserQuestionDialog, type Question } from "./AskUserQuestionDialog";
 
@@ -290,8 +290,11 @@ describe("AskUserQuestionDialog", () => {
       const onCancel = vi.fn();
       render(<AskUserQuestionDialog {...defaultProps} onCancel={onCancel} />);
 
+      // Find the dialog container and fire event from within it
+      const dialog = screen.getByRole("dialog");
+
       await act(async () => {
-        fireEvent.keyDown(document, { key: "Escape" });
+        fireEvent.keyDown(dialog, { key: "Escape" });
       });
 
       expect(onCancel).toHaveBeenCalled();
@@ -306,11 +309,33 @@ describe("AskUserQuestionDialog", () => {
         fireEvent.click(screen.getByText("React (Recommended)"));
       });
 
+      // Find the dialog container and fire event from within it
+      const dialog = screen.getByRole("dialog");
+
+      await act(async () => {
+        fireEvent.keyDown(dialog, { key: "Enter" });
+      });
+
+      expect(onConfirm).toHaveBeenCalledWith({ "0": "React (Recommended)" });
+    });
+
+    it("does not trigger when event is outside dialog", async () => {
+      const onCancel = vi.fn();
+      const onConfirm = vi.fn();
+      render(<AskUserQuestionDialog {...defaultProps} onCancel={onCancel} onConfirm={onConfirm} />);
+
+      // Fire event on document (outside dialog) - should not trigger
+      await act(async () => {
+        fireEvent.keyDown(document, { key: "Escape" });
+      });
+
+      expect(onCancel).not.toHaveBeenCalled();
+
       await act(async () => {
         fireEvent.keyDown(document, { key: "Enter" });
       });
 
-      expect(onConfirm).toHaveBeenCalledWith({ "0": "React (Recommended)" });
+      expect(onConfirm).not.toHaveBeenCalled();
     });
   });
 

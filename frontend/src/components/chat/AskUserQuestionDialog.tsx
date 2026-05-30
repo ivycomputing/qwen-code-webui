@@ -28,9 +28,10 @@ export function AskUserQuestionDialog({
   onCancel,
 }: AskUserQuestionDialogProps) {
   const { t } = useTranslation();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({} as Record<string, string>);
-  const [multiSelectAnswers, setMultiSelectAnswers] = useState<Record<string, string[]>>({} as Record<string, string[]>);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [multiSelectAnswers, setMultiSelectAnswers] = useState<Record<string, string[]>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoApprovedRef = useRef<boolean>(false);
   const countdownCancelledRef = useRef<boolean>(false);
@@ -174,9 +175,12 @@ export function AskUserQuestionDialog({
     onConfirm,
   ]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation - scoped to dialog only
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if event is from within the dialog
+      if (!dialogRef.current?.contains(e.target as Node)) return;
+
       if (e.key === "Escape") {
         e.preventDefault();
         cancelCountdown();
@@ -202,15 +206,25 @@ export function AskUserQuestionDialog({
   const isOtherSelectedInSingle: boolean = currentSingleAnswer !== undefined &&
     !currentQuestion.options.some((o: QuestionOption) => o.label === currentSingleAnswer);
 
+  // Generate unique ID for accessibility
+  const questionId = `question-${currentQuestionIndex}`;
+  const optionsGroupId = `options-${currentQuestionIndex}`;
+
   return (
-    <div className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm">
+    <div
+      ref={dialogRef}
+      className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm"
+      role="dialog"
+      aria-labelledby="dialog-title"
+      aria-modal="true"
+    >
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-          <ExclamationTriangleIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <ExclamationTriangleIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+          <h3 id="dialog-title" className="text-lg font-semibold text-slate-800 dark:text-slate-100">
             {t("chat.askUserQuestionTitle")}
           </h3>
           {questions.length > 1 && (
@@ -223,7 +237,7 @@ export function AskUserQuestionDialog({
 
       {/* Countdown banner */}
       {countdown !== null && countdown > 0 && (
-        <div className="mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <div className="mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg" role="status">
           <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
             {t("permission.autoApproveCountdown", { seconds: countdown })}
           </p>
@@ -231,6 +245,7 @@ export function AskUserQuestionDialog({
             <div
               className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-1000 ease-linear"
               style={{ width: `${(countdown / Math.ceil((autoApproveMs ?? 25000) / 1000)) * 100}%` }}
+              aria-hidden="true"
             />
           </div>
         </div>
@@ -238,10 +253,13 @@ export function AskUserQuestionDialog({
 
       {/* Question tabs for multiple questions */}
       {questions.length > 1 && (
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4" role="tablist" aria-label="Questions">
           {questions.map((q, index) => (
             <button
               key={index}
+              role="tab"
+              aria-selected={index === currentQuestionIndex}
+              aria-controls={questionId}
               onClick={() => {
                 cancelCountdown();
                 setCurrentQuestionIndex(index);
@@ -260,80 +278,84 @@ export function AskUserQuestionDialog({
 
       {/* Current question */}
       <div className="mb-4">
-        <p className="text-slate-700 dark:text-slate-300 font-medium mb-3">
+        <p id={questionId} className="text-slate-700 dark:text-slate-300 font-medium mb-3">
           {currentQuestion.question}
         </p>
 
         {/* Options */}
-        <div className="space-y-2">
-          {currentQuestion.options.map((option, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                if (currentQuestion.multiSelect) {
-                  handleMultiSelect(option.label);
-                } else {
-                  handleSingleSelect(option.label);
-                }
-              }}
-              className={`w-full p-3 rounded-lg border transition-all text-left ${
-                currentQuestion.multiSelect
-                  ? currentMultiAnswers.includes(option.label)
+        <div
+          id={optionsGroupId}
+          className="space-y-2"
+          role={currentQuestion.multiSelect ? "group" : "radiogroup"}
+          aria-labelledby={questionId}
+        >
+          {currentQuestion.options.map((option, index) => {
+            const isSelected = currentQuestion.multiSelect
+              ? currentMultiAnswers.includes(option.label)
+              : currentSingleAnswer === option.label;
+
+            return (
+              <button
+                key={index}
+                role={currentQuestion.multiSelect ? "checkbox" : "radio"}
+                aria-checked={isSelected}
+                onClick={() => {
+                  if (currentQuestion.multiSelect) {
+                    handleMultiSelect(option.label);
+                  } else {
+                    handleSingleSelect(option.label);
+                  }
+                }}
+                className={`w-full p-3 rounded-lg border transition-all text-left ${
+                  isSelected
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                     : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
-                  : currentSingleAnswer === option.label
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                    : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Radio/Checkbox indicator */}
-                <div
-                  className={`flex-shrink-0 w-4 h-4 mt-1 ${
-                    currentQuestion.multiSelect ? "rounded" : "rounded-full"
-                  } ${
-                    currentQuestion.multiSelect
-                      ? currentMultiAnswers.includes(option.label)
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Radio/Checkbox indicator */}
+                  <div
+                    className={`flex-shrink-0 w-4 h-4 mt-1 ${
+                      currentQuestion.multiSelect ? "rounded" : "rounded-full"
+                    } ${
+                      isSelected
                         ? "bg-blue-500 border-blue-500"
                         : "border-2 border-slate-300 dark:border-slate-500"
-                      : currentSingleAnswer === option.label
-                        ? "bg-blue-500 border-blue-500"
-                        : "border-2 border-slate-300 dark:border-slate-500"
-                  }`}
-                >
-                  {(currentQuestion.multiSelect
-                    ? currentMultiAnswers.includes(option.label)
-                    : currentSingleAnswer === option.label) && (
-                    <svg
-                      className="w-4 h-4 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      {currentQuestion.multiSelect ? (
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      ) : (
-                        <circle cx="10" cy="10" r="4" />
-                      )}
-                    </svg>
-                  )}
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {isSelected && (
+                      <svg
+                        className="w-4 h-4 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        {currentQuestion.multiSelect ? (
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        ) : (
+                          <circle cx="10" cy="10" r="4" />
+                        )}
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {option.label}
+                    </span>
+                    {option.description && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {option.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    {option.label}
-                  </span>
-                  {option.description && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {option.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
 
           {/* Other option */}
           <div
@@ -352,11 +374,12 @@ export function AskUserQuestionDialog({
                 className={`flex-shrink-0 w-4 h-4 mt-1 ${
                   currentQuestion.multiSelect ? "rounded" : "rounded-full"
                 } border-2 border-slate-300 dark:border-slate-500`}
+                aria-hidden="true"
               />
               <div className="flex-1">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                <label className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   {t("chat.otherOption")}
-                </span>
+                </label>
                 <input
                   type="text"
                   placeholder={t("chat.otherOptionPlaceholder")}
@@ -368,6 +391,7 @@ export function AskUserQuestionDialog({
                       handleOtherInput(e.target.value);
                     }
                   }}
+                  aria-label={t("chat.otherOption")}
                 />
               </div>
             </div>
