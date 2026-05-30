@@ -289,6 +289,8 @@ export function useStreamParser() {
               toolInput: (data.toolInput as Record<string, unknown>) || {},
               suggestions: data.suggestions || [],
               autoApproveMs: data.autoApproveMs,
+              confirmationType: data.confirmationType,
+              questions: data.questions,
             });
           }
         } else if (data.type === "error") {

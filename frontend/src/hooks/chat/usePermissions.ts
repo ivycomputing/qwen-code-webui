@@ -12,6 +12,14 @@ interface PermissionRequest {
   toolInput?: Record<string, unknown>;
   suggestions?: Array<{ type: string; label: string; description?: string }>;
   autoApproveMs?: number; // Countdown before auto-approve (local mode, issue #139)
+  // For ask_user_question tool
+  confirmationType?: "default" | "ask_user_question";
+  questions?: Array<{
+    question: string;
+    header: string;
+    options: Array<{ label: string; description?: string }>;
+    multiSelect: boolean;
+  }>;
 }
 
 interface PlanModeRequest {
@@ -151,10 +159,19 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       permissionId?: string, toolInput?: Record<string, unknown>,
       suggestions?: Array<{ type: string; label: string; description?: string }>,
       autoApproveMs?: number,
+      // For ask_user_question tool
+      confirmationType?: "default" | "ask_user_question",
+      questions?: Array<{
+        question: string;
+        header: string;
+        options: Array<{ label: string; description?: string }>;
+        multiSelect: boolean;
+      }>,
     ) => {
       const req: PermissionRequest = {
         isOpen: true, toolName, patterns, toolUseId, requestId,
         permissionId, toolInput, suggestions, autoApproveMs,
+        confirmationType, questions,
       };
       permissionRequestRef.current = req;
       setPermissionRequest(req);

@@ -105,7 +105,14 @@
     "loadingHistory": "대화 기록 로딩 중...",
     "errorLoadingConversation": "대화 로딩 실패",
     "startNewConversation": "새 대화 시작",
-    "dismiss": "닫기"
+    "dismiss": "닫기",
+    "questions": "질문",
+    "selectMultiple": "다중 선택 가능",
+    "askUserQuestionTitle": "다음 질문에 답해주세요:",
+    "questionProgress": "질문 {{current}} / {{total}}",
+    "nextQuestion": "다음",
+    "otherOption": "기타",
+    "otherOptionPlaceholder": "여기에 답변 입력..."
   },
   "permission": {
     "title": "권한 확인이 필요합니다",

@@ -35,9 +35,14 @@ export async function handlePermissionRespond(
   pendingPermissions.delete(body.permissionId);
 
   if (body.behavior === "allow") {
+    // Include answers in updatedInput for ask_user_question tool
+    const updatedInput = body.updatedInput || {};
+    if (body.answers) {
+      updatedInput.answers = body.answers;
+    }
     pending.resolve({
       behavior: "allow",
-      updatedInput: body.updatedInput || {},
+      updatedInput,
     }, body.scope);
   } else {
     const message = body.message

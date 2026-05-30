@@ -10,6 +10,14 @@ export interface StreamResponse {
   // Countdown timer: frontend auto-approves (first option) when this many ms elapses.
   // Used to avoid the CLI's 30-second control-request timeout in approval-mode default.
   autoApproveMs?: number;
+  // For ask_user_question tool: confirmation type and questions
+  confirmationType?: "default" | "ask_user_question";
+  questions?: Array<{
+    question: string;
+    header: string;
+    options: Array<{ label: string; description?: string }>;
+    multiSelect: boolean;
+  }>;
 }
 
 export interface ChatRequest {
@@ -48,6 +56,8 @@ export interface PermissionRespondRequest {
   message?: string;
   updatedInput?: Record<string, unknown>;
   scope?: "specific" | "all";
+  // For ask_user_question tool: answers payload
+  answers?: Record<string, string>;
 }
 
 export interface ProjectInfo {

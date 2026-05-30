@@ -105,7 +105,14 @@
     "loadingHistory": "会話履歴を読み込み中...",
     "errorLoadingConversation": "会話の読み込みに失敗しました",
     "startNewConversation": "新しい会話を開始",
-    "dismiss": "閉じる"
+    "dismiss": "閉じる",
+    "questions": "質問",
+    "selectMultiple": "複数選択可能",
+    "askUserQuestionTitle": "以下の質問に回答してください：",
+    "questionProgress": "質問 {{current}} / {{total}}",
+    "nextQuestion": "次へ",
+    "otherOption": "その他",
+    "otherOptionPlaceholder": "ここに回答を入力..."
   },
   "permission": {
     "title": "権限の確認が必要です",

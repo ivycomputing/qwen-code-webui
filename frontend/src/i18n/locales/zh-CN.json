@@ -105,7 +105,14 @@
     "loadingHistory": "正在加载对话历史...",
     "errorLoadingConversation": "加载对话失败",
     "startNewConversation": "开始新对话",
-    "dismiss": "关闭"
+    "dismiss": "关闭",
+    "questions": "问题",
+    "selectMultiple": "可多选",
+    "askUserQuestionTitle": "请回答以下问题：",
+    "questionProgress": "第 {{current}} 个问题，共 {{total}} 个",
+    "nextQuestion": "下一题",
+    "otherOption": "其他",
+    "otherOptionPlaceholder": "在此输入您的答案..."
   },
   "permission": {
     "title": "需要权限确认",

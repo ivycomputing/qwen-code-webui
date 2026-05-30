@@ -48,6 +48,7 @@ import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
 import { FileChangesPanel } from "./file-changes/FileChangesPanel";
 import { FileDiffModal } from "./file-changes/FileDiffModal";
 import type { FileChange } from "../types/fileChanges";
+import { AskUserQuestionDialog, type Question } from "./chat/AskUserQuestionDialog";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 
 // Types for quota status
@@ -100,6 +101,13 @@ export function ChatPage() {
   );
   const [isVSCodePanelOpen, setIsVSCodePanelOpen] = useState(false);
   const [selectedDiffFile, setSelectedDiffFile] = useState<FileChange | null>(null);
+
+  // AskUserQuestion dialog state
+  const [askUserQuestionRequest, setAskUserQuestionRequest] = useState<{
+    permissionId: string;
+    questions: Question[];
+    autoApproveMs?: number;
+  } | null>(null);
 
   // Remote workspace parameters
   const isRemoteWorkspace = searchParams.get("workspaceType") === "remote";
@@ -726,14 +734,24 @@ export function ChatPage() {
           // Proactive canUseTool permission request
           onPermissionRequest: (event) => {
             notificationTriggeredRef.current = true;
-            const { toolName: extractedName, commands } = extractToolInfo(event.toolName, event.toolInput);
-            const patterns = generateToolPatterns(extractedName, commands);
-            showPermissionRequest(
-              extractedName, patterns, "", undefined,
-              event.permissionId, event.toolInput, event.suggestions,
-              event.autoApproveMs,
-            );
-            showPermissionNotification();
+            // Check if this is an ask_user_question tool
+            if (event.confirmationType === "ask_user_question" && event.questions) {
+              setAskUserQuestionRequest({
+                permissionId: event.permissionId,
+                questions: event.questions as Question[],
+                autoApproveMs: event.autoApproveMs,
+              });
+              showPermissionNotification();
+            } else {
+              const { toolName: extractedName, commands } = extractToolInfo(event.toolName, event.toolInput);
+              const patterns = generateToolPatterns(extractedName, commands);
+              showPermissionRequest(
+                extractedName, patterns, "", undefined,
+                event.permissionId, event.toolInput, event.suggestions,
+                event.autoApproveMs,
+              );
+              showPermissionNotification();
+            }
           },
           // Cleanup orphan permission dialog after SDK timeout/stream resume
           onPermissionOrphanCleanup: () => {
@@ -1188,6 +1206,48 @@ export function ChatPage() {
     remoteChat,
     handlePermissionAbort,
   ]);
+
+  // AskUserQuestion handlers
+  const handleAskUserQuestionConfirm = useCallback(async (answers: Record<string, string>) => {
+    if (!askUserQuestionRequest) return;
+
+    resetDenialCounter();
+    clearNotification();
+
+    try {
+      const resp = await sendPermissionResponse(askUserQuestionRequest.permissionId, "allow", {
+        answers,
+      });
+      if (!resp.ok) {
+        console.warn("Permission response failed:", resp.status);
+        await handlePermissionAbort();
+      }
+    } catch (error) {
+      console.error("Failed to send permission response:", error);
+      await handlePermissionAbort();
+    }
+    setAskUserQuestionRequest(null);
+  }, [askUserQuestionRequest, resetDenialCounter, clearNotification, handlePermissionAbort]);
+
+  const handleAskUserQuestionCancel = useCallback(async () => {
+    if (!askUserQuestionRequest) return;
+
+    clearNotification();
+
+    try {
+      const resp = await sendPermissionResponse(askUserQuestionRequest.permissionId, "deny", {
+        message: "User declined to answer the questions.",
+      });
+      if (!resp.ok) {
+        console.warn("Permission response failed:", resp.status);
+        await handlePermissionAbort();
+      }
+    } catch (error) {
+      console.error("Failed to send permission response:", error);
+      await handlePermissionAbort();
+    }
+    setAskUserQuestionRequest(null);
+  }, [askUserQuestionRequest, clearNotification, handlePermissionAbort]);
 
   // Plan mode request handlers
   const handlePlanAcceptWithEdits = useCallback(() => {
@@ -1775,24 +1835,34 @@ export function ChatPage() {
             )}
 
             {/* Input */}
-            <ChatInput
-              input={input}
-              isLoading={effectiveIsLoading}
-              currentRequestId={currentRequestId}
-              onInputChange={setInput}
-              onSubmit={() => sendMessage()}
-              onAbort={handleAbort}
-              disabled={isQuotaExceeded}
-              permissionMode={permissionMode}
-              onPermissionModeChange={setPermissionMode}
-              showPermissions={isPermissionMode}
-              permissionData={permissionData}
-              planPermissionData={planPermissionData}
-              onExecuteCommand={handleExecuteSlashCommand}
-              selectedModelName={selectedModelName}
-              contextWindowSize={contextWindowSize}
-              tokenUsage={tokenUsage}
-            />
+            {/* AskUserQuestion Dialog */}
+            {askUserQuestionRequest ? (
+              <AskUserQuestionDialog
+                questions={askUserQuestionRequest.questions}
+                autoApproveMs={askUserQuestionRequest.autoApproveMs}
+                onConfirm={handleAskUserQuestionConfirm}
+                onCancel={handleAskUserQuestionCancel}
+              />
+            ) : (
+              <ChatInput
+                input={input}
+                isLoading={effectiveIsLoading}
+                currentRequestId={currentRequestId}
+                onInputChange={setInput}
+                onSubmit={() => sendMessage()}
+                onAbort={handleAbort}
+                disabled={isQuotaExceeded}
+                permissionMode={permissionMode}
+                onPermissionModeChange={setPermissionMode}
+                showPermissions={isPermissionMode}
+                permissionData={permissionData}
+                planPermissionData={planPermissionData}
+                onExecuteCommand={handleExecuteSlashCommand}
+                selectedModelName={selectedModelName}
+                contextWindowSize={contextWindowSize}
+                tokenUsage={tokenUsage}
+              />
+            )}
           </>
         )}
               </div>

@@ -28,6 +28,7 @@ interface PermissionData {
   ) => string;
   onSelectionChange?: (selection: "allow" | "allowPermanent" | "deny") => void;
   externalSelectedOption?: "allow" | "allowPermanent" | "deny" | null;
+  autoApproveMs?: number;
 }
 
 interface PlanPermissionData {
@@ -373,6 +374,7 @@ export function ChatInput({
         getButtonClassName={permissionData.getButtonClassName}
         onSelectionChange={permissionData.onSelectionChange}
         externalSelectedOption={permissionData.externalSelectedOption}
+        autoApproveMs={permissionData.autoApproveMs}
       />
     );
   }

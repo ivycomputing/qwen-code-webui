@@ -108,7 +108,11 @@
     "dismiss": "Dismiss",
     "questions": "Questions",
     "selectMultiple": "select multiple",
-    "respondInChat": "Please respond in the chat below"
+    "askUserQuestionTitle": "Please answer the following question(s):",
+    "questionProgress": "Question {{current}} of {{total}}",
+    "nextQuestion": "Next",
+    "otherOption": "Other",
+    "otherOptionPlaceholder": "Type your answer here..."
   },
   "permission": {
     "title": "Permission Required",
