@@ -431,8 +431,24 @@ export function ChatPage() {
   }, [navigate]);
 
   const handleBackToProjects = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
+    const workspaceType = searchParams.get("workspaceType");
+    const machineId = searchParams.get("machineId");
+
+    // 如果在 iframe 中且是远程工作区，发送消息给父窗口
+    if (window.parent !== window && workspaceType === "remote") {
+      window.parent.postMessage(
+        {
+          type: "qwen-code-switch-project-request",
+          workspaceType: workspaceType,
+          machineId: machineId || undefined,
+        },
+        "*",
+      );
+    } else {
+      // 本地工作区或独立模式，直接导航
+      navigate("/");
+    }
+  }, [navigate, searchParams]);
 
   // Handle global keyboard shortcuts
   useEffect(() => {
