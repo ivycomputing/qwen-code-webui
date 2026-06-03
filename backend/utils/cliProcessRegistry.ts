@@ -1,9 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChildProcess } from "node:child_process";
-import { createRequire } from "node:module";
 import { logger } from "./logger.ts";
 
-const require = createRequire(import.meta.url);
 const childProcess = require("node:child_process") as typeof import("node:child_process");
 
 type AbortSource =
