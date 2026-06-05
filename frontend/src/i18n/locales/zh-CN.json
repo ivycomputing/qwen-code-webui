@@ -42,7 +42,8 @@
     "newFolder": "新建文件夹",
     "newDirectoryName": "新目录名称",
     "selectThisFolder": "选择此目录",
-    "failedToBrowse": "浏览目录失败"
+    "failedToBrowse": "浏览目录失败",
+    "pathHint": "路径必须在 {{baseDir}} 目录下"
   },
   "settings": {
     "title": "设置",

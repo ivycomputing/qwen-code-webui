@@ -9,6 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   browseDirectory,
+  getWorkspaceConfig,
   type DirectoryInfo,
   type BrowseResponse,
 } from "../api/openace";
@@ -33,6 +34,16 @@ export function DirectoryBrowser({
   const [error, setError] = useState<string | null>(null);
   const [newDirName, setNewDirName] = useState("");
   const [showNewDirInput, setShowNewDirInput] = useState(false);
+  const [baseDir, setBaseDir] = useState<string | null>(null);
+
+  // Fetch workspace config to get base_dir for path validation hint
+  useEffect(() => {
+    getWorkspaceConfig()
+      .then((config) => setBaseDir(config.base_dir))
+      .catch(() => {
+        // Ignore error - base_dir hint is optional
+      });
+  }, []);
 
   const loadDirectory = useCallback(async (path?: string) => {
     setLoading(true);
@@ -95,9 +106,15 @@ export function DirectoryBrowser({
   const handleCreateNewDir = () => {
     if (!newDirName.trim()) return;
 
-    const newPath = currentPath
-      ? `${currentPath}/${newDirName.trim()}`.replace(/\/+/g, "/")
-      : newDirName.trim();
+    const inputPath = newDirName.trim();
+
+    // If input is an absolute path (starts with /), use it directly
+    // Otherwise, combine with currentPath as a relative path
+    const newPath = inputPath.startsWith("/")
+      ? inputPath
+      : currentPath
+        ? `${currentPath}/${inputPath}`.replace(/\/+/g, "/")
+        : inputPath;
 
     onSelectDirectory(newPath);
   };
@@ -171,6 +188,15 @@ export function DirectoryBrowser({
       {error && (
         <div className="px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
           <p className="text-sm text-yellow-700 dark:text-yellow-400">{error}</p>
+        </div>
+      )}
+
+      {/* Path hint - show valid base directory */}
+      {baseDir && !error && (
+        <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            {t("directoryBrowser.pathHint", { baseDir })}
+          </p>
         </div>
       )}
 

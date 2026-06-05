@@ -42,7 +42,8 @@
     "newFolder": "New Folder",
     "newDirectoryName": "New directory name",
     "selectThisFolder": "Select This Folder",
-    "failedToBrowse": "Failed to browse directory"
+    "failedToBrowse": "Failed to browse directory",
+    "pathHint": "Paths must be under: {{baseDir}}"
   },
   "settings": {
     "title": "Settings",

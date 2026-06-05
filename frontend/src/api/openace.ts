@@ -126,6 +126,17 @@ export interface CheckPathResponse {
   error?: string;
 }
 
+export interface WorkspaceConfigResponse {
+  enabled: boolean;
+  url: string;
+  multi_user_mode: boolean;
+  port_range_start: number;
+  port_range_end: number;
+  max_instances: number;
+  idle_timeout_minutes: number;
+  base_dir: string;
+}
+
 export interface SessionModelsResponse {
   success: boolean;
   models: ModelConfig[];
@@ -244,6 +255,26 @@ export async function checkPath(path: string): Promise<CheckPathResponse> {
     };
   }
   
+  return response.json();
+}
+
+/**
+ * Get workspace configuration from Open-ACE
+ */
+export async function getWorkspaceConfig(): Promise<WorkspaceConfigResponse> {
+  const url = buildOpenAceUrl("/api/workspace/config");
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get workspace config: ${response.statusText}`);
+  }
+
   return response.json();
 }
 

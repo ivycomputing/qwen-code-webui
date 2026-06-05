@@ -69,6 +69,7 @@ export function AddProjectModal({
 
   const handleSelectDirectory = async (path: string) => {
     setSelectedPath(path);
+    setErrorMessage(""); // Clear previous error
 
     // Extract default name from path
     const segments = path.split(/[/\\]/).filter(Boolean);
@@ -245,6 +246,23 @@ export function AddProjectModal({
                         </button>
                       </div>
                     </div>
+
+                    {/* Error message in browse step */}
+                    {errorMessage && (
+                      <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <ExclamationCircleIcon className="h-5 w-5 text-red-500 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                              {t("project.invalidPath")}
+                            </p>
+                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                              {errorMessage}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {workspaceType === "local" ? (
                       <>
