@@ -1,0 +1,43 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # frontend and backend are independent npm projects, each with its own
+    # package-lock.json, so run them as parallel matrix jobs.
+    name: ${{ matrix.name }} tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # frontend `npm test` is watch mode by default; use `test:run` (vitest run).
+          - name: frontend
+            dir: frontend
+            test-cmd: npm run test:run
+          # backend `npm test` already runs once with --run.
+          - name: backend
+            dir: backend
+            test-cmd: npm test
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+
+      - run: npm ci
+      - run: ${{ matrix.test-cmd }}
