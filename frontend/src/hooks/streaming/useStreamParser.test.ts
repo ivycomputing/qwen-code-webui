@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useStreamParser } from "./useStreamParser";
-import type { StreamingContext } from "./useMessageProcessor";
+import type { StreamingContext, ThinkingTimeoutInfo } from "./useMessageProcessor";
 import { generateId } from "../../utils/id";
 import { TOOL_NAMES } from "../../utils/toolNames";
 
@@ -718,11 +718,13 @@ describe("useStreamParser", () => {
 
 
   describe("Thinking Timeout", () => {
-    let onThinkingTimeout: ReturnType<typeof vi.fn>;
+    // Typed mock: vitest 4's `vi.fn()` returns the broad `Mock<Procedure | Constructable>`,
+    // which is no longer assignable to the specific onThinkingTimeout signature.
+    let onThinkingTimeout: Mock<ThinkingTimeoutInfo["onThinkingTimeout"]>;
 
     beforeEach(() => {
       vi.useFakeTimers();
-      onThinkingTimeout = vi.fn();
+      onThinkingTimeout = vi.fn<ThinkingTimeoutInfo["onThinkingTimeout"]>();
       mockContext.currentThinkingMessage = null;
       mockContext.setCurrentThinkingMessage = vi.fn((msg) => {
         mockContext.currentThinkingMessage = msg;

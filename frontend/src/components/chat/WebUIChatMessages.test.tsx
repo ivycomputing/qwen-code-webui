@@ -105,12 +105,12 @@ describe("WebUIChatMessages", () => {
           subtype: "init",
           session_id: "session-1",
           timestamp: 3000,
-        },
+        } as AllMessage,
         {
           type: "result",
           subtype: "success",
           timestamp: 4000,
-        },
+        } as AllMessage,
       ];
 
       render(<WebUIChatMessages messages={messagesWithSystem} />);

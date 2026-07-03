@@ -1,4 +1,3 @@
-import { render, fireEvent, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
@@ -89,7 +88,6 @@ describe("ChatPage postMessage listener", () => {
 
     it("ignores messages from non-parent sources", () => {
       // Simulate iframe scenario
-      const iframeWindow = {} as Window;
       const maliciousWindow = {} as Window;
 
       const event = new MessageEvent("message", {
@@ -109,7 +107,7 @@ describe("ChatPage postMessage listener", () => {
       const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
 
       // Simulate useEffect mounting
-      const handler = (event: MessageEvent) => {};
+      const handler = () => {};
       window.addEventListener("message", handler);
 
       expect(addEventListenerSpy).toHaveBeenCalledWith("message", handler);

@@ -99,7 +99,7 @@ describe("ChatMessages", () => {
           tool_name: "test_tool",
           input: {},
           timestamp: 3000,
-        },
+        } as unknown as AllMessage,
       ];
 
       render(<ChatMessages messages={messagesWithTool} isLoading={false} />);
@@ -119,12 +119,12 @@ describe("ChatMessages", () => {
           subtype: "init",
           session_id: "session-1",
           timestamp: 3000,
-        },
+        } as AllMessage,
         {
           type: "result",
           subtype: "success",
           timestamp: 4000,
-        },
+        } as AllMessage,
       ];
 
       render(<ChatMessages messages={messagesWithSystem} isLoading={false} />);
