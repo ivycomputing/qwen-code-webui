@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { handlePermissionRespond, type PendingPermission } from "./permission.ts";
 import type { PermissionRespondRequest } from "../../shared/types.ts";
 import type { PermissionResult } from "@qwen-code/sdk";
@@ -17,12 +17,14 @@ function createMockContext(body: PermissionRespondRequest) {
 
 describe("handlePermissionRespond", () => {
   const pendingPermissions = new Map<string, PendingPermission>();
-  let mockResolve: ReturnType<typeof vi.fn>;
+  let mockResolve: Mock<PendingPermission["resolve"]>;
   let mockAbortSignal: AbortSignal;
 
   beforeEach(() => {
     pendingPermissions.clear();
-    mockResolve = vi.fn();
+    // Typed mock: vitest 4's `vi.fn()` returns the broad `Mock<Procedure | Constructable>`
+    // which is no longer assignable to `PendingPermission["resolve"]` without a type arg.
+    mockResolve = vi.fn<PendingPermission["resolve"]>();
     mockAbortSignal = new AbortController().signal;
   });
 
