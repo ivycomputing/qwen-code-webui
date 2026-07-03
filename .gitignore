@@ -20,6 +20,7 @@ backend/dist/
 # Claude Code
 .claude/
 .agents/
+.qwen/
 
 # OS files
 .DS_Store
