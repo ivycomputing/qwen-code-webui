@@ -29,7 +29,6 @@ export interface StreamingContext {
   onInitMessageShown?: () => void;
   hasReceivedInit?: boolean;
   setHasReceivedInit?: (received: boolean) => void;
-  onAbortRequest?: () => void;
   // Auto-rejection loop detection (SDK-level rejections, e.g. stdin closed)
   onAutoRejection?: (
     toolName: string,

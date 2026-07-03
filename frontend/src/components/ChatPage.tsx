@@ -763,11 +763,6 @@ export function ChatPage() {
             localHasReceivedInit = received;
             setHasReceivedInit(received);
           },
-          onAbortRequest: async () => {
-            shouldAbort = true;
-            abortLocalFetch("system");
-            await createAbortHandler(requestId)();
-          },
           // Auto-rejection loop detection
           onAutoRejection: (toolName, content, agentId) => {
             return recordAutoRejection(toolName, content, agentId);

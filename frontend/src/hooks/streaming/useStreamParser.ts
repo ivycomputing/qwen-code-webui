@@ -179,9 +179,6 @@ export function useStreamParser() {
         shouldShowInitMessage: context.shouldShowInitMessage,
         onInitMessageShown: context.onInitMessageShown,
 
-        // Error handling
-        onAbortRequest: context.onAbortRequest,
-
         // Normal completion signal
         onResultReceived: context.onResultReceived,
 

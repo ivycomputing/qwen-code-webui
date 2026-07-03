@@ -123,7 +123,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           autoRejectionCalls.push({ toolName, content });
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       sendToolUse(processor, context, "tool-auto-1", "run_shell_command", {
@@ -144,7 +143,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
     it("should show loop dialog when auto-rejection loop detected", () => {
       const processor = createProcessor();
       let loopRequestShown: CommandLoopRequest | null = null;
-      let abortCalled = false;
 
       const context = createMockContext({
         onAutoRejection: (toolName, content) => {
@@ -157,9 +155,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
         },
         onShowCommandLoopRequest: (request) => {
           loopRequestShown = request;
-        },
-        onAbortRequest: () => {
-          abortCalled = true;
         },
       });
 
@@ -175,7 +170,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
 
       expect(loopRequestShown).not.toBeNull();
       expect(loopRequestShown!.toolName).toBe("run_shell_command");
-      expect(abortCalled).toBe(false);
     });
 
     it("should NOT show permission dialog when no auto-rejection loop", () => {
@@ -213,7 +207,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           autoRejectionCalled = true;
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       sendToolUse(processor, context, "tool-tue-1", "run_shell_command", {
@@ -376,7 +369,6 @@ describe("UnifiedMessageProcessor - Loop Detection Integration", () => {
           autoRejectionCalls.push(toolName);
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       // Cycle 1
@@ -529,7 +521,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push({ toolName, content });
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       // Send tool call via functionCall (Qwen format)
@@ -688,7 +679,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push({ toolName, content });
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       // Send tool call
@@ -713,7 +703,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
 
     it("should show loop dialog when loop detected via Qwen tool_result", () => {
       const processor = createProcessor();
-      let abortCalled = false;
       let loopRequestShown: CommandLoopRequest | null = null;
 
       const context = createMockContext({
@@ -727,9 +716,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         },
         onShowCommandLoopRequest: (request) => {
           loopRequestShown = request;
-        },
-        onAbortRequest: () => {
-          abortCalled = true;
         },
       });
 
@@ -746,9 +732,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         true,
       );
 
-      // Aborting is delegated to onShowCommandLoopRequest (see ChatPage wiring),
-      // so the processor must not invoke the dedicated onAbortRequest here.
-      expect(abortCalled).toBe(false);
       expect(loopRequestShown).not.toBeNull();
       expect(loopRequestShown!.toolName).toBe("run_shell_command");
     });
@@ -789,7 +772,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push({ toolName, content, agentId });
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       // Send tool call from main session
@@ -886,7 +868,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push({ toolName, content, agentId });
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       // Send tool call from main session using Qwen format (functionCall)
@@ -1003,7 +984,6 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
           autoRejectionCalls.push(toolName);
           return null;
         },
-        onAbortRequest: () => {},
       });
 
       // Claude format tool_use

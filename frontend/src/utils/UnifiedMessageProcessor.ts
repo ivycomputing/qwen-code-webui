@@ -53,9 +53,6 @@ export interface ProcessingContext {
   shouldShowInitMessage?: () => boolean;
   onInitMessageShown?: () => void;
 
-  // Error handling
-  onAbortRequest?: () => void;
-
   // Normal completion signal
   onResultReceived?: () => void;
 
@@ -192,7 +189,6 @@ export class UnifiedMessageProcessor {
         if (loopRequest && context.onShowCommandLoopRequest) {
           // Contract: the caller's onShowCommandLoopRequest must abort the
           // in-flight request (ChatPage's local and remote wirings both do).
-          // onAbortRequest is intentionally not invoked here.
           context.onShowCommandLoopRequest(loopRequest);
           return;
         }
