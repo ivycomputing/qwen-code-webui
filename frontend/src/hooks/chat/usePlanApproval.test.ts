@@ -22,7 +22,9 @@ function usePlanApprovalWorkflow() {
     }
 
     permissions.showPlanModeRequest(
-      typeof toolUse.input.plan === "string" ? toolUse.input.plan : "",
+      typeof (toolUse.input as Record<string, unknown>).plan === "string"
+        ? (toolUse.input as Record<string, unknown>).plan as string
+        : "",
     );
 
     return toolUse;

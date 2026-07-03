@@ -503,7 +503,6 @@ export function ChatPage() {
     permissionRequestRef,
     showPermissionRequest,
     closePermissionRequest,
-    allowToolTemporary,
     allowToolPermanent,
     isPermissionMode,
     planModeRequest,
