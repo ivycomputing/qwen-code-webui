@@ -36,6 +36,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "prepare": "node scripts/generate-version.js",
     "predev": "node scripts/generate-version.js",
     "dev": "tsx watch cli/node.ts --debug",
     "prebuild": "node scripts/generate-version.js",

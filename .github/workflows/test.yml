@@ -41,10 +41,7 @@ jobs:
 
       - run: npm ci
       - run: ${{ matrix.test-cmd }}
-      # Typecheck frontend (per review) — enforces type-cleanliness alongside
-      # the suite. Backend typecheck is deferred: its tsc imports generated
-      # cli/version.ts (scripts/generate-version.js, run via predev/prebuild),
-      # which is absent under a clean `npm ci`, so it needs the generate step
-      # wired in first — tracked as a follow-up.
-      - if: matrix.name == 'frontend'
-        run: npm run typecheck
+      # Enforce type-cleanliness alongside the suites. Backend's tsc imports
+      # generated cli/version.ts; the `prepare` hook in backend/package.json
+      # regenerates it on install (npm ci runs prepare), so both typecheck.
+      - run: npm run typecheck
