@@ -190,9 +190,8 @@ export class UnifiedMessageProcessor {
         );
         const loopRequest = context.onAutoRejection(toolName, content, agentId);
         if (loopRequest && context.onShowCommandLoopRequest) {
-          if (context.onAbortRequest) {
-            context.onAbortRequest();
-          }
+          // Aborting is handled by onShowCommandLoopRequest itself (see ChatPage),
+          // so no separate onAbortRequest call is needed here.
           context.onShowCommandLoopRequest(loopRequest);
           return;
         }

@@ -711,7 +711,7 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
       expect(autoRejectionCalls[0].content).toContain("Input closed");
     });
 
-    it("should trigger auto-abort when loop detected via Qwen tool_result", () => {
+    it("should show loop dialog when loop detected via Qwen tool_result", () => {
       const processor = createProcessor();
       let abortCalled = false;
       let loopRequestShown: CommandLoopRequest | null = null;
@@ -746,7 +746,9 @@ describe("UnifiedMessageProcessor - Qwen SDK Format", () => {
         true,
       );
 
-      expect(abortCalled).toBe(true);
+      // Aborting is delegated to onShowCommandLoopRequest (see ChatPage wiring),
+      // so the processor must not invoke the dedicated onAbortRequest here.
+      expect(abortCalled).toBe(false);
       expect(loopRequestShown).not.toBeNull();
       expect(loopRequestShown!.toolName).toBe("run_shell_command");
     });
