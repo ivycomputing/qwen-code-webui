@@ -41,3 +41,5 @@ jobs:
 
       - run: npm ci
       - run: ${{ matrix.test-cmd }}
+      # Enforce type-cleanliness alongside tests (both packages define `typecheck`).
+      - run: npm run typecheck
