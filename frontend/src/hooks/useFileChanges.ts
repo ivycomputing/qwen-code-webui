@@ -53,7 +53,7 @@ export function useFileChanges(
             throw new Error(`HTTP ${response.status}`);
           }
           const data: GitStatusResponse = await response.json();
-          setFiles(data.files);
+          setFiles(data.files || []);
         }
       } catch (err) {
         if (showLoading) {

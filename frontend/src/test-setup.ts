@@ -4,6 +4,17 @@ import { afterEach } from "vitest";
 
 afterEach(cleanup);
 
+// Polyfill ResizeObserver for jsdom (react-resizable-panels v4 constructs one on mount)
+class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.defineProperty(window, "ResizeObserver", {
+  writable: true,
+  value: ResizeObserver,
+});
+
 // Mock window.matchMedia for tests
 Object.defineProperty(window, "matchMedia", {
   writable: true,
