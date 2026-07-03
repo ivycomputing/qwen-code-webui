@@ -56,3 +56,6 @@ screenshots/
 # deno.lock
 # package-lock.json
 # pnpm-lock.yaml
+
+# Root lock file (keep frontend/package-lock.json tracked)
+/package-lock.json
