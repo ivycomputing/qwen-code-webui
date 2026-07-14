@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   abortRemoteRequest,
   createRemoteSession,
-  createRemoteSessionStream,
   createRemoteSessionStreamWithReconnect,
   getRemoteSessionStatus,
   pauseRemoteSession,
