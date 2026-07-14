@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write src/ scripts/",
     "format:check": "prettier --check src/ scripts/",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b --noEmit",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
