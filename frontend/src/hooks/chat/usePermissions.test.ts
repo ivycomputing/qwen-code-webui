@@ -571,6 +571,138 @@ FAILED test_foo.py::test_bar - AssertionError: expected 1, got 0`;
     expect(loopRequest).toBeNull();
   });
 
+  it("should clear the agent's tracking on any successful tool call (cross-tool progress)", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // First: run_shell_command error
+    act(() => {
+      result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "npm test" },
+        { exitCode: 1, output: "Error: test failed" }
+      );
+    });
+
+    // Second: run_shell_command error again
+    act(() => {
+      result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "npm test" },
+        { exitCode: 1, output: "Error: test failed" }
+      );
+    });
+
+    // Third: different tool (edit) succeeds - should clear this agent's tracking
+    act(() => {
+      result.current.checkCommandResultLoop(
+        "edit",
+        { file_path: "/src/file.ts" },
+        { exitCode: 0, output: "File edited successfully" }
+      );
+    });
+
+    // Fourth: run_shell_command error again - count should be 1 (reset by edit success)
+    act(() => {
+      result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "npm test" },
+        { exitCode: 1, output: "Error: test failed" }
+      );
+    });
+
+    // Fifth: run_shell_command error again - count should be 2
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "npm test" },
+        { exitCode: 1, output: "Error: test failed" }
+      );
+    });
+
+    // Should NOT trigger loop because counter was reset by edit success
+    expect(loopRequest).toBeNull();
+  });
+
+  it("should not reset another agent's loop counters on success (per-agent isolation, #140)", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // Agent A errors twice on the same command
+    for (let i = 0; i < 2; i++) {
+      act(() => {
+        result.current.checkCommandResultLoop(
+          "run_shell_command",
+          { command: "npm test" },
+          { exitCode: 1, output: "Error: test failed" },
+          "agent-a"
+        );
+      });
+    }
+
+    // Agent B (a different fork) makes progress with a successful edit
+    act(() => {
+      result.current.checkCommandResultLoop(
+        "edit",
+        { file_path: "/src/other.ts" },
+        { exitCode: 0, output: "File edited successfully" },
+        "agent-b"
+      );
+    });
+
+    // Agent A errors a third time — its counter must have survived agent B's
+    // success, so the loop IS detected
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "npm test" },
+        { exitCode: 1, output: "Error: test failed" },
+        "agent-a"
+      );
+    });
+
+    expect(loopRequest).not.toBeNull();
+    expect(loopRequest!.command).toContain("npm test");
+  });
+
+  it("should not reset a fork agent's counters on a main-session success (per-agent isolation, #140)", () => {
+    const { result } = renderHook(() => usePermissions());
+
+    // Fork agent errors twice
+    for (let i = 0; i < 2; i++) {
+      act(() => {
+        result.current.checkCommandResultLoop(
+          "run_shell_command",
+          { command: "npm test" },
+          { exitCode: 1, output: "Error: test failed" },
+          "agent-a"
+        );
+      });
+    }
+
+    // Main session (no agentId) succeeds
+    act(() => {
+      result.current.checkCommandResultLoop(
+        "edit",
+        { file_path: "/src/main.ts" },
+        { exitCode: 0, output: "File edited successfully" }
+      );
+    });
+
+    // Fork agent's third error still trips detection
+    let loopRequest: CommandLoopRequest | null = null;
+    act(() => {
+      loopRequest = result.current.checkCommandResultLoop(
+        "run_shell_command",
+        { command: "npm test" },
+        { exitCode: 1, output: "Error: test failed" },
+        "agent-a"
+      );
+    });
+
+    expect(loopRequest).not.toBeNull();
+  });
+
   it("should not detect loop for excluded tools", () => {
     const { result } = renderHook(() => usePermissions());
 

@@ -33,6 +33,46 @@ function simpleHash(str: string): string {
 }
 
 /**
+ * Check if an SDK message represents a successful tool result.
+ * Returns true only for tool results that are explicitly successful
+ * (is_error === false, success status, or exitCode 0).
+ *
+ * This is used to reset the loop detection counter when the AI makes
+ * progress in an iterative workflow (e.g., edit_file succeeds after
+ * a failed test run).
+ */
+function isSuccessfulToolResult(sdkMessage: unknown): boolean {
+  const msg = sdkMessage as Record<string, unknown>;
+
+  // SDK format: type "user", content at msg.message.content[]
+  if (msg.type === "user") {
+    const message = msg.message as Record<string, unknown> | undefined;
+    const content = message?.content;
+    if (Array.isArray(content)) {
+      for (const item of content as Array<Record<string, unknown>>) {
+        // Only recognize as success if is_error is EXPLICITLY false
+        // This avoids misidentifying plain text messages (where is_error is undefined)
+        if (item.is_error === false && (item.text !== undefined || item.content !== undefined)) {
+          return true;
+        }
+      }
+    }
+    // Fallback: cannot determine, conservatively do not reset
+    return false;
+  }
+
+  // Session log format: type "tool_result", toolCallResult.status or exitCode
+  if (msg.type === "tool_result" && msg.toolCallResult) {
+    const result = msg.toolCallResult as Record<string, unknown>;
+    const status = result.status;
+    const exitCode = result.exitCode;
+    return status === "success" || exitCode === 0;
+  }
+
+  return false;
+}
+
+/**
  * Extract an error fingerprint from an SDK message.
  * Returns null if the message is not an error.
  *
@@ -146,7 +186,8 @@ export function isFatalFingerprint(fingerprint: string): boolean {
  * Returns loop info if detected, null otherwise.
  * State is maintained by the caller (simple object, reset per request).
  *
- * Non-error messages (assistant, system, etc.) do NOT reset the counter.
+ * Successful tool results reset the counter (indicates workflow progress).
+ * Non-error non-tool messages (assistant text, system) do NOT reset the counter.
  * Only a different error fingerprint or an expired time window resets it.
  */
 export function checkLoop(
@@ -157,9 +198,15 @@ export function checkLoop(
   const error = extractError(sdkMessage);
 
   if (!error) {
-    // Non-error message — do NOT reset counter.
-    // In a real loop, error messages are interleaved with assistant messages,
-    // so resetting on non-errors would prevent detection.
+    // A successful tool result indicates workflow progress — reset the
+    // counter (#225). Other non-error messages (assistant text, system) do
+    // NOT reset: in a real loop, error messages are interleaved with
+    // assistant messages, so resetting on non-errors would prevent detection.
+    if (isSuccessfulToolResult(sdkMessage)) {
+      state.errorCount = 0;
+      state.lastFingerprint = "";
+      state.firstErrorTime = 0;
+    }
     return null;
   }
   const { fingerprint } = error;
