@@ -42,6 +42,7 @@ import { HistoryView } from "./HistoryView";
 import { getChatUrl, getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
 import { normalizeWindowsPath } from "../utils/pathUtils";
+import { getAllowedOrigin } from "../utils/token";
 import { isIntegratedMode, fetchOpenAceProjects } from "../api/openace";
 import { useRemoteChat } from "../hooks/useRemoteChat";
 import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
@@ -1423,7 +1424,7 @@ export function ChatPage() {
   // Notify Open-ACE parent to enter fullscreen when user enters chat page
   useEffect(() => {
     if (isIntegratedMode() && window.parent !== window) {
-      window.parent.postMessage({ type: "openace-enter-chat" }, "*");
+      window.parent.postMessage({ type: "openace-enter-chat" }, getAllowedOrigin());
     }
   }, []);
 
@@ -1451,7 +1452,7 @@ export function ChatPage() {
             permissionMode: permissionMode,
           },
           timestamp: Date.now(),
-        }, "*");
+        }, getAllowedOrigin());
       }
     }
   }, [currentSessionId, getEncodedName, toolName, projects.length, selectedModel, experimental.useWebUIComponents, permissionMode]);
@@ -1511,7 +1512,7 @@ export function ChatPage() {
         type: 'qwen-code-switch-project-request',
         workspaceType,
         machineId,
-      }, '*');
+      }, getAllowedOrigin());
     } else {
       // Not embedded in iframe, navigate directly
       navigate("/");
@@ -1557,7 +1558,7 @@ export function ChatPage() {
               direction,
               shortcut: `${e.ctrlKey ? "Ctrl" : "Cmd"}+Shift+${e.code}`,
             },
-            "*"
+            getAllowedOrigin()
           );
         }
       }

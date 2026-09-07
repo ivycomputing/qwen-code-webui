@@ -118,8 +118,12 @@ export function setToken(newToken: string): void {
 /**
  * Get the allowed origin for postMessage communication
  * Uses the parent window's origin when in iframe, or openace_url from URL params
+ *
+ * Exported so every `window.parent.postMessage` call site can target this
+ * specific origin instead of the wildcard "*", which would leak message data to
+ * any parent frame (CodeQL js/cross-window-information-leak).
  */
-function getAllowedOrigin(): string {
+export function getAllowedOrigin(): string {
   // First try openace_url parameter if available
   const openaceUrl = getOpenAceUrl();
   if (openaceUrl) {

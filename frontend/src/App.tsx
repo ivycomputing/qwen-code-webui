@@ -4,6 +4,7 @@ import { ProjectSelector } from "./components/ProjectSelector";
 import { ChatPage } from "./components/ChatPage";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { isDevelopment } from "./utils/environment";
+import { getAllowedOrigin } from "./utils/token";
 
 // Global ESC key handler: forward to parent window (Open ACE) for fullscreen exit (Issue #103)
 // This must be at App level so it works regardless of which page (ChatPage/ProjectSelector) is shown
@@ -11,7 +12,7 @@ function GlobalEscHandler({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !e.defaultPrevented && window.parent !== window) {
-        window.parent.postMessage({ type: "qwen-code-esc-pressed" }, "*");
+        window.parent.postMessage({ type: "qwen-code-esc-pressed" }, getAllowedOrigin());
       }
     };
     document.addEventListener("keydown", handleKeyDown);
