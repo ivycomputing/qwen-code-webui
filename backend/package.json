@@ -59,7 +59,7 @@
     "@logtape/logtape": "^1.0.0",
     "@logtape/pretty": "^1.0.0",
     "@qwen-code/sdk": "^0.1.4",
-    "commander": "^14.0.0",
+    "commander": "^15.0.0",
     "hono": "^4.12.34",
     "http-proxy": "^1.18.1",
     "qs": "^6.16.0",
