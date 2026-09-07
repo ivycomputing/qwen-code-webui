@@ -115,16 +115,40 @@ export function setToken(newToken: string): void {
   console.log("[Token] Token updated from parent window");
 }
 
+// Emit the "could not resolve parent origin" warning at most once per session so
+// a genuine misconfiguration is diagnosable without spamming the console on every
+// message.
+let hasWarnedUnresolvedOrigin = false;
+
 /**
- * Get the allowed origin for postMessage communication
- * Uses the parent window's origin when in iframe, or openace_url from URL params
+ * Get the allowed origin for postMessage communication.
+ *
+ * Resolves the Open-ACE parent origin from (in order) the `openace_url` URL
+ * param, the parent window's origin (same-origin iframes), or the referrer.
+ * Exported so every `window.parent.postMessage` call site can target this
+ * specific origin instead of the wildcard "*", which would leak message data to
+ * any parent frame (CodeQL js/cross-window-information-leak).
+ *
+ * Always returns a valid postMessage targetOrigin: a concrete "scheme://host"
+ * origin, or "/" (deliver only to the sender's own origin) when none can be
+ * resolved. It never returns "" or the opaque "null", either of which would make
+ * postMessage throw. When embedded but the parent origin cannot be determined
+ * (cross-origin parent, no `openace_url`, no referrer), delivery is restricted to
+ * the app's own origin and a one-time warning is logged — so Open-ACE should
+ * always launch the iframe with the `openace_url` parameter.
  */
-function getAllowedOrigin(): string {
+export function getAllowedOrigin(): string {
+  // A usable targetOrigin must be a real origin — not empty and not the opaque
+  // "null" (a sandboxed/opaque-origin document), which makes postMessage throw.
+  const isUsableOrigin = (origin: string): boolean =>
+    origin !== "" && origin !== "null";
+
   // First try openace_url parameter if available
   const openaceUrl = getOpenAceUrl();
   if (openaceUrl) {
     try {
-      return new URL(openaceUrl).origin;
+      const origin = new URL(openaceUrl).origin;
+      if (isUsableOrigin(origin)) return origin;
     } catch {
       // Invalid URL, fall through
     }
@@ -133,12 +157,14 @@ function getAllowedOrigin(): string {
   // Try to get parent origin (will work for same-origin iframes)
   if (window.parent !== window) {
     try {
-      return window.parent.location.origin;
+      const origin = window.parent.location.origin;
+      if (isUsableOrigin(origin)) return origin;
     } catch {
       // Cross-origin iframe - try referrer
       if (document.referrer) {
         try {
-          return new URL(document.referrer).origin;
+          const origin = new URL(document.referrer).origin;
+          if (isUsableOrigin(origin)) return origin;
         } catch {
           // Invalid referrer
         }
@@ -146,8 +172,18 @@ function getAllowedOrigin(): string {
     }
   }
 
-  // Fallback to current origin (for standalone mode)
-  return window.location.origin;
+  // Could not resolve a definitive parent origin. Restrict delivery to our own
+  // origin (or "/" if that is itself opaque) instead of broadcasting to "*".
+  const ownOrigin = window.location.origin;
+  if (window.parent !== window && !hasWarnedUnresolvedOrigin) {
+    hasWarnedUnresolvedOrigin = true;
+    console.warn(
+      "[Token] Could not resolve the parent window origin for postMessage; " +
+        "restricting messages to the app's own origin. Ensure Open-ACE launches " +
+        "the iframe with the openace_url parameter."
+    );
+  }
+  return isUsableOrigin(ownOrigin) ? ownOrigin : "/";
 }
 
 /**

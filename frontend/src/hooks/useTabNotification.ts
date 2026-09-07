@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { getAllowedOrigin } from '../utils/token';
 
 export interface TabNotificationState {
   waitingType: 'permission' | 'plan' | 'input' | null;
@@ -65,7 +66,7 @@ export function useTabNotification() {
           waitingType,
           timestamp: Date.now(),
         },
-        '*'
+        getAllowedOrigin()
       );
     }
 
