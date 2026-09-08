@@ -11,9 +11,10 @@ import { NodeRuntime } from "../runtime/node.ts";
 import { parseCliArgs } from "./args.ts";
 import { validateQwenCli } from "./validation.ts";
 import { setupLogger, logger } from "../utils/logger.ts";
+import { startLlmProxy } from "../utils/llmProxy.ts";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { exit } from "../utils/os.ts";
+import { exit, getEnv } from "../utils/os.ts";
 
 async function main(runtime: NodeRuntime) {
   // Parse CLI arguments
@@ -44,6 +45,24 @@ async function main(runtime: NodeRuntime) {
 
   if (args.debug) {
     logger.cli.debug(`Static path: ${staticPath}`);
+  }
+
+  // Start LLM proxy for Open-ACE integration mode BEFORE the server begins
+  // accepting requests. The proxy injects X-Session-Id headers for session
+  // attribution. Awaiting it here guarantees the proxy is listening before
+  // any chat request can arrive.
+  // @see https://github.com/ivycomputing/qwen-code-webui/issues/267
+  const openaiBaseUrl = getEnv("OPENAI_BASE_URL");
+  if (openaiBaseUrl) {
+    try {
+      const port = await startLlmProxy(openaiBaseUrl);
+      logger.cli.info(
+        `LLM proxy ready on port ${port} for session header injection (upstream: ${openaiBaseUrl})`,
+      );
+    } catch (err) {
+      logger.cli.error(`Failed to start LLM proxy: ${err}`);
+      exit(1);
+    }
   }
 
   // Create application

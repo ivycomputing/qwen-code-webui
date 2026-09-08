@@ -31,8 +31,7 @@ import {
 import { logger } from "./utils/logger.ts";
 import { readBinaryFile } from "./utils/fs.ts";
 import { abortAllTrackedCliRequests } from "./utils/cliProcessRegistry.ts";
-import { startLlmProxy, stopLlmProxy } from "./utils/llmProxy.ts";
-import { getEnv } from "./utils/os.ts";
+import { stopLlmProxy } from "./utils/llmProxy.ts";
 import { handleDeleteProjectRequest } from "./handlers/projects.ts";
 import {
   handleGitStatusRequest,
@@ -96,25 +95,9 @@ export function createApp(
     });
   };
 
-  // Start LLM proxy for Open-ACE integration mode.
-  // When OPENAI_BASE_URL is set, CLI subprocesses send LLM requests to that URL.
-  // The proxy intercepts these requests, adds X-Session-Id header, and forwards
-  // to the real upstream, ensuring proper session attribution.
-  // @see https://github.com/ivycomputing/qwen-code-webui/issues/220
-  const openaiBaseUrl = getEnv("OPENAI_BASE_URL");
-  if (openaiBaseUrl) {
-    startLlmProxy(openaiBaseUrl).then((port) => {
-      logger.app.info(
-        "LLM proxy started on port {port} for session header injection (upstream: {upstream})",
-        { port, upstream: openaiBaseUrl },
-      );
-    }).catch((err) => {
-      logger.app.error(
-        "Failed to start LLM proxy: {error}. X-Session-Id header will not be injected.",
-        { error: String(err) },
-      );
-    });
-  }
+  // LLM proxy startup moved to entry points (cli/node.ts, cli/deno.ts)
+  // so it is awaited before the server starts accepting requests.
+  // @see https://github.com/ivycomputing/qwen-code-webui/issues/267
 
   const vscodeUpgradeHandler = createVSCodeUpgradeHandler();
 
