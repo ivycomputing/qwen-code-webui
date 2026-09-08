@@ -291,36 +291,42 @@ describe("Open-ACE session pre-registration", () => {
   });
 
   it("uses the same registered ID for the first SDK request", async () => {
-    mockSuccessfulQuery();
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (_url: string, init: RequestInit) => {
-        const body = JSON.parse(init.body as string) as { session_id: string };
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: { session_id: body.session_id },
-          }),
-          { status: 201, headers: { "Content-Type": "application/json" } },
-        );
+    // Proxy must be running in integration mode (issue #267)
+    await startLlmProxy("http://127.0.0.1:9/upstream");
+    try {
+      mockSuccessfulQuery();
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(async (_url: string, init: RequestInit) => {
+          const body = JSON.parse(init.body as string) as { session_id: string };
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: { session_id: body.session_id },
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } },
+          );
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const response = await handleChatRequest(
+        createContext({ openaceApiUrl: "https://openace.example" }),
+        new Map(),
+        new Map(),
+      );
+      await response.text();
+
+      const registrationRequest = fetchMock.mock.calls[0][1] as RequestInit;
+      const registeredId = JSON.parse(
+        registrationRequest.body as string,
+      ).session_id;
+      expect(mockQuery).toHaveBeenCalledWith({
+        prompt: "hello",
+        options: expect.objectContaining({ sessionId: registeredId }),
       });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await handleChatRequest(
-      createContext({ openaceApiUrl: "https://openace.example" }),
-      new Map(),
-      new Map(),
-    );
-    await response.text();
-
-    const registrationRequest = fetchMock.mock.calls[0][1] as RequestInit;
-    const registeredId = JSON.parse(
-      registrationRequest.body as string,
-    ).session_id;
-    expect(mockQuery).toHaveBeenCalledWith({
-      prompt: "hello",
-      options: expect.objectContaining({ sessionId: registeredId }),
-    });
+    } finally {
+      await stopLlmProxy();
+    }
   });
 
   it("routes the first SDK request through the proxy with the registered session ID", async () => {
@@ -430,6 +436,42 @@ describe("Open-ACE session pre-registration", () => {
         }),
       }),
     ]);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("rejects chat requests with explicit error when proxy is not running in integration mode (issue #267)", async () => {
+    mockSuccessfulQuery();
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as { session_id: string };
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: { session_id: body.session_id },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        );
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Ensure proxy is NOT running
+    await stopLlmProxy();
+
+    const response = await handleChatRequest(
+      createContext({ openaceApiUrl: "https://openace.example" }),
+      new Map(),
+      new Map(),
+    );
+    const events = (await response.text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+
+    // Should get an error event, not a successful query
+    const errorEvent = events.find((e) => e.type === "error");
+    expect(errorEvent).toBeDefined();
+    expect(errorEvent.error).toContain("proxy is not running");
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });

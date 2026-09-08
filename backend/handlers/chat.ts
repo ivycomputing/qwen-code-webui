@@ -974,6 +974,16 @@ export async function handleChatRequest(
           }
         }
 
+        // In integration mode, the proxy MUST be running for proper session
+        // attribution. If it's not, fail explicitly rather than silently sending
+        // requests without X-Session-Id (issue #267).
+        if (isIntegratedMode(config) && effectiveSessionId && !isProxyRunning()) {
+          throw new Error(
+            "Session proxy is not running. Cannot route model requests with session attribution. " +
+            "Please restart the service.",
+          );
+        }
+
         await executeQwenCommand(
           chatRequest.message,
           chatRequest.requestId,
