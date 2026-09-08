@@ -57,7 +57,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.15",
     "@logtape/logtape": "^1.0.0",
-    "@logtape/pretty": "^1.0.0",
+    "@logtape/pretty": "^2.3.2",
     "@qwen-code/sdk": "^0.1.4",
     "commander": "^14.0.0",
     "hono": "^4.12.34",
