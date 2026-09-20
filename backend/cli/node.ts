@@ -56,6 +56,7 @@ async function main(runtime: NodeRuntime) {
     cliPath,
     tokenSecret,
     serializeChatRequests: args.serializeChatRequests,
+    modelProxyBaseUrl: args.modelProxyBaseUrl,
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
     authType: args.authType,

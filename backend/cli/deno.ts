@@ -40,6 +40,7 @@ async function main(runtime: DenoRuntime) {
     tokenSecret,
     authType: args.authType,
     serializeChatRequests: args.serializeChatRequests,
+    modelProxyBaseUrl: args.modelProxyBaseUrl,
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
   });

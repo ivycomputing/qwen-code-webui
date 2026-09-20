@@ -83,6 +83,22 @@ export function addTokenToUrl(url: string): string {
       !url.startsWith(base.replace(/\/$/, "") + "/")) {
     url = base.replace(/\/$/, "") + url;
   }
+  // A hosting application may attach a public, owner-checked model selection
+  // ID. It is not an authentication token. Keep it per tab, and send it only
+  // to the same-origin API under this mount. Cookie authentication remains
+  // the hosting application's responsibility; no model grant enters the UI.
+  if (window.__WEBUI_CONTEXT_ENABLED__ && typeof base === "string") {
+    const target = new URL(url, window.location.origin);
+    if (target.origin !== window.location.origin || !target.pathname.startsWith(base.replace(/\/$/, "") + "/api/")) return url;
+    const storageKey = "webui-context:" + base;
+    let contextId = window.__WEBUI_CONTEXT_ID__ || "";
+    try {
+      if (/^[0-9a-f]{48}$/.test(contextId)) sessionStorage.setItem(storageKey, contextId);
+      else contextId = sessionStorage.getItem(storageKey) || "";
+    } catch { /* Session storage may be disabled; the initial context still works. */ }
+    if (/^[0-9a-f]{48}$/.test(contextId)) target.searchParams.set("context_id", contextId);
+    return target.pathname + target.search + target.hash;
+  }
   const token = getToken();
   if (!token) {
     return url;

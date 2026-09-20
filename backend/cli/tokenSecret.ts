@@ -1,6 +1,8 @@
 import { Buffer } from "node:buffer";
 import process from "node:process";
 import { openSync, fstatSync, readSync, closeSync } from "node:fs";
+import { Buffer } from "node:buffer";
+import process from "node:process";
 
 /** File-based secrets avoid exposing credentials in command-line arguments. */
 export function readTokenSecret(inline?: string, file?: string): string | undefined {

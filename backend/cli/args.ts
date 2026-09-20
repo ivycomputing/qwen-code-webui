@@ -14,6 +14,7 @@ export interface ParsedArgs {
   host: string;
   qwenPath?: string;
   serializeChatRequests?: boolean;
+  modelProxyBaseUrl?: string;
   tokenSecret?: string;
   tokenSecretFile?: string;
   quotaCheckEnabled?: boolean;
@@ -59,6 +60,7 @@ export function parseCliArgs(): ParsedArgs {
       "Token secret for Open-ACE integration authentication (optional)",
     )
     .option("--serialize-chat-requests", "Allow only one active chat per server instance", false)
+    .option("--model-proxy-base-url <url>", "Require a per-request credential for this trusted OpenAI proxy")
     .option("--token-secret-file <path>", "Read token authentication secret from a protected file (minimum 32 bytes)")
     .option(
       "--quota-check-enabled",
@@ -91,6 +93,7 @@ export function parseCliArgs(): ParsedArgs {
     tokenSecret: options.tokenSecret,
     tokenSecretFile: options.tokenSecretFile,
     serializeChatRequests: options.serializeChatRequests,
+    modelProxyBaseUrl: options.modelProxyBaseUrl,
     quotaCheckEnabled: options.quotaCheckEnabled,
     openaceApiUrl: options.openaceApiUrl,
     authType: options.authType,
