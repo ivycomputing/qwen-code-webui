@@ -925,6 +925,27 @@ describe("Chat Handler - Permission Mode Tests", () => {
     });
   });
 
+  it("serializes shared-workspace turns without superseding another administrator", async () => {
+    (mockContext.var as any).config.serializeChatRequests = true;
+    (mockContext as any).json = vi.fn((value, status) => Response.json(value, {status}));
+    mockContext.req.json = vi.fn().mockResolvedValue({message:"first", requestId:"serial-1"});
+    let unblock!: () => void;
+    const blocker = new Promise<void>(resolve => {unblock=resolve;});
+    mockQuery.mockReturnValue({[Symbol.asyncIterator]:async function* () {
+      yield {type:"assistant",message:{content:[{type:"text",text:"started"}]},session_id:"serial-session"};
+      await blocker;
+    }});
+    const first = await handleChatRequest(mockContext,requestAbortControllers,pendingPermissions);
+    const done = first.text();
+    try {
+      const second = await handleChatRequest(mockContext,requestAbortControllers,pendingPermissions);
+      expect(second.status).toBe(409);
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    } finally {unblock();await done;}
+    const third = await handleChatRequest(mockContext,requestAbortControllers,pendingPermissions);
+    expect(third.status).toBe(200);await third.text();
+  });
+
   describe("Session Concurrency Guard", () => {
     it("should abort existing request when new request arrives for same session", async () => {
       let resolveBlocker!: () => void;

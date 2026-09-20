@@ -13,7 +13,9 @@ export interface ParsedArgs {
   port: number;
   host: string;
   qwenPath?: string;
+  serializeChatRequests?: boolean;
   tokenSecret?: string;
+  tokenSecretFile?: string;
   quotaCheckEnabled?: boolean;
   openaceApiUrl?: string;
   authType?: string;
@@ -56,6 +58,8 @@ export function parseCliArgs(): ParsedArgs {
       "--token-secret <secret>",
       "Token secret for Open-ACE integration authentication (optional)",
     )
+    .option("--serialize-chat-requests", "Allow only one active chat per server instance", false)
+    .option("--token-secret-file <path>", "Read token authentication secret from a protected file")
     .option(
       "--quota-check-enabled",
       "Enable quota checking with Open-ACE",
@@ -85,6 +89,8 @@ export function parseCliArgs(): ParsedArgs {
     host: options.host,
     qwenPath: options.qwenPath,
     tokenSecret: options.tokenSecret,
+    tokenSecretFile: options.tokenSecretFile,
+    serializeChatRequests: options.serializeChatRequests,
     quotaCheckEnabled: options.quotaCheckEnabled,
     openaceApiUrl: options.openaceApiUrl,
     authType: options.authType,

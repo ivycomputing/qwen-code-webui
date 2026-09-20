@@ -201,8 +201,12 @@ export function createTokenAuthMiddleware(tokenSecret?: string) {
       return;
     }
 
-    // Get token from URL query parameter
-    const token = c.req.query("token");
+    // Proxies can keep tokens out of URLs, browser storage and access logs.
+    // If an Authorization header is present it is authoritative: never fall
+    // back to a query token after malformed/invalid header authentication.
+    const authorization = c.req.header("Authorization");
+    const token = authorization === undefined ? c.req.query("token") :
+      (/^Bearer [^\s]+$/.test(authorization) ? authorization.slice(7) : undefined);
 
     if (!token) {
       logger.app.warn("Request rejected: missing token parameter");

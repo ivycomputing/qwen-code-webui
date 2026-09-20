@@ -75,6 +75,14 @@ export function getOpenAceUrl(): string | undefined {
  * @returns URL with token query parameter if token exists, otherwise original URL
  */
 export function addTokenToUrl(url: string): string {
+  // Honor the same mount prefix as the router, including same-origin API calls.
+  // Root-path standalone deployments keep their existing behavior.
+  const base = window.__WEBUI_BASENAME__;
+  if (typeof base === "string" && /^\/(?!\/)[^?#\\]*$/.test(base) &&
+      url.startsWith("/") && !url.startsWith("//") &&
+      !url.startsWith(base.replace(/\/$/, "") + "/")) {
+    url = base.replace(/\/$/, "") + url;
+  }
   const token = getToken();
   if (!token) {
     return url;

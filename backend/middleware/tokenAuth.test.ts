@@ -329,3 +329,14 @@ describe("createTokenAuthMiddleware", () => {
     expect(await res.text()).toContain("Invalid token");
   });
 });
+
+describe("proxy header authentication", () => {
+  it("accepts a v2 Bearer token without any query credential", async () => {
+    const app = new Hono(); const secret = "synthetic-only";
+    app.use("*", createTokenAuthMiddleware(secret)); app.get("/test", c => c.text("OK"));
+    const token = await generateTokenV2(7, 8080, Math.floor(Date.now()/1000), "nonce", secret);
+    expect((await app.request("/test", {headers:{Authorization:`Bearer ${token}`}})).status).toBe(200);
+    // Malformed headers cannot fall back to an otherwise valid query token.
+    expect((await app.request(`/test?token=${encodeURIComponent(token)}`, {headers:{Authorization:"Basic malformed"}})).status).toBe(401);
+  });
+});

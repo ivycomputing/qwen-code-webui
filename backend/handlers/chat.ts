@@ -782,10 +782,32 @@ async function executeQwenCommand(
 /**
  * Handles POST /api/chat requests with streaming responses
  */
+// Optional single-instance coordination for a deliberately shared maintenance
+// workspace. The lock lasts until CLI completion, not browser disconnection.
+// It is a collaboration guard and does not provide user/runtime isolation.
+const serializedServers = new WeakSet<Map<string, AbortController>>();
 export async function handleChatRequest(
   c: Context,
   requestAbortControllers: Map<string, AbortController>,
   pendingPermissions: Map<string, PendingPermission>,
+) {
+  if (!(c.var.config as AppConfig).serializeChatRequests) {
+    return handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions);
+  }
+  if (serializedServers.has(requestAbortControllers)) {
+    return c.json({error: "Shared workspace has an active request; wait or cancel it first"}, 409);
+  }
+  serializedServers.add(requestAbortControllers);
+  const release = () => { serializedServers.delete(requestAbortControllers); };
+  try { return await handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions, release); }
+  catch (error) { release(); throw error; }
+}
+
+async function handleChatRequestUnlocked(
+  c: Context,
+  requestAbortControllers: Map<string, AbortController>,
+  pendingPermissions: Map<string, PendingPermission>,
+  onComplete?: () => void,
 ) {
   const chatRequest: ChatRequest = await c.req.json();
   const config = c.var.config as AppConfig;
@@ -1000,6 +1022,8 @@ export async function handleChatRequest(
         enqueue(errorResponse);
         enqueue({ type: "done" });
         try { controller.close(); } catch { /* already closed */ }
+      } finally {
+        onComplete?.();
       }
     },
     cancel() {

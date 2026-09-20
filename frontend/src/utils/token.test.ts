@@ -10,6 +10,7 @@ describe("token utilities", () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     sessionStorage.clear();
+    delete window.__WEBUI_BASENAME__;
     vi.resetModules();
     token = await import("./token");
 
@@ -25,11 +26,22 @@ describe("token utilities", () => {
   });
 
   afterEach(() => {
+    delete window.__WEBUI_BASENAME__;
     vi.useRealTimers();
     vi.restoreAllMocks();
     if (originalParentDescriptor) {
       Object.defineProperty(window, "parent", originalParentDescriptor);
     }
+  });
+
+  it("keeps same-origin APIs under the configured router mount", () => {
+    expect(token.addTokenToUrl("/api/chat")).toBe("/api/chat");
+    window.__WEBUI_BASENAME__ = "/portal/agent";
+    expect(token.addTokenToUrl("/api/chat")).toBe("/portal/agent/api/chat");
+    expect(token.addTokenToUrl("/portal/agent/api/chat")).toBe("/portal/agent/api/chat");
+    expect(token.addTokenToUrl("https://example.test/api/chat")).toBe("https://example.test/api/chat");
+    window.__WEBUI_BASENAME__ = "//untrusted.test";
+    expect(token.addTokenToUrl("/api/chat")).toBe("/api/chat");
   });
 
   describe("replaceTokenInUrl", () => {
