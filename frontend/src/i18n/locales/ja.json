@@ -131,7 +131,7 @@
     "resetDescription": "記憶されているすべてのツール権限をクリアします。次回ツール使用時に再度確認が求められます。",
     "allowSpecific": "{{command}} のみ許可",
     "allowAll": "{{command}} を許可、run_shell_commandのすべてのコマンドについて確認しない",
-    "autoApproveCountdown": "{{seconds}}秒後に自動承認"
+    "timeoutCountdown": "応答がなければ {{seconds}} 秒後に拒否"
   },
   "quota": {
     "exceeded": "クォータ超過",

@@ -925,6 +925,45 @@ describe("Chat Handler - Permission Mode Tests", () => {
     });
   });
 
+  describe("Explicit tool consent", () => {
+    it("denies an unanswered tool and never promotes allow-once to a tool grant", async () => {
+      vi.useFakeTimers();
+      const results: any[] = [];
+      mockContext.req.json = vi.fn().mockResolvedValue({message: "test", requestId: "consent-deadline"});
+      mockQuery.mockImplementation((args: any) => ({
+        [Symbol.asyncIterator]: async function* () {
+          for (let i = 0; i < 3; i++) {
+            results.push(await args.options.canUseTool("edit", {file_path: `/file${i}`}, {signal: new AbortController().signal}));
+            yield {type: "assistant", message: {content: [{type: "text", text: "next"}]}, session_id: "consent-session"};
+          }
+        },
+      }));
+      const response = await handleChatRequest(mockContext, requestAbortControllers, pendingPermissions);
+      const consume = response.text();
+      try {
+        await vi.advanceTimersByTimeAsync(0);
+        expect(pendingPermissions.size).toBe(1);
+        const [id, pending] = [...pendingPermissions.entries()][0];
+        pendingPermissions.delete(id);
+        pending.resolve({behavior: "allow", updatedInput: {file_path: "/file0"}});
+        await vi.advanceTimersByTimeAsync(0);
+        expect(results).toHaveLength(1);
+        expect(pendingPermissions.size).toBe(1);
+        await vi.advanceTimersByTimeAsync(28000);
+        expect(results[1].behavior).toBe("deny");
+        // The timeout must not grant permission for a subsequent call either.
+        expect(pendingPermissions.size).toBe(1);
+        await vi.advanceTimersByTimeAsync(28000);
+        expect(results[2].behavior).toBe("deny");
+        expect(pendingPermissions.size).toBe(0);
+        await consume;
+      } finally {
+        for (const ac of requestAbortControllers.values()) ac.abort();
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe("Session Concurrency Guard", () => {
     it("should abort existing request when new request arrives for same session", async () => {
       let resolveBlocker!: () => void;

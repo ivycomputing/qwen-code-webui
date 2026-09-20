@@ -14,7 +14,7 @@ vi.mock("react-i18next", () => ({
         "chat.otherOptionPlaceholder": "Type your answer here...",
         "common.cancel": "Cancel",
         "common.done": "Done",
-        "permission.autoApproveCountdown": `Auto-approving in ${params?.seconds}s`,
+        "permission.timeoutCountdown": `No response: denying in ${params?.seconds}s`,
       };
       return translations[key] || key;
     },
@@ -339,28 +339,29 @@ describe("AskUserQuestionDialog", () => {
     });
   });
 
-  describe("Auto-approve countdown", () => {
-    it("shows countdown when autoApproveMs is set", () => {
-      render(<AskUserQuestionDialog {...defaultProps} autoApproveMs={25000} />);
+  describe("Permission deadline", () => {
+    it("shows countdown when permissionTimeoutMs is set", () => {
+      render(<AskUserQuestionDialog {...defaultProps} permissionTimeoutMs={25000} />);
 
-      expect(screen.getByText("Auto-approving in 25s")).toBeInTheDocument();
+      expect(screen.getByText("No response: denying in 25s")).toBeInTheDocument();
     });
 
-    it("auto-approves after countdown reaches zero", async () => {
+    it("cancels unanswered questions without inventing an answer", async () => {
       const onConfirm = vi.fn();
-      render(<AskUserQuestionDialog {...defaultProps} onConfirm={onConfirm} autoApproveMs={5000} />);
+      render(<AskUserQuestionDialog {...defaultProps} onConfirm={onConfirm} permissionTimeoutMs={5000} />);
 
       // Wait for countdown to complete
       await act(async () => {
         vi.advanceTimersByTime(5000);
       });
 
-      expect(onConfirm).toHaveBeenCalled();
+      expect(onConfirm).not.toHaveBeenCalled();
+      expect(defaultProps.onCancel).toHaveBeenCalledOnce();
     });
 
     it("cancels countdown when user selects an option", async () => {
       const onConfirm = vi.fn();
-      render(<AskUserQuestionDialog {...defaultProps} onConfirm={onConfirm} autoApproveMs={10000} />);
+      render(<AskUserQuestionDialog {...defaultProps} onConfirm={onConfirm} permissionTimeoutMs={10000} />);
 
       // User selects an option
       await act(async () => {
@@ -384,7 +385,7 @@ describe("AskUserQuestionDialog", () => {
           {...defaultProps}
           onConfirm={onConfirm}
           onCancel={onCancel}
-          autoApproveMs={10000}
+          permissionTimeoutMs={10000}
         />
       );
 

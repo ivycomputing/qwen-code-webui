@@ -16,14 +16,14 @@ export interface Question {
 
 export interface AskUserQuestionDialogProps {
   questions: Question[];
-  autoApproveMs?: number;
+  permissionTimeoutMs?: number;
   onConfirm: (answers: Record<string, string>) => void;
   onCancel: () => void;
 }
 
 export function AskUserQuestionDialog({
   questions,
-  autoApproveMs,
+  permissionTimeoutMs,
   onConfirm,
   onCancel,
 }: AskUserQuestionDialogProps) {
@@ -33,7 +33,7 @@ export function AskUserQuestionDialog({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [multiSelectAnswers, setMultiSelectAnswers] = useState<Record<string, string[]>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
-  const autoApprovedRef = useRef<boolean>(false);
+  const timeoutHandledRef = useRef<boolean>(false);
   const countdownCancelledRef = useRef<boolean>(false);
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -47,8 +47,8 @@ export function AskUserQuestionDialog({
 
   // Countdown timer
   useEffect(() => {
-    if (!autoApproveMs) return;
-    const seconds = Math.ceil(autoApproveMs / 1000);
+    if (!permissionTimeoutMs) return;
+    const seconds = Math.ceil(permissionTimeoutMs / 1000);
     setCountdown(seconds);
 
     const interval = setInterval(() => {
@@ -66,20 +66,15 @@ export function AskUserQuestionDialog({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [autoApproveMs]);
+  }, [permissionTimeoutMs]);
 
-  // Auto-approve first option when countdown hits 0
+  // Cancel unanswered questions when the deadline expires
   useEffect(() => {
-    if (countdown === 0 && !autoApprovedRef.current && !countdownCancelledRef.current) {
-      autoApprovedRef.current = true;
-      // Auto-select first option for all questions
-      const autoAnswers: Record<string, string> = {};
-      questions.forEach((q, index) => {
-        autoAnswers[index.toString()] = q.options[0]?.label || "";
-      });
-      onConfirm(autoAnswers);
+    if (countdown === 0 && !timeoutHandledRef.current && !countdownCancelledRef.current) {
+      timeoutHandledRef.current = true;
+      onCancel();
     }
-  }, [countdown, questions, onConfirm]);
+  }, [countdown, onCancel]);
 
   // Handle single-select option click
   const handleSingleSelect = useCallback((optionLabel: string) => {
@@ -239,12 +234,12 @@ export function AskUserQuestionDialog({
       {countdown !== null && countdown > 0 && (
         <div className="mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg" role="status">
           <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-            {t("permission.autoApproveCountdown", { seconds: countdown })}
+            {t("permission.timeoutCountdown", { seconds: countdown })}
           </p>
           <div className="mt-1 h-1 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-1000 ease-linear"
-              style={{ width: `${(countdown / Math.ceil((autoApproveMs ?? 25000) / 1000)) * 100}%` }}
+              style={{ width: `${(countdown / Math.ceil((permissionTimeoutMs ?? 25000) / 1000)) * 100}%` }}
               aria-hidden="true"
             />
           </div>

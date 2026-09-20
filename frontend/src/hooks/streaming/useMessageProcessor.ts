@@ -49,7 +49,7 @@ export interface StreamingContext {
     toolName: string;
     toolInput: Record<string, unknown>;
     suggestions: Array<{ type: string; label: string; description?: string }>;
-    autoApproveMs?: number;
+    permissionTimeoutMs?: number;
     confirmationType?: "default" | "ask_user_question";
     questions?: Array<{
       question: string;

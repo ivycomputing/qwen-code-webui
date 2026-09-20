@@ -53,29 +53,28 @@ const OPENACE_CLEANUP_TIMEOUT_MS = 3_000;
  * for the SDK to respond; if the user doesn't act within 30 s the CLI
  * emits "Control request timeout" and cancels the tool.
  *
- * We cannot change the CLI, so the frontend shows a countdown and
- * auto-approves the first option before the deadline. The backend also
- * keeps a fallback auto-approve timer (slightly later) in case the
- * frontend can't respond (e.g. tab in background).
+ * The frontend displays a deadline and denies unanswered requests. The
+ * backend independently denies before the CLI deadline, including when the
+ * browser disconnects. Elapsed time must never grant tool authorization.
  *
  * @see https://github.com/ivycomputing/qwen-code-webui/issues/139
  */
 const CLI_CONTROL_REQUEST_TIMEOUT_MS = 30_000;
-/** Frontend countdown duration — auto-approves at this point. */
-const AUTO_APPROVE_MS = CLI_CONTROL_REQUEST_TIMEOUT_MS - 5_000; // 25 s
+/** Frontend deadline — unanswered requests are denied. */
+const PERMISSION_TIMEOUT_MS = CLI_CONTROL_REQUEST_TIMEOUT_MS - 5_000; // 25 s
 /** Backend fallback — fires a few seconds after frontend should have acted. */
-const SAFETY_AUTO_APPROVE_MS = CLI_CONTROL_REQUEST_TIMEOUT_MS - 2_000; // 28 s
+const BACKEND_PERMISSION_TIMEOUT_MS = CLI_CONTROL_REQUEST_TIMEOUT_MS - 2_000; // 28 s
 
 /**
  * Hard safety cap used when the client disconnects while a permission prompt is
  * pending. We do NOT abort on disconnect in that case (issue #186): we let the
- * turn keep running so the user — or the 28 s backend safety auto-approve — can
+ * turn keep running so the user — or the 28 s backend permission timeout — can
  * resolve the prompt and the just-approved tool can actually execute. This timer
  * only force-aborts if the prompt is STILL unresolved after the delay (neither
  * path settled it), so a stuck request can't hold the CLI forever. It sits just
- * past the 28 s safety auto-approve and the CLI's 30 s control-request timeout.
+ * past the 28 s permission timeout and the CLI's 30 s control-request timeout.
  *
- * It must NOT abort a turn that is already running: the safety auto-approve
+ * It must NOT abort a turn that is already running: the permission timeout
  * resolves the prompt at 28 s, so by 32 s the prompt is gone and this timer is a
  * no-op, leaving the running turn to be cleaned up by executeQwenCommand's
  * finally block.
@@ -520,7 +519,7 @@ async function executeQwenCommand(
           toolName,
           toolInput: input,
           suggestions,
-          autoApproveMs: AUTO_APPROVE_MS,
+          permissionTimeoutMs: PERMISSION_TIMEOUT_MS,
           confirmationType,
           questions,
         })
@@ -536,10 +535,8 @@ async function executeQwenCommand(
 
       // Defense 3: abort listener for async abort during wait
       //
-      // The frontend shows a 25 s countdown and auto-approves. A backend
-      // fallback timer at 28 s auto-approves if the frontend can't (e.g. tab
-      // in background). Either way the CLI receives a response before its
-      // 30 s control-request timeout.  See issue #139.
+      // Resolve unanswered prompts as denials before the CLI timeout.
+      // A disconnected or background browser never implies approval.
       return new Promise((resolve) => {
         let settled = false;
         const safeResolve = (result: PermissionResult) => {
@@ -551,10 +548,9 @@ async function executeQwenCommand(
         const safetyTimer = setTimeout(() => {
           pendingPermissions.delete(permissionId);
           localPendingIds.delete(permissionId);
-          // Remember the approval so subsequent calls for the same tool auto-approve
-          localAllowedTools.add(toolName);
-          safeResolve({ behavior: "allow", updatedInput: input });
-        }, SAFETY_AUTO_APPROVE_MS);
+          abortController!.signal.removeEventListener("abort", onAbort);
+          safeResolve({ behavior: "deny", message: "Permission request timed out; explicit approval required" });
+        }, BACKEND_PERMISSION_TIMEOUT_MS);
 
         const onAbort = () => {
           clearTimeout(safetyTimer);
@@ -574,7 +570,7 @@ async function executeQwenCommand(
             clearTimeout(safetyTimer);
             abortController!.signal.removeEventListener("abort", onAbort);
             localPendingIds.delete(permissionId);
-            if (result.behavior === "allow") {
+            if (result.behavior === "allow" && scope && toolName !== "ask_user_question") {
               if (scope === "specific" && toolName === "run_shell_command" && input?.command && typeof input.command === "string") {
                 const baseCmd = extractBaseCommand(input.command as string);
                 if (baseCmd) localAllowedTools.add(`${toolName}:${baseCmd}`);
@@ -1015,7 +1011,7 @@ export async function handleChatRequest(
         if (pendingForThisRequest.length > 0) {
           // Pending permission while the client disconnects: do NOT abort. Letting
           // the turn keep running is the whole point of issue #186 — the user (or
-          // the 28 s backend safety auto-approve) can still resolve the prompt, and
+          // the 28 s backend permission timeout) can still resolve the prompt, and
           // the approved tool can then execute. executeQwenCommand's finally block
           // aborts and cleans up the controller + session when the turn ends.
           logger.chat.info(
@@ -1040,7 +1036,7 @@ export async function handleChatRequest(
           };
 
           // Safety net: force-abort only if the prompt is STILL pending after the
-          // delay (neither the user nor the 28 s safety auto-approve settled it), so
+          // delay (neither the user nor the 28 s permission timeout settled it), so
           // a stuck request can't hold the CLI forever. If the prompt was already
           // resolved, the turn is running and the finally block will clean it up —
           // aborting now would kill the approved tool mid-execution (issue #186).

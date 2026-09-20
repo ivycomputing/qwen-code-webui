@@ -324,7 +324,7 @@ describe("useStreamParser", () => {
               description: "Allow this command",
             },
           ],
-          autoApproveMs: 25000,
+          permissionTimeoutMs: 25000,
         }),
         mockContext,
       );
@@ -340,7 +340,7 @@ describe("useStreamParser", () => {
             description: "Allow this command",
           },
         ],
-        autoApproveMs: 25000,
+        permissionTimeoutMs: 25000,
         confirmationType: undefined,
         questions: undefined,
       });
@@ -407,7 +407,7 @@ describe("useStreamParser", () => {
             description: "Allow write to /tmp",
           },
         ],
-        autoApproveMs: 28000,
+        permissionTimeoutMs: 28000,
         confirmationType: "default",
         questions: [],
       });
@@ -436,7 +436,7 @@ describe("useStreamParser", () => {
         toolName: TOOL_NAMES.READ,
         toolInput: { file_path: "/tmp/test.txt" },
         suggestions: [],
-        autoApproveMs: undefined,
+        permissionTimeoutMs: undefined,
         confirmationType: undefined,
         questions: [],
       });

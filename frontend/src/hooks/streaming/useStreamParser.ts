@@ -285,7 +285,7 @@ export function useStreamParser() {
               toolName: data.toolName,
               toolInput: (data.toolInput as Record<string, unknown>) || {},
               suggestions: data.suggestions || [],
-              autoApproveMs: data.autoApproveMs,
+              permissionTimeoutMs: data.permissionTimeoutMs,
               confirmationType: data.confirmationType,
               questions: data.questions,
             });
@@ -316,7 +316,7 @@ export function useStreamParser() {
               toolName: req.tool_name,
               toolInput: req.input || {},
               suggestions,
-              autoApproveMs: req.auto_approve_ms,
+              permissionTimeoutMs: req.auto_approve_ms,
               confirmationType: req.confirmation_type as "default" | "ask_user_question" | undefined,
               questions: req.questions || [],
             });

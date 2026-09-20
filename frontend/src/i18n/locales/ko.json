@@ -131,7 +131,7 @@
     "resetDescription": "기억된 모든 도구 권한을 지웁니다. 다음 도구 사용 시 다시 확인을 요청합니다.",
     "allowSpecific": "{{command}}만 허용",
     "allowAll": "{{command}} 허용, run_shell_command의 모든 명령에 대해 묻지 않기",
-    "autoApproveCountdown": "{{seconds}}초 후 자동 승인"
+    "timeoutCountdown": "응답이 없으면 {{seconds}}초 후 거부"
   },
   "quota": {
     "exceeded": "할당량 초과",

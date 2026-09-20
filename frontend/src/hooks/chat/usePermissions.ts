@@ -11,7 +11,7 @@ interface PermissionRequest {
   permissionId?: string; // For proactive canUseTool flow
   toolInput?: Record<string, unknown>;
   suggestions?: Array<{ type: string; label: string; description?: string }>;
-  autoApproveMs?: number; // Countdown before auto-approve (local mode, issue #139)
+  permissionTimeoutMs?: number; // Deadline for unanswered permission requests
   // For ask_user_question tool
   confirmationType?: "default" | "ask_user_question";
   questions?: Array<{
@@ -171,7 +171,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       toolName: string, patterns: string[], toolUseId: string, requestId?: string,
       permissionId?: string, toolInput?: Record<string, unknown>,
       suggestions?: Array<{ type: string; label: string; description?: string }>,
-      autoApproveMs?: number,
+      permissionTimeoutMs?: number,
       // For ask_user_question tool
       confirmationType?: "default" | "ask_user_question",
       questions?: Array<{
@@ -183,7 +183,7 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     ) => {
       const req: PermissionRequest = {
         isOpen: true, toolName, patterns, toolUseId, requestId,
-        permissionId, toolInput, suggestions, autoApproveMs,
+        permissionId, toolInput, suggestions, permissionTimeoutMs,
         confirmationType, questions,
       };
       permissionRequestRef.current = req;

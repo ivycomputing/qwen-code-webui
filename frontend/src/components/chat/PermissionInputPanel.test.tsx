@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import "../../i18n"; // Initialize i18n for tests
@@ -54,5 +54,21 @@ describe("PermissionInputPanel Allow-All rendering", () => {
     );
 
     expect(screen.queryByText(/for any run_shell_command/)).not.toBeInTheDocument();
+  });
+});
+
+
+describe("PermissionInputPanel deadline", () => {
+  it("denies exactly once without invoking either approval callback", async () => {
+    vi.useFakeTimers();
+    const onAllow = vi.fn(); const onAllowPermanent = vi.fn(); const onDeny = vi.fn();
+    const view = render(<PermissionInputPanel patterns={[]} onAllow={onAllow}
+      onAllowPermanent={onAllowPermanent} onDeny={onDeny} permissionTimeoutMs={2000} />);
+    try {
+      await act(async () => { vi.advanceTimersByTime(3000); });
+      expect(onDeny).toHaveBeenCalledOnce();
+      expect(onAllow).not.toHaveBeenCalled();
+      expect(onAllowPermanent).not.toHaveBeenCalled();
+    } finally { view.unmount(); vi.useRealTimers(); }
   });
 });

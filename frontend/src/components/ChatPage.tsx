@@ -107,7 +107,7 @@ export function ChatPage() {
   const [askUserQuestionRequest, setAskUserQuestionRequest] = useState<{
     permissionId: string;
     questions: Question[];
-    autoApproveMs?: number;
+    permissionTimeoutMs?: number;
   } | null>(null);
 
   // Remote workspace parameters
@@ -791,7 +791,7 @@ export function ChatPage() {
               setAskUserQuestionRequest({
                 permissionId: event.permissionId,
                 questions: event.questions as Question[],
-                autoApproveMs: event.autoApproveMs,
+                permissionTimeoutMs: event.permissionTimeoutMs,
               });
               showPermissionNotification();
             } else {
@@ -800,7 +800,7 @@ export function ChatPage() {
               showPermissionRequest(
                 extractedName, patterns, "", undefined,
                 event.permissionId, event.toolInput, event.suggestions,
-                event.autoApproveMs,
+                event.permissionTimeoutMs,
               );
               showPermissionNotification();
             }
@@ -1379,7 +1379,7 @@ export function ChatPage() {
           ? handlePermissionAllowAll
           : undefined,
         onDeny: handlePermissionDeny,
-        autoApproveMs: permissionRequest.autoApproveMs,
+        permissionTimeoutMs: permissionRequest.permissionTimeoutMs,
       }
     : undefined;
 
@@ -1890,7 +1890,7 @@ export function ChatPage() {
             {askUserQuestionRequest ? (
               <AskUserQuestionDialog
                 questions={askUserQuestionRequest.questions}
-                autoApproveMs={askUserQuestionRequest.autoApproveMs}
+                permissionTimeoutMs={askUserQuestionRequest.permissionTimeoutMs}
                 onConfirm={handleAskUserQuestionConfirm}
                 onCancel={handleAskUserQuestionCancel}
               />

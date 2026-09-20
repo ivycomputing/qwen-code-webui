@@ -132,7 +132,7 @@
     "resetDescription": "清除所有已记住的工具权限。下次使用工具时将重新请求确认。",
     "allowSpecific": "仅允许 {{command}}",
     "allowAll": "允许 {{command}}，且不再询问 run_shell_command 的任何命令",
-    "autoApproveCountdown": "{{seconds}} 秒后自动允许"
+    "timeoutCountdown": "未回应将在 {{seconds}} 秒后拒绝"
   },
   "quota": {
     "exceeded": "配额已超限",
