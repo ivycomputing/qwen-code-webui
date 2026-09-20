@@ -145,6 +145,7 @@ export function createApp(
       debugMode: config.debugMode,
       serializeChatRequests: config.serializeChatRequests,
       modelProxyBaseUrl: config.modelProxyBaseUrl,
+      tokenSecret: config.tokenSecret,
       runtime,
       cliPath: config.cliPath,
       quotaCheckEnabled: config.quotaCheckEnabled,
