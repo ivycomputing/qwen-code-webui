@@ -809,7 +809,7 @@ export async function handleChatRequest(
   try {
     const config = c.var.config as AppConfig;
     if (config.modelProxyBaseUrl && getEnv("OPENACE_API_URL")) throw new Error("Conflicting model gateways");
-    delegatedEnvironment = modelProxyEnvironment(config, c.req.header("X-Model-Proxy-Token"));
+    delegatedEnvironment = modelProxyEnvironment(config, config.modelProxyBaseUrl ? c.req.header("X-Model-Proxy-Token") : undefined);
   } catch {
     return c.json({ error: "Delegated model configuration or credential unavailable" }, 403);
   }

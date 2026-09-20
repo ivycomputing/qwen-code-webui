@@ -55,6 +55,28 @@ describe("Chat Handler - Permission Mode Tests", () => {
     requestAbortControllers.clear();
   });
 
+  describe("Optional per-request model delegation", () => {
+    it("binds only the explicit request header to the SDK subprocess environment", async () => {
+      Object.assign(mockContext.var.config, {modelProxyBaseUrl:"https://delegated.example/v1", tokenSecret:"synthetic-server-secret", authType:"openai"});
+      mockContext.req.header = vi.fn().mockReturnValue("synthetic-current-grant");
+      mockContext.req.json = vi.fn().mockResolvedValue({message:"explain",requestId:"delegated-1",model:"selected-model"});
+      mockQuery.mockReturnValue({[Symbol.asyncIterator]:async function*(){yield {type:"assistant",message:{content:[{type:"text",text:"synthetic-current-grant"}]},session_id:"test-session"};}});
+      const response=await handleChatRequest(mockContext,requestAbortControllers,pendingPermissions);
+      const text=await response.text();
+      expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({options:expect.objectContaining({model:"selected-model",authType:"openai",env:{OPENAI_BASE_URL:"https://delegated.example/v1",OPENAI_API_KEY:"synthetic-current-grant",QWEN_CODE_SIMPLE:"1"}})}));
+      expect(text).not.toContain("synthetic-current-grant");
+      expect(mockContext.req.header).toHaveBeenCalledWith("X-Model-Proxy-Token");
+    });
+    it("rejects a missing delegation header before launching the SDK", async () => {
+      Object.assign(mockContext.var.config,{modelProxyBaseUrl:"https://delegated.example/v1",tokenSecret:"synthetic-server-secret",authType:"openai"});
+      mockContext.req.header=vi.fn().mockReturnValue(undefined);
+      mockContext.json=vi.fn((_body,status)=>new Response("denied",{status})) as any;
+      const response=await handleChatRequest(mockContext,requestAbortControllers,pendingPermissions);
+      expect(response.status).toBe(403);
+      expect(mockQuery).not.toHaveBeenCalled();
+    });
+  });
+
   describe("Permission Mode Parameter Handling", () => {
     it("should pass permissionMode 'plan' to Qwen SDK", async () => {
       const chatRequest: ChatRequest = {

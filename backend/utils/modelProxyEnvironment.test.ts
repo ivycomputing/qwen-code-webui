@@ -7,6 +7,7 @@ describe("per-request model proxy environment", () => {
     const original = process.env.OPENAI_API_KEY;
     const first = modelProxyEnvironment(config, "first-ephemeral-grant");
     const second = modelProxyEnvironment(config, "second-ephemeral-grant");
+    expect(first?.QWEN_CODE_SIMPLE).toBe("1");
     expect(first?.OPENAI_API_KEY).toBe("first-ephemeral-grant");
     expect(second?.OPENAI_API_KEY).toBe("second-ephemeral-grant");
     expect(process.env.OPENAI_API_KEY === original).toBe(true);

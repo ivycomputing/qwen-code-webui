@@ -15,5 +15,8 @@ export function modelProxyEnvironment(
   if (!token || !/^[A-Za-z0-9._~+/:=-]{16,4096}$/.test(token)) {
     throw new Error("A per-request model proxy credential is required");
   }
-  return { OPENAI_BASE_URL: config.modelProxyBaseUrl, OPENAI_API_KEY: token };
+  // Qwen Code bare mode ignores persisted modelProviders, credentials,
+  // hooks and preapproved tools that could override this delegated route.
+  // Deployments must verify CLI support (Qwen Code 0.17.0 is the tested build).
+  return { OPENAI_BASE_URL: config.modelProxyBaseUrl, OPENAI_API_KEY: token, QWEN_CODE_SIMPLE: "1" };
 }

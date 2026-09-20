@@ -37,3 +37,20 @@ URL behavior. A real SDK/CLI integration test must additionally verify environme
 precedence, session resume, streaming, abort, long-turn lease renewal and absence
 of fallback to stored provider settings. Do not mark this path production-ready
 from helper tests alone.
+
+## Persisted CLI configuration
+
+Delegated queries set `QWEN_CODE_SIMPLE=1` as well as the per-request endpoint
+and key. With Qwen Code 0.17.0 this selects bare mode, ignoring saved
+modelProviders/auth settings, hooks and preapproved tools. A conflicting saved
+modelProvider can otherwise override environment configuration. Require a CLI
+with this behavior before enabling delegation; older builds must not silently
+ignore this setting. Direct CLI new/resumed-session tests with a memory provider
+passed on 0.17.0; they do not certify the WebUI SDK subprocess path.
+
+The locked SDK 0.1.5 and Qwen CLI 0.17.0 have now also been exercised together
+with the actual request environment helper and process registry: new session,
+resume with a different grant, and cancellation against a stalled memory
+provider. The registry synchronizes ESM child-process bindings and disposes an
+aborted child's pipes after exit; it preserves normal buffered output. These
+tests disable TCP and do not substitute for provider/TLS deployment validation.
