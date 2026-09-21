@@ -5,6 +5,7 @@
  * but doesn't include runtime-specific code like CLI parsing or server startup.
  */
 
+import { Buffer } from "node:buffer";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Runtime } from "./runtime/types.ts";

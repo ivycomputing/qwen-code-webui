@@ -11,6 +11,7 @@ import os from "node:os";
 import type { AppConfig } from "../types.ts";
 import { logger } from "../utils/logger.ts";
 import { readProjectPathMapping } from "../utils/projectMapping.ts";
+import { Buffer } from "node:buffer";
 
 interface VSCodeProcess {
   childProcess: ChildProcess | null;
