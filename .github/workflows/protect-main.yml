@@ -4,12 +4,38 @@ on:
   push:
     branches: [main, master]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   check-direct-push:
     runs-on: ubuntu-latest
-    if: "!startsWith(github.event.head_commit.message, 'Merge pull request')"
     steps:
       - name: Reject direct push to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          FORCED: ${{ github.event.forced }}
         run: |
+          # PR merges never force-push; a forced push could reset main to an
+          # older (legitimate) merge commit, so reject it outright.
+          if [ "$FORCED" = "true" ]; then
+            echo "::error::Force pushes to main are not allowed."
+            exit 1
+          fi
+          # A push is legitimate when its head commit is the merge commit of a
+          # merged pull request. This covers merge, squash and rebase merges;
+          # matching commit messages would not (and could be spoofed).
+          # Retry briefly in case the PR association lags the push.
+          for _ in 1 2 3 4 5; do
+            pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/pulls" \
+              --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"${SHA}\") | .number] | first // empty")
+            if [ -n "$pr" ]; then
+              echo "Push ${SHA} is the merge commit of PR #${pr}."
+              exit 0
+            fi
+            sleep 10
+          done
           echo "::error::Direct pushes to main are not allowed. Please use a pull request."
           exit 1
