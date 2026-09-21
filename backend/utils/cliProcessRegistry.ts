@@ -182,9 +182,11 @@ function installChildProcessPatch(): void {
   }) as unknown as typeof childProcess.fork;
   // Node snapshots builtin ESM named bindings at first import; refresh them
   // so consumers that `import { spawn } from "node:child_process"` (like the
-  // SDK) see this patch even when they were imported first. Deno's node:module
-  // shim does not expose syncBuiltinESMExports, so the call is skipped there
-  // and only require() consumers observe the patch.
+  // SDK) see this patch even when they were imported first. The call is
+  // process-wide and affects every builtin's ESM exports, not just
+  // child_process — here that is fine because no other builtin is patched.
+  // Deno's node:module shim does not expose syncBuiltinESMExports, so the
+  // call is skipped there and only require() consumers observe the patch.
   (nodeModule as { syncBuiltinESMExports?: () => void }).syncBuiltinESMExports?.();
 }
 
