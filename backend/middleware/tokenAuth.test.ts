@@ -331,12 +331,30 @@ describe("createTokenAuthMiddleware", () => {
 });
 
 describe("proxy header authentication", () => {
-  it("accepts a v2 Bearer token without any query credential", async () => {
+  const build = async () => {
     const app = new Hono(); const secret = "synthetic-only";
     app.use("*", createTokenAuthMiddleware(secret)); app.get("/test", c => c.text("OK"));
     const token = await generateTokenV2(7, 8080, Math.floor(Date.now()/1000), "nonce", secret);
+    return {app, token};
+  };
+  it("accepts a v2 Bearer token without any query credential", async () => {
+    const {app, token} = await build();
     expect((await app.request("/test", {headers:{Authorization:`Bearer ${token}`}})).status).toBe(200);
-    // Malformed headers cannot fall back to an otherwise valid query token.
-    expect((await app.request(`/test?token=${encodeURIComponent(token)}`, {headers:{Authorization:"Basic malformed"}})).status).toBe(401);
+  });
+  it("treats the Bearer scheme as case-insensitive (RFC 9110)", async () => {
+    const {app, token} = await build();
+    expect((await app.request("/test", {headers:{Authorization:`bearer ${token}`}})).status).toBe(200);
+  });
+  it("falls back to the query token when the header carries another scheme", async () => {
+    // A fronting auth proxy (e.g. nginx auth_basic) forwards its own Basic
+    // credentials; those do not carry a webui token, so the query token
+    // must keep working for such deployments.
+    const {app, token} = await build();
+    expect((await app.request(`/test?token=${encodeURIComponent(token)}`, {headers:{Authorization:"Basic dXNlcjpwYXNz"}})).status).toBe(200);
+  });
+  it("never downgrades from a failed Bearer header to an otherwise valid query token", async () => {
+    const {app, token} = await build();
+    expect((await app.request(`/test?token=${encodeURIComponent(token)}`, {headers:{Authorization:"Bearer"}})).status).toBe(401);
+    expect((await app.request(`/test?token=${encodeURIComponent(token)}`, {headers:{Authorization:"Bearer not-the-token"}})).status).toBe(401);
   });
 });

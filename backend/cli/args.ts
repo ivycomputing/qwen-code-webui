@@ -59,7 +59,7 @@ export function parseCliArgs(): ParsedArgs {
       "Token secret for Open-ACE integration authentication (optional)",
     )
     .option("--serialize-chat-requests", "Allow only one active chat per server instance", false)
-    .option("--token-secret-file <path>", "Read token authentication secret from a protected file")
+    .option("--token-secret-file <path>", "Read token authentication secret from a protected file (minimum 32 bytes)")
     .option(
       "--quota-check-enabled",
       "Enable quota checking with Open-ACE",

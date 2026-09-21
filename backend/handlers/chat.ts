@@ -795,7 +795,15 @@ export async function handleChatRequest(
     return handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions);
   }
   if (serializedServers.has(requestAbortControllers)) {
-    return c.json({error: "Shared workspace has an active request; wait or cancel it first"}, 409);
+    // The lock has no timeout by design; expose the active request ids so an
+    // authenticated caller can recover a stuck turn via /api/abort/:requestId.
+    return c.json(
+      {
+        error: "Shared workspace has an active request; wait or cancel it first",
+        active_request_ids: [...requestAbortControllers.keys()],
+      },
+      409,
+    );
   }
   serializedServers.add(requestAbortControllers);
   const release = () => { serializedServers.delete(requestAbortControllers); };
