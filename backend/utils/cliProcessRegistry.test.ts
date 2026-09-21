@@ -95,4 +95,39 @@ describe("cliProcessRegistry", () => {
     expect(killSpy).toHaveBeenCalledTimes(1);
     finalizeTrackedCliRequest("req-2");
   });
+  it("closes only an aborted child's stdio after process exit", () => {
+    registerTrackedCliRequest("req-pipes");
+    const child = new FakeChildProcess(6262);
+    Object.assign(child, {
+      stdin: { destroy: vi.fn() },
+      stdout: { destroy: vi.fn() },
+      stderr: { destroy: vi.fn() },
+    });
+    alivePids.add(child.pid);
+    __cliProcessRegistryTestUtils.attachChildToRequest("req-pipes", child as any);
+    signalTrackedCliAbort("req-pipes", "user");
+    child.emit("exit");
+    for (const stream of ["stdin", "stdout", "stderr"]) {
+      expect((child as any)[stream].destroy).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("preserves buffered output on normal process exit", () => {
+    registerTrackedCliRequest("req-normal");
+    const child = new FakeChildProcess(7272);
+    Object.assign(child, { stdout: { destroy: vi.fn() } });
+    __cliProcessRegistryTestUtils.attachChildToRequest("req-normal", child as any);
+    child.emit("exit");
+    expect((child as any).stdout.destroy).not.toHaveBeenCalled();
+  });
+
+  it("exposes the patched spawn to consumers that imported it as an ESM binding", async () => {
+    // The probe may be linked before or after the patch installs;
+    // currentSpawn() reads the live ESM binding, so the assertion only holds
+    // when syncBuiltinESMExports refreshed an already-linked import.
+    const probe = await import("./esmSpawnProbe.ts");
+    registerTrackedCliRequest("req-esm");
+    const require = (await import("node:module")).createRequire(import.meta.url);
+    expect(probe.currentSpawn()).toBe(require("node:child_process").spawn);
+  });
 });

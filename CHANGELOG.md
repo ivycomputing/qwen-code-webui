@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Abort tracking now reaches CLI consumers that import `spawn`/`fork` as ESM
+  named bindings (`syncBuiltinESMExports` after patching), which had silently
+  left per-request child tracking ineffective; an aborted child's stdio pipes
+  are also disposed after exit so they cannot hold the event loop.
+
 ## [0.2.11] - 2026-04-14
 
 ### Fixed
