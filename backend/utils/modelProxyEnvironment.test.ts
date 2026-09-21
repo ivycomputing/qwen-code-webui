@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { modelProxyEnvironment } from "./modelProxyEnvironment.ts";
+import { modelProxyEnvironment, validateModelProxyConfig } from "./modelProxyEnvironment.ts";
 
 describe("per-request model proxy environment", () => {
   const config = { modelProxyBaseUrl: "http://127.0.0.1:9700/model-proxy", tokenSecret: "server-auth", authType: "openai" };
@@ -20,5 +20,31 @@ describe("per-request model proxy environment", () => {
     expect(() => modelProxyEnvironment({ ...config, openaceApiUrl: "https://gateway.test" }, "temporary-proxy-token")).toThrow();
     expect(() => modelProxyEnvironment({ ...config, modelProxyBaseUrl: "http://10.0.0.1/proxy" }, "temporary-proxy-token")).toThrow();
     expect(() => modelProxyEnvironment({ ...config, modelProxyBaseUrl: "https://secret@provider.test" }, "temporary-proxy-token")).toThrow();
+  });
+});
+
+describe("validateModelProxyConfig", () => {
+  const valid = {
+    modelProxyBaseUrl: "http://127.0.0.1:9377/internal/model-proxy",
+    tokenSecret: "s".repeat(32),
+    authType: "openai",
+  };
+
+  it("accepts a complete delegated configuration", () => {
+    expect(() => validateModelProxyConfig(valid, undefined)).not.toThrow();
+  });
+
+  it("rejects a conflicting gateway from the environment", () => {
+    expect(() => validateModelProxyConfig(valid, "https://ace.example")).toThrow(/gateway/);
+  });
+
+  it("rejects an invalid endpoint at boot", () => {
+    expect(() =>
+      validateModelProxyConfig({ ...valid, modelProxyBaseUrl: "https://user:pw@example/v1" }, undefined),
+    ).toThrow(/endpoint/);
+  });
+
+  it("is a no-op without a configured proxy base URL", () => {
+    expect(() => validateModelProxyConfig({}, "https://ace.example")).not.toThrow();
   });
 });

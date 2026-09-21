@@ -48,12 +48,13 @@ with this behavior before enabling delegation; older builds must not silently
 ignore this setting. Direct CLI new/resumed-session tests with a memory provider
 passed on 0.17.0; they do not certify the WebUI SDK subprocess path.
 
-The locked SDK 0.1.5 and Qwen CLI 0.17.0 have now also been exercised together
-with the actual request environment helper and process registry: new session,
-resume with a different grant, and cancellation against a stalled memory
-provider. The registry synchronizes ESM child-process bindings and disposes an
-aborted child's pipes after exit; it preserves normal buffered output. These
-tests disable TCP and do not substitute for provider/TLS deployment validation.
+The locked SDK 0.1.5 and Qwen CLI 0.17.0 have also been exercised together
+with the request environment helper: new session, resume with a different
+grant, and cancellation against a stalled memory provider. These tests disable
+TCP and do not substitute for provider/TLS deployment validation. The process
+registry that makes abort tracking reach ESM `import { spawn }` consumers and
+reaps an aborted child's pipes ships separately (see PR #275); this document
+describes that behavior once that PR lands.
 
 ## Hosting proxy obligations
 
@@ -68,3 +69,11 @@ tests disable TCP and do not substitute for provider/TLS deployment validation.
 - `QWEN_CODE_SIMPLE=1` also disables the user's saved hooks and preapproved
   tools for delegated sessions; a hosting UI must not display permission state
   that no longer applies.
+
+## Limitations
+
+Token redaction string-replaces the credential inside a `JSON.parse(JSON.stringify(...))`
+round-trip on each SDK message and enqueue — correct (the token charset contains
+nothing JSON escapes) but paid twice per message including large tool results.
+Redacting only at the serialization boundary would halve that; left as-is until
+profiling shows it matters.

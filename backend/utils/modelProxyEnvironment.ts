@@ -20,3 +20,25 @@ export function modelProxyEnvironment(
   // Deployments must verify CLI support (Qwen Code 0.17.0 is the tested build).
   return { OPENAI_BASE_URL: config.modelProxyBaseUrl, OPENAI_API_KEY: token, QWEN_CODE_SIMPLE: "1" };
 }
+
+/**
+ * Boot-time validation of the delegated-model configuration, without a
+ * credential. Runs the same checks as modelProxyEnvironment so a conflicting
+ * gateway, missing token secret, wrong auth type or invalid endpoint fails
+ * at startup with a clear message instead of a 403 on the first request.
+ */
+export function validateModelProxyConfig(
+  config: {
+    modelProxyBaseUrl?: string;
+    tokenSecret?: string;
+    authType?: string;
+    openaceApiUrl?: string;
+  },
+  openAceEnvUrl?: string,
+): void {
+  if (!config.modelProxyBaseUrl) return;
+  modelProxyEnvironment(
+    { ...config, openaceApiUrl: config.openaceApiUrl || openAceEnvUrl },
+    "boot-time-configuration-check",
+  );
+}
