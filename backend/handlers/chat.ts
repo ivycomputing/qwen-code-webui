@@ -18,6 +18,7 @@ import type { PendingPermission } from "./permission.ts";
 import { preserveToolInput } from "./toolInputSnapshot.ts";
 import type { ServerResponse } from "node:http";
 import type { AppConfig } from "../types.ts";
+import { modelProxyEnvironment } from "../utils/modelProxyEnvironment.ts";
 
 /** Track number of concurrent chat requests for diagnostics */
 let _activeChatCount = 0;
@@ -320,7 +321,13 @@ async function executeQwenCommand(
   model?: string,
   authType?: AuthType,
   isNewSession?: boolean,
+  delegatedEnvironment?: Record<string, string>,
 ): Promise<void> {
+  if (delegatedEnvironment) {
+    const originalEnqueue = enqueue;
+    const token = delegatedEnvironment.OPENAI_API_KEY;
+    enqueue = response => originalEnqueue(JSON.parse(JSON.stringify(response).split(token).join("[model-proxy-token]")));
+  }
   let abortController: AbortController | undefined;
   let onAbort: (() => void) | undefined;
   const localPendingIds = new Set<string>();
@@ -601,8 +608,8 @@ async function executeQwenCommand(
     // Session ID is now generated upfront for new sessions in integration mode,
     // and registered with Open-ACE before the first request. This ensures the
     // first turn gets proper session attribution (issue #222).
-    const cliEnv: Record<string, string> = {};
-    if (sessionId && isProxyRunning()) {
+    const cliEnv: Record<string, string> = { ...delegatedEnvironment };
+    if (!delegatedEnvironment && sessionId && isProxyRunning()) {
       const proxyBaseUrl = getProxyBaseUrl(sessionId);
       if (proxyBaseUrl) {
         cliEnv.OPENAI_BASE_URL = proxyBaseUrl;
@@ -614,7 +621,7 @@ async function executeQwenCommand(
     }
 
     await runWithTrackedCliRequest(requestId, async () => {
-      for await (const sdkMessage of query({
+      for await (const rawSdkMessage of query({
         prompt: processedMessage,
         options: {
           abortController: abortController!,
@@ -632,12 +639,16 @@ async function executeQwenCommand(
           ...(authType ? { authType } : {}),
           ...(Object.keys(cliEnv).length > 0 ? { env: cliEnv } : {}),
           stderr: (message: string) => {
+            if (delegatedEnvironment) message = message.split(delegatedEnvironment.OPENAI_API_KEY).join("[model-proxy-token]");
             logger.chat.info("CLI stderr: {message}", { message });
           },
           canUseTool,
           timeout: { canUseTool: SESSION_TIMEOUT_MS, controlRequest: SESSION_TIMEOUT_MS },
         },
       })) {
+        const sdkMessage: typeof rawSdkMessage = delegatedEnvironment
+          ? JSON.parse(JSON.stringify(rawSdkMessage).split(delegatedEnvironment.OPENAI_API_KEY).join("[model-proxy-token]"))
+          : rawSdkMessage;
         messageCount++;
         if (firstMessageLatencyMs === null) {
           firstMessageLatencyMs = Date.now() - startTime;
@@ -719,6 +730,9 @@ async function executeQwenCommand(
       enqueue({ type: "done" });
       return;
     }
+    const safeError = delegatedEnvironment
+      ? new Error(error instanceof Error ? error.message.split(delegatedEnvironment.OPENAI_API_KEY).join("[model-proxy-token]") : "CLI request failed")
+      : error;
     logger.chat.error(
       "[DIAG] Chat request ERROR requestId={requestId} durationMs={durationMs} "
       + "messageCount={messageCount} error={error}",
@@ -726,7 +740,7 @@ async function executeQwenCommand(
         requestId,
         durationMs: Date.now() - startTime,
         messageCount,
-        error,
+        error: safeError,
       },
     );
     enqueue({
@@ -791,8 +805,19 @@ export async function handleChatRequest(
   requestAbortControllers: Map<string, AbortController>,
   pendingPermissions: Map<string, PendingPermission>,
 ) {
+  let delegatedEnvironment: Record<string, string> | undefined;
+  try {
+    const config = c.var.config as AppConfig;
+    if (config.modelProxyBaseUrl && getEnv("OPENACE_API_URL")) throw new Error("Conflicting model gateways");
+    delegatedEnvironment = modelProxyEnvironment(config, config.modelProxyBaseUrl ? c.req.header("X-Model-Proxy-Token") : undefined);
+  } catch (error) {
+    logger.chat.warn("Delegated model configuration rejected: {reason}", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    return c.json({ error: "Delegated model configuration or credential unavailable" }, 403);
+  }
   if (!(c.var.config as AppConfig).serializeChatRequests) {
-    return handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions);
+    return handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions, undefined, delegatedEnvironment);
   }
   if (serializedServers.has(requestAbortControllers)) {
     // The lock has no timeout by design; expose the active request ids so an
@@ -810,7 +835,7 @@ export async function handleChatRequest(
   }
   serializedServers.add(requestAbortControllers);
   const release = () => { serializedServers.delete(requestAbortControllers); };
-  try { return await handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions, release); }
+  try { return await handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions, release, delegatedEnvironment); }
   catch (error) { release(); throw error; }
 }
 
@@ -819,6 +844,7 @@ async function handleChatRequestUnlocked(
   requestAbortControllers: Map<string, AbortController>,
   pendingPermissions: Map<string, PendingPermission>,
   onComplete?: () => void,
+  delegatedEnvironment?: Record<string, string>,
 ) {
   const chatRequest: ChatRequest = await c.req.json();
   const config = c.var.config as AppConfig;
@@ -1021,6 +1047,7 @@ async function handleChatRequestUnlocked(
           chatRequest.model,
           authType,
           isNewSession, // Pass flag to indicate new session
+          delegatedEnvironment,
         );
         clearInterval(keepaliveId);
         controller.close();

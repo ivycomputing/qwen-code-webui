@@ -1,0 +1,44 @@
+/** Optional per-request credential delegation; never mutates process.env. */
+export function modelProxyEnvironment(
+  config: { modelProxyBaseUrl?: string; tokenSecret?: string; authType?: string; openaceApiUrl?: string },
+  token?: string,
+): Record<string, string> | undefined {
+  if (!config.modelProxyBaseUrl) return undefined;
+  if (!config.tokenSecret || config.authType !== "openai" || config.openaceApiUrl) {
+    throw new Error("Delegated model proxy requires authenticated OpenAI mode without another gateway");
+  }
+  const endpoint = new URL(config.modelProxyBaseUrl);
+  if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash ||
+      (endpoint.protocol !== "https:" && !(endpoint.protocol === "http:" && ["127.0.0.1", "[::1]"].includes(endpoint.hostname)))) {
+    throw new Error("Invalid delegated model proxy endpoint");
+  }
+  if (!token || !/^[A-Za-z0-9._~+/:=-]{16,4096}$/.test(token)) {
+    throw new Error("A per-request model proxy credential is required");
+  }
+  // Qwen Code bare mode ignores persisted modelProviders, credentials,
+  // hooks and preapproved tools that could override this delegated route.
+  // Deployments must verify CLI support (Qwen Code 0.17.0 is the tested build).
+  return { OPENAI_BASE_URL: config.modelProxyBaseUrl, OPENAI_API_KEY: token, QWEN_CODE_SIMPLE: "1" };
+}
+
+/**
+ * Boot-time validation of the delegated-model configuration, without a
+ * credential. Runs the same checks as modelProxyEnvironment so a conflicting
+ * gateway, missing token secret, wrong auth type or invalid endpoint fails
+ * at startup with a clear message instead of a 403 on the first request.
+ */
+export function validateModelProxyConfig(
+  config: {
+    modelProxyBaseUrl?: string;
+    tokenSecret?: string;
+    authType?: string;
+    openaceApiUrl?: string;
+  },
+  openAceEnvUrl?: string,
+): void {
+  if (!config.modelProxyBaseUrl) return;
+  modelProxyEnvironment(
+    { ...config, openaceApiUrl: config.openaceApiUrl || openAceEnvUrl },
+    "boot-time-configuration-check",
+  );
+}

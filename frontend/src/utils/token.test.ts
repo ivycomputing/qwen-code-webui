@@ -11,6 +11,8 @@ describe("token utilities", () => {
     vi.useFakeTimers();
     sessionStorage.clear();
     delete window.__WEBUI_BASENAME__;
+    delete window.__WEBUI_CONTEXT_ENABLED__;
+    delete window.__WEBUI_CONTEXT_ID__;
     vi.resetModules();
     token = await import("./token");
 
@@ -42,6 +44,19 @@ describe("token utilities", () => {
     expect(token.addTokenToUrl("https://example.test/api/chat")).toBe("https://example.test/api/chat");
     window.__WEBUI_BASENAME__ = "//untrusted.test";
     expect(token.addTokenToUrl("/api/chat")).toBe("/api/chat");
+  });
+
+  it("keeps a public model selection per tab without adding bearer tokens or external context", () => {
+    window.__WEBUI_BASENAME__ = "/portal/agent";
+    window.__WEBUI_CONTEXT_ENABLED__ = true;
+    window.__WEBUI_CONTEXT_ID__ = "a".repeat(48);
+    sessionStorage.setItem("qwen-webui-token", "old-unrelated-token");
+    expect(token.addTokenToUrl("/api/chat")).toBe("/portal/agent/api/chat?context_id=" + "a".repeat(48));
+    window.__WEBUI_CONTEXT_ID__ = "";
+    expect(token.addTokenToUrl("/api/models")).toBe("/portal/agent/api/models?context_id=" + "a".repeat(48));
+    expect(token.addTokenToUrl("https://external.test/api/chat")).toBe("https://external.test/api/chat");
+    window.__WEBUI_BASENAME__ = "/different-mount";
+    expect(token.addTokenToUrl("/api/chat")).toBe("/different-mount/api/chat");
   });
 
   describe("replaceTokenInUrl", () => {

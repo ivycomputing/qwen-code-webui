@@ -6,6 +6,7 @@
  */
 
 import { createApp } from "../app.ts";
+import { validateModelProxyConfig } from "../utils/modelProxyEnvironment.ts";
 import { DenoRuntime } from "../runtime/deno.ts";
 import { parseCliArgs } from "./args.ts";
 import { validateQwenCli } from "./validation.ts";
@@ -33,6 +34,21 @@ async function main(runtime: DenoRuntime) {
   const __dirname = dirname(fromFileUrl(import.meta.url));
   const staticPath = join(__dirname, "../dist");
 
+  try {
+    validateModelProxyConfig(
+      {
+        modelProxyBaseUrl: args.modelProxyBaseUrl,
+        tokenSecret,
+        authType: args.authType,
+        openaceApiUrl: args.openaceApiUrl,
+      },
+      Deno.env.get("OPENACE_API_URL"),
+    );
+  } catch (error) {
+    console.error(`Delegated model proxy configuration invalid: ${error instanceof Error ? error.message : error}`);
+    exit(1);
+  }
+
   const app = createApp(runtime, {
     debugMode: args.debug,
     staticPath,
@@ -40,6 +56,7 @@ async function main(runtime: DenoRuntime) {
     tokenSecret,
     authType: args.authType,
     serializeChatRequests: args.serializeChatRequests,
+    modelProxyBaseUrl: args.modelProxyBaseUrl,
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
   });

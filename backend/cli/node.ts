@@ -8,6 +8,7 @@
 
 import { readTokenSecret } from "./tokenSecret.ts";
 import { createApp } from "../app.ts";
+import { validateModelProxyConfig } from "../utils/modelProxyEnvironment.ts";
 import { NodeRuntime } from "../runtime/node.ts";
 import { parseCliArgs } from "./args.ts";
 import { validateQwenCli } from "./validation.ts";
@@ -49,6 +50,21 @@ async function main(runtime: NodeRuntime) {
     logger.cli.debug(`Static path: ${staticPath}`);
   }
 
+  try {
+    validateModelProxyConfig(
+      {
+        modelProxyBaseUrl: args.modelProxyBaseUrl,
+        tokenSecret,
+        authType: args.authType,
+        openaceApiUrl: args.openaceApiUrl,
+      },
+      process.env.OPENACE_API_URL,
+    );
+  } catch (error) {
+    console.error(`Delegated model proxy configuration invalid: ${error instanceof Error ? error.message : error}`);
+    process.exit(1);
+  }
+
   // Create application
   const { app, shutdown, vscodeUpgradeHandler } = createApp(runtime, {
     debugMode: args.debug,
@@ -56,6 +72,7 @@ async function main(runtime: NodeRuntime) {
     cliPath,
     tokenSecret,
     serializeChatRequests: args.serializeChatRequests,
+    modelProxyBaseUrl: args.modelProxyBaseUrl,
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
     authType: args.authType,
