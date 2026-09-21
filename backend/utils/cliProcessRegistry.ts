@@ -1,3 +1,4 @@
+import * as nodeModule from "node:module";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChildProcess } from "node:child_process";
 import { logger } from "./logger.ts";
@@ -132,6 +133,13 @@ function attachChildToRequest(requestId: string, child: ChildProcess): void {
   const cleanup = () => {
     const current = trackedRequests.get(requestId);
     if (!current) return;
+    if (current.abortSource) {
+      // An aborted SDK transport can leave readline/stdio handles open after
+      // the CLI exits. Dispose only this child's pipes, never normal output.
+      child.stdin?.destroy();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+    }
     current.children.delete(pid);
     maybeClearForceKillTimer(current);
   };
@@ -172,6 +180,12 @@ function installChildProcessPatch(): void {
     }
     return child;
   }) as unknown as typeof childProcess.fork;
+  // Node snapshots builtin ESM named bindings at first import; refresh them
+  // so consumers that `import { spawn } from "node:child_process"` (like the
+  // SDK) see this patch even when they were imported first. Deno's node:module
+  // shim does not expose syncBuiltinESMExports, so the call is skipped there
+  // and only require() consumers observe the patch.
+  (nodeModule as { syncBuiltinESMExports?: () => void }).syncBuiltinESMExports?.();
 }
 
 export function registerTrackedCliRequest(
