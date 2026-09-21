@@ -48,7 +48,7 @@ it("passes the configured token secret from app assembly to delegated chat", asy
     cliPath: "/usr/local/bin/qwen",
     tokenSecret: secret,
     serializeChatRequests: true,
-    modelProxyBaseUrl: "http://127.0.0.1:9730/internal/job-ai-workbench-model",
+    modelProxyBaseUrl: "http://127.0.0.1:9377/internal/model-proxy",
     authType: "openai",
   });
 

@@ -54,3 +54,17 @@ resume with a different grant, and cancellation against a stalled memory
 provider. The registry synchronizes ESM child-process bindings and disposes an
 aborted child's pipes after exit; it preserves normal buffered output. These
 tests disable TCP and do not substitute for provider/TLS deployment validation.
+
+## Hosting proxy obligations
+
+- **Strip any client-supplied `X-Model-Proxy-Token` and set your own.** Any
+  authenticated browser caller can send the header; the fixed base URL limits
+  the effect to your proxy, which should reject credentials it did not issue
+  anyway. Do not rely on that validation alone — remove the header at the edge.
+- **Run the server without provider keys in its environment.** Delegation never
+  *routes* through shared keys, but the CLI subprocess inherits the server
+  environment: any `OPENAI_API_KEY`/`DASHSCOPE_API_KEY`-style variables stay
+  visible to approved shell commands in a delegated session.
+- `QWEN_CODE_SIMPLE=1` also disables the user's saved hooks and preapproved
+  tools for delegated sessions; a hosting UI must not display permission state
+  that no longer applies.
