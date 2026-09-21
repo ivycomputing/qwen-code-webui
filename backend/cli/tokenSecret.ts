@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+import process from "node:process";
 import { openSync, fstatSync, readSync, closeSync } from "node:fs";
 
 /** File-based secrets avoid exposing credentials in command-line arguments. */

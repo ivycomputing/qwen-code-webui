@@ -797,6 +797,9 @@ export async function handleChatRequest(
   if (serializedServers.has(requestAbortControllers)) {
     // The lock has no timeout by design; expose the active request ids so an
     // authenticated caller can recover a stuck turn via /api/abort/:requestId.
+    // The list is empty only in the brief window before executeQwenCommand
+    // registers the holder (body parse, session bridge, registration); an
+    // empty list still means "lock held", not "no holder".
     return c.json(
       {
         error: "Shared workspace has an active request; wait or cancel it first",
