@@ -12,10 +12,12 @@ import { validateQwenCli } from "./validation.ts";
 import { logger, setupLogger } from "../utils/logger.ts";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { exit } from "../utils/os.ts";
+import { readTokenSecret } from "./tokenSecret.ts";
 
 async function main(runtime: DenoRuntime) {
   // Parse CLI arguments
   const args = parseCliArgs();
+  const tokenSecret = readTokenSecret(args.tokenSecret, args.tokenSecretFile);
 
   // Initialize logging system
   await setupLogger(args.debug);
@@ -35,6 +37,9 @@ async function main(runtime: DenoRuntime) {
     debugMode: args.debug,
     staticPath,
     cliPath: cliPath,
+    tokenSecret,
+    authType: args.authType,
+    serializeChatRequests: args.serializeChatRequests,
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
   });

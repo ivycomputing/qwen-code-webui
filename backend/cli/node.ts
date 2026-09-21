@@ -6,6 +6,7 @@
  * Qwen CLI validation, and server startup using the NodeRuntime.
  */
 
+import { readTokenSecret } from "./tokenSecret.ts";
 import { createApp } from "../app.ts";
 import { NodeRuntime } from "../runtime/node.ts";
 import { parseCliArgs } from "./args.ts";
@@ -18,6 +19,8 @@ import { exit } from "../utils/os.ts";
 async function main(runtime: NodeRuntime) {
   // Parse CLI arguments
   const args = parseCliArgs();
+
+  const tokenSecret = readTokenSecret(args.tokenSecret, args.tokenSecretFile);
 
   // Initialize logging system
   await setupLogger(args.debug);
@@ -51,7 +54,8 @@ async function main(runtime: NodeRuntime) {
     debugMode: args.debug,
     staticPath,
     cliPath,
-    tokenSecret: args.tokenSecret,
+    tokenSecret,
+    serializeChatRequests: args.serializeChatRequests,
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
     authType: args.authType,

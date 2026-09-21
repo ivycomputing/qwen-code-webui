@@ -201,8 +201,21 @@ export function createTokenAuthMiddleware(tokenSecret?: string) {
       return;
     }
 
-    // Get token from URL query parameter
-    const token = c.req.query("token");
+    // Proxies can keep tokens out of URLs, browser storage and access logs.
+    // A Bearer Authorization header is authoritative (RFC 9110 auth schemes
+    // are case-insensitive): never fall back to a query token after failed
+    // Bearer authentication. Other schemes — e.g. Basic credentials a fronting
+    // auth proxy forwards — do not carry a webui token, so those requests may
+    // still present it via the query string.
+    const authorization = c.req.header("Authorization");
+    let token: string | undefined;
+    if (authorization === undefined) {
+      token = c.req.query("token");
+    } else if (/^Bearer\s+([^\s]+)$/i.test(authorization)) {
+      token = authorization.replace(/^Bearer\s+/i, "");
+    } else if (!/^\s*Bearer\b/i.test(authorization)) {
+      token = c.req.query("token");
+    }
 
     if (!token) {
       logger.app.warn("Request rejected: missing token parameter");

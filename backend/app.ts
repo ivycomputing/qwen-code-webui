@@ -53,6 +53,7 @@ export interface AppConfig {
   debugMode: boolean;
   staticPath: string;
   cliPath: string; // Actual CLI script path detected by validateQwenCli
+  serializeChatRequests?: boolean;
   tokenSecret?: string; // Secret for Open-ACE integration token validation
   quotaCheckEnabled?: boolean; // Enable quota checking with Open-ACE
   openaceApiUrl?: string; // Open-ACE API URL for quota checking
@@ -141,6 +142,7 @@ export function createApp(
     "*",
     createConfigMiddleware({
       debugMode: config.debugMode,
+      serializeChatRequests: config.serializeChatRequests,
       runtime,
       cliPath: config.cliPath,
       quotaCheckEnabled: config.quotaCheckEnabled,
