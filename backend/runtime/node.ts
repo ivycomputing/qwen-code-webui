@@ -110,6 +110,10 @@ export class NodeRuntime implements Runtime {
       if (isWindows && isWindowsScriptFile(command)) {
         actualCommand = "cmd.exe";
         actualArgs = buildWindowsCommandLine(command, args);
+        // The whole command line is one pre-quoted argument; without this
+        // Node would re-quote it (escaping the inner quotes as \"), which
+        // cmd's parser cannot read.
+        spawnOptions.windowsVerbatimArguments = true;
       }
 
       const child = spawn(actualCommand, actualArgs, spawnOptions);

@@ -19,14 +19,6 @@ function isWindowsScriptFile(command: string): boolean {
   return /\.(cmd|bat)$/i.test(command);
 }
 
-/** Builds the quoted `/d /s /c "<command>" <args>` line for cmd.exe. */
-function buildWindowsCommandLine(command: string, args: string[]): string[] {
-  const quotedArgs = args.map((
-    token,
-  ) => (/\s/.test(token) ? `"${token}"` : token));
-  return ["/d", "/s", "/c", [`"${command}"`, ...quotedArgs].join(" ")];
-}
-
 /**
  * Relays a WebSocket upgrade request to a backend WebSocket endpoint
  * (the Deno counterpart of the Node http-proxy upgrade handler).
@@ -167,15 +159,16 @@ export class DenoRuntime implements Runtime {
   ): Promise<CommandResult> {
     const platform = getPlatform();
 
-    // On Windows only .cmd/.bat scripts go through cmd.exe, as one quoted
-    // command line so paths with spaces survive cmd's re-parsing. Real
-    // executables are spawned directly (same policy as NodeRuntime).
+    // On Windows only .cmd/.bat scripts go through cmd.exe. Arguments are
+    // passed separately: Deno quotes each one itself, and a pre-quoted
+    // single command line would get double-escaped (NodeRuntime instead
+    // uses windowsVerbatimArguments, which Deno.Command does not expose).
     let actualCommand = command;
     let actualArgs = args;
 
     if (platform === "windows" && isWindowsScriptFile(command)) {
       actualCommand = "cmd.exe";
-      actualArgs = buildWindowsCommandLine(command, args);
+      actualArgs = ["/d", "/c", command, ...args];
     }
 
     try {
