@@ -29,11 +29,14 @@ export function isWindowsScriptFile(command: string): boolean {
 }
 
 /**
- * Builds the cmd.exe argument vector for running a .cmd/.bat script:
- * `/d /s /c "<command>" <args>` as a single quoted command line, quoting any
- * token that contains spaces. /d disables AutoRun scripts, /s makes cmd
- * strip only the outer quotes — together this is the robust form for
- * command paths that contain spaces (e.g. C:\Program Files\...).
+ * Builds the cmd.exe argument vector for running a .cmd/.bat script.
+ *
+ * The full command line — the quoted command plus any quoted arguments —
+ * is wrapped in one outer pair of quotes: `/d /s /c ""<command>" <args>"`.
+ * /d disables AutoRun scripts; /s makes cmd strip only that outer pair,
+ * leaving a well-quoted inner line even when paths contain spaces (e.g.
+ * C:\Program Files\...). Without the outer quotes, /s would strip the
+ * command's own quotes and cmd would split the path at its first space.
  */
 export function buildWindowsCommandLine(
   command: string,
@@ -44,7 +47,8 @@ export function buildWindowsCommandLine(
   const quotedArgs = args.map((token) =>
     /\s/.test(token) ? `"${token}"` : token,
   );
-  return ["/d", "/s", "/c", [`"${command}"`, ...quotedArgs].join(" ")];
+  const line = [`"${command}"`, ...quotedArgs].join(" ");
+  return ["/d", "/s", "/c", `"${line}"`];
 }
 
 export class NodeRuntime implements Runtime {

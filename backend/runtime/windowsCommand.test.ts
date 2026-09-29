@@ -27,7 +27,7 @@ describe("isWindowsScriptFile", () => {
 });
 
 describe("buildWindowsCommandLine", () => {
-  it("builds a /d /s /c command line quoting a path with spaces", () => {
+  it("builds a /d /s /c line with outer quotes around a spaced path", () => {
     expect(
       buildWindowsCommandLine("C:\\Program Files\\tools\\qwen.cmd", [
         "--version",
@@ -36,7 +36,7 @@ describe("buildWindowsCommandLine", () => {
       "/d",
       "/s",
       "/c",
-      '"C:\\Program Files\\tools\\qwen.cmd" --version',
+      '""C:\\Program Files\\tools\\qwen.cmd" --version"',
     ]);
   });
 
@@ -50,7 +50,7 @@ describe("buildWindowsCommandLine", () => {
       "/d",
       "/s",
       "/c",
-      '"C:\\t\\qwen.cmd" "C:\\My Files\\cli.js" --version',
+      '""C:\\t\\qwen.cmd" "C:\\My Files\\cli.js" --version"',
     ]);
   });
 
@@ -59,7 +59,7 @@ describe("buildWindowsCommandLine", () => {
       "/d",
       "/s",
       "/c",
-      '"C:\\t\\qwen.cmd" --version',
+      '""C:\\t\\qwen.cmd" --version"',
     ]);
   });
 });
