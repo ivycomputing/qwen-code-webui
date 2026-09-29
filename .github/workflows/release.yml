@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: write
-  pull_requests: write
+  pull-requests: write
 
 # Serialize releases so concurrent tags cannot race on the changelog PR.
 concurrency:
