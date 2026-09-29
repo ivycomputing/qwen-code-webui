@@ -49,7 +49,10 @@ export class DenoRuntime implements Runtime {
   async runCommand(
     command: string,
     args: string[],
-    options?: { env?: Record<string, string> },
+    options?: {
+      env?: Record<string, string>;
+      timeoutMs?: number;
+    },
   ): Promise<CommandResult> {
     const platform = getPlatform();
 
@@ -62,21 +65,39 @@ export class DenoRuntime implements Runtime {
       actualArgs = ["/c", command, ...args];
     }
 
-    const cmd = new Deno.Command(actualCommand, {
-      args: actualArgs,
-      stdout: "piped",
-      stderr: "piped",
-      env: options?.env,
-    });
+    try {
+      const cmd = new Deno.Command(actualCommand, {
+        args: actualArgs,
+        stdout: "piped",
+        stderr: "piped",
+        env: options?.env,
+        signal: options?.timeoutMs
+          ? AbortSignal.timeout(options.timeoutMs)
+          : undefined,
+      });
 
-    const result = await cmd.output();
+      const result = await cmd.output();
 
-    return {
-      success: result.success,
-      code: result.code,
-      stdout: new TextDecoder().decode(result.stdout),
-      stderr: new TextDecoder().decode(result.stderr),
-    };
+      return {
+        success: result.success,
+        code: result.code,
+        stdout: new TextDecoder().decode(result.stdout),
+        stderr: new TextDecoder().decode(result.stderr),
+      };
+    } catch (error) {
+      // AbortSignal.timeout() rejects output() with a TimeoutError DOMException
+      // when the command overruns timeoutMs; other failures (e.g. command not
+      // found) land here too. Report as a failed command instead of crashing
+      // startup, using 124 (the conventional timeout code) only for timeouts.
+      const isTimeout = error instanceof DOMException &&
+        error.name === "TimeoutError";
+      return {
+        success: false,
+        code: isTimeout ? 124 : 1,
+        stdout: "",
+        stderr: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   serve(

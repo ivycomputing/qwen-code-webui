@@ -41,14 +41,17 @@ from helper tests alone.
 ## Persisted CLI configuration
 
 Delegated queries set `QWEN_CODE_SIMPLE=1` as well as the per-request endpoint
-and key. With Qwen Code 0.17.0 this selects bare mode, ignoring saved
+and key. With Qwen Code 0.17.0+ this selects bare mode, ignoring saved
 modelProviders/auth settings, hooks and preapproved tools. A conflicting saved
 modelProvider can otherwise override environment configuration. Require a CLI
 with this behavior before enabling delegation; older builds must not silently
 ignore this setting. Direct CLI new/resumed-session tests with a memory provider
 passed on 0.17.0; they do not certify the WebUI SDK subprocess path.
 
-The locked SDK 0.1.5 and Qwen CLI 0.17.0 have also been exercised together
+The WebUI declares its tested CLI range in `backend/cli/validation.ts`
+(`MIN_TESTED_CLI_VERSION` / `MAX_TESTED_CLI_VERSION`, currently 0.17.0 through
+0.24.6) and warns at startup when the resolved CLI falls outside it. The SDK
+(0.1.16, which bundles CLI 0.24.6) and host Qwen CLI 0.24.0 have been exercised
 with the request environment helper: new session, resume with a different
 grant, and cancellation against a stalled memory provider. These tests disable
 TCP and do not substitute for provider/TLS deployment validation. The process

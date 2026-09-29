@@ -18,6 +18,7 @@ import * as http from "node:http";
 import * as https from "node:https";
 import { URL } from "node:url";
 import { logger } from "./logger.ts";
+import { unrefTimer } from "./unrefTimer.ts";
 
 let proxyServer: http.Server | null = null;
 let proxyPort: number | null = null;
@@ -39,7 +40,9 @@ let startingPromise: Promise<number> | null = null;
 export function startLlmProxy(upstreamUrl: string): Promise<number> {
   // Fully started already — return the known port.
   if (proxyServer && proxyPort !== null) {
-    logger.chat.warn("LLM proxy already running on port {port}", { port: proxyPort });
+    logger.chat.warn("LLM proxy already running on port {port}", {
+      port: proxyPort,
+    });
     return Promise.resolve(proxyPort);
   }
   // A start is mid-flight — every concurrent caller awaits the same result.
@@ -55,7 +58,9 @@ export function startLlmProxy(upstreamUrl: string): Promise<number> {
 
     // During startup, a bind error (e.g. EADDRINUSE) rejects the start.
     const onStartupError = (err: Error) => {
-      logger.chat.error("LLM proxy server error: {error}", { error: err.message });
+      logger.chat.error("LLM proxy server error: {error}", {
+        error: err.message,
+      });
       if (proxyServer === server) proxyServer = null;
       proxyPort = null;
       upstreamBaseUrl = null;
@@ -78,7 +83,9 @@ export function startLlmProxy(upstreamUrl: string): Promise<number> {
       // server error is logged instead of crashing the process.
       server.removeListener("error", onStartupError);
       server.on("error", (err) => {
-        logger.chat.error("LLM proxy server error: {error}", { error: err.message });
+        logger.chat.error("LLM proxy server error: {error}", {
+          error: err.message,
+        });
       });
       logger.chat.info(
         "LLM proxy started on port {port}, upstream: {upstream}",
@@ -123,7 +130,9 @@ function handleProxyRequest(
     const remainingPath = "/" + pathSegments.slice(2).join("/");
 
     if (!sessionId || remainingPath === "/") {
-      logger.chat.warn("LLM proxy: invalid request URL: {url}", { url: reqUrl });
+      logger.chat.warn("LLM proxy: invalid request URL: {url}", {
+        url: reqUrl,
+      });
       clientRes.writeHead(400, { "Content-Type": "text/plain" });
       clientRes.end("Invalid proxy URL format. Expected: /<sessionId>/v1/...");
       return;
@@ -342,7 +351,7 @@ export async function stopLlmProxy(): Promise<void> {
     const forceTimer = setTimeout(() => {
       server.closeAllConnections?.();
     }, 5000);
-    forceTimer.unref?.();
+    unrefTimer(forceTimer);
     server.close(() => {
       clearTimeout(forceTimer);
       logger.chat.info("LLM proxy stopped");

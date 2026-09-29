@@ -59,3 +59,6 @@ screenshots/
 
 # Root lock file (keep frontend/package-lock.json tracked)
 /package-lock.json
+
+# ZCode agent session files
+.zcode/

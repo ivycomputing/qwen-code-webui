@@ -53,24 +53,31 @@ export function parseCliArgs(): ParsedArgs {
     )
     .option(
       "--qwen-path <path>",
-      "Path to qwen executable (overrides automatic detection)",
+      'Path to qwen executable (overrides automatic detection), or "bundled" to use the CLI bundled with @qwen-code/sdk',
     )
     .option(
       "--token-secret <secret>",
       "Token secret for Open-ACE integration authentication (optional)",
     )
-    .option("--serialize-chat-requests", "Allow only one active chat per server instance", false)
-    .option("--model-proxy-base-url <url>", "Require a per-request credential for this trusted OpenAI proxy")
-    .option("--token-secret-file <path>", "Read token authentication secret from a protected file (minimum 32 bytes)")
+    .option(
+      "--serialize-chat-requests",
+      "Allow only one active chat per server instance",
+      false,
+    )
+    .option(
+      "--model-proxy-base-url <url>",
+      "Require a per-request credential for this trusted OpenAI proxy",
+    )
+    .option(
+      "--token-secret-file <path>",
+      "Read token authentication secret from a protected file (minimum 32 bytes)",
+    )
     .option(
       "--quota-check-enabled",
       "Enable quota checking with Open-ACE",
       false,
     )
-    .option(
-      "--openace-api-url <url>",
-      "Open-ACE API URL for quota checking",
-    )
+    .option("--openace-api-url <url>", "Open-ACE API URL for quota checking")
     .option(
       "--auth-type <type>",
       "Authentication type for Qwen CLI (e.g. openai, anthropic, gemini)",

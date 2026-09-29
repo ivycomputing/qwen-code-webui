@@ -1,9 +1,20 @@
 import * as nodeModule from "node:module";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChildProcess } from "node:child_process";
+// createRequire is imported under an alias: the esbuild bundle banner already
+// imports `createRequire` at top scope, and a duplicate top-level import of
+// that name is a SyntaxError in the bundled ESM output (see #170).
+import { createRequire as nodeCreateRequire } from "node:module";
 import { logger } from "./logger.ts";
+import { unrefTimer } from "./unrefTimer.ts";
 
-const childProcess = require("node:child_process") as typeof import("node:child_process");
+// Patching spawn/fork needs the mutable CJS exports object, so the module is
+// loaded via require instead of a frozen ESM namespace import. createRequire
+// keeps this working in Deno builds, where no global `require` exists.
+const nodeRequire = nodeCreateRequire(import.meta.url);
+const childProcess = nodeRequire(
+  "node:child_process",
+) as typeof import("node:child_process");
 
 type AbortSource =
   | "user"
@@ -32,10 +43,10 @@ let originalFork = childProcess.fork;
 
 function isSdkCliSpawn(command: string, args: readonly string[]): boolean {
   return (
-    args.includes("--channel=SDK")
-    && args.includes("--input-format")
-    && args.includes("stream-json")
-    && args.includes("--output-format")
+    args.includes("--channel=SDK") &&
+    args.includes("--input-format") &&
+    args.includes("stream-json") &&
+    args.includes("--output-format")
   );
 }
 
@@ -54,11 +65,9 @@ function isPidAlive(pid: number): boolean {
 
 function findSessionCliPids(sessionId: string, cliPath?: string): number[] {
   try {
-    const output = childProcess.execFileSync(
-      "ps",
-      ["-Ao", "pid=,command="],
-      { encoding: "utf8" },
-    );
+    const output = childProcess.execFileSync("ps", ["-Ao", "pid=,command="], {
+      encoding: "utf8",
+    });
     const matches = output
       .split("\n")
       .map((line) => line.trim())
@@ -69,12 +78,11 @@ function findSessionCliPids(sessionId: string, cliPath?: string): number[] {
         return { pid: Number(match[1]), command: match[2] };
       })
       .filter((entry): entry is { pid: number; command: string } => !!entry)
-      .filter(({ command }) =>
-        (!cliPath || command.includes(cliPath))
-        && (
-          command.includes(`--session-id ${sessionId}`)
-          || command.includes(`--resume ${sessionId}`)
-        )
+      .filter(
+        ({ command }) =>
+          (!cliPath || command.includes(cliPath)) &&
+          (command.includes(`--session-id ${sessionId}`) ||
+            command.includes(`--resume ${sessionId}`)),
       )
       .map(({ pid }) => pid);
 
@@ -88,7 +96,11 @@ function findSessionCliPids(sessionId: string, cliPath?: string): number[] {
   }
 }
 
-function sendSignal(child: ChildProcess, signal: NodeJS.Signals, requestId: string): void {
+function sendSignal(
+  child: ChildProcess,
+  signal: NodeJS.Signals,
+  requestId: string,
+): void {
   const pid = child.pid;
   if (!pid) return;
 
@@ -165,7 +177,11 @@ function installChildProcessPatch(): void {
     const [command, spawnArgs] = args;
     const child = originalSpawnAny(...args);
     const requestId = requestContext.getStore()?.requestId;
-    if (requestId && Array.isArray(spawnArgs) && isSdkCliSpawn(String(command), spawnArgs)) {
+    if (
+      requestId &&
+      Array.isArray(spawnArgs) &&
+      isSdkCliSpawn(String(command), spawnArgs)
+    ) {
       attachChildToRequest(requestId, child);
     }
     return child;
@@ -175,7 +191,11 @@ function installChildProcessPatch(): void {
     const [modulePath, forkArgs] = args;
     const child = originalForkAny(...args);
     const requestId = requestContext.getStore()?.requestId;
-    if (requestId && Array.isArray(forkArgs) && isSdkCliFork(String(modulePath), forkArgs)) {
+    if (
+      requestId &&
+      Array.isArray(forkArgs) &&
+      isSdkCliFork(String(modulePath), forkArgs)
+    ) {
       attachChildToRequest(requestId, child);
     }
     return child;
@@ -187,7 +207,9 @@ function installChildProcessPatch(): void {
   // child_process — here that is fine because no other builtin is patched.
   // Deno's node:module shim does not expose syncBuiltinESMExports, so the
   // call is skipped there and only require() consumers observe the patch.
-  (nodeModule as { syncBuiltinESMExports?: () => void }).syncBuiltinESMExports?.();
+  (
+    nodeModule as { syncBuiltinESMExports?: () => void }
+  ).syncBuiltinESMExports?.();
 }
 
 export function registerTrackedCliRequest(
@@ -203,7 +225,10 @@ export function registerTrackedCliRequest(
   });
 }
 
-export function updateTrackedCliSessionId(requestId: string, sessionId: string): void {
+export function updateTrackedCliSessionId(
+  requestId: string,
+  sessionId: string,
+): void {
   const state = trackedRequests.get(requestId);
   if (!state) return;
   state.sessionId = sessionId;
@@ -261,7 +286,10 @@ export function signalTrackedCliAbort(
       sendSignal(child, "SIGKILL", requestId);
     }
     if (current.sessionId) {
-      for (const pid of findSessionCliPids(current.sessionId, current.cliPath)) {
+      for (const pid of findSessionCliPids(
+        current.sessionId,
+        current.cliPath,
+      )) {
         if (!isPidAlive(pid)) continue;
         try {
           process.kill(pid, "SIGKILL");
@@ -282,9 +310,7 @@ export function signalTrackedCliAbort(
     }
   }, FORCE_KILL_AFTER_MS);
 
-  if (state.forceKillTimer.unref) {
-    state.forceKillTimer.unref();
-  }
+  unrefTimer(state.forceKillTimer);
 }
 
 export function finalizeTrackedCliRequest(requestId: string): void {

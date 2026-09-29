@@ -30,9 +30,11 @@ async function main(runtime: DenoRuntime) {
   // Validate Qwen CLI availability and get the detected CLI path
   const cliPath = await validateQwenCli(runtime, args.qwenPath);
 
-  // Create application
+  // Static files live at <module dir>/../dist/static both in development
+  // (backend/) and inside deno compile binaries, where --include ./dist/static
+  // preserves the source tree layout.
   const __dirname = dirname(fromFileUrl(import.meta.url));
-  const staticPath = join(__dirname, "../dist");
+  const staticPath = join(__dirname, "../dist/static");
 
   try {
     validateModelProxyConfig(
@@ -45,11 +47,16 @@ async function main(runtime: DenoRuntime) {
       Deno.env.get("OPENACE_API_URL"),
     );
   } catch (error) {
-    console.error(`Delegated model proxy configuration invalid: ${error instanceof Error ? error.message : error}`);
+    console.error(
+      `Delegated model proxy configuration invalid: ${
+        error instanceof Error ? error.message : error
+      }`,
+    );
     exit(1);
   }
 
-  const app = createApp(runtime, {
+  // Create application
+  const { app, shutdown } = createApp(runtime, {
     debugMode: args.debug,
     staticPath,
     cliPath: cliPath,
@@ -61,9 +68,23 @@ async function main(runtime: DenoRuntime) {
     openaceApiUrl: args.openaceApiUrl,
   });
 
+  // Graceful shutdown: kill CLI subprocesses on SIGTERM/SIGINT.
+  // Windows Deno only supports SIGINT/SIGBREAK listeners — registering
+  // SIGTERM there throws, so gate it by platform.
+  const handleSignal = () => {
+    shutdown();
+    // Give CLI subprocesses time to die after receiving SIGTERM via ac.abort()
+    setTimeout(() => exit(0), 3000);
+  };
+  if (Deno.build.os !== "windows") {
+    Deno.addSignalListener("SIGTERM", handleSignal);
+  }
+  Deno.addSignalListener("SIGINT", handleSignal);
+
   // Start server (only show this message when everything is ready)
   logger.cli.info(`🚀 Server starting on ${args.host}:${args.port}`);
-  runtime.serve(args.port, args.host, app.fetch);
+
+  await runtime.serve(args.port, args.host, app.fetch);
 }
 
 // Run the application

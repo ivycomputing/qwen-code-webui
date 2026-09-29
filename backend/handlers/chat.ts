@@ -1,8 +1,16 @@
 import { Context } from "hono";
-import type { PermissionMode, AuthType, PermissionResult } from "@qwen-code/sdk";
+import type {
+  PermissionMode,
+  AuthType,
+  PermissionResult,
+} from "@qwen-code/sdk";
 import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
-import { checkLoop, isFatalFingerprint, type LoopState } from "../utils/loopDetector.ts";
+import {
+  checkLoop,
+  isFatalFingerprint,
+  type LoopState,
+} from "../utils/loopDetector.ts";
 import { bridgeSession } from "../utils/sessionBridge.ts";
 import {
   finalizeTrackedCliRequest,
@@ -19,6 +27,7 @@ import { preserveToolInput } from "./toolInputSnapshot.ts";
 import type { ServerResponse } from "node:http";
 import type { AppConfig } from "../types.ts";
 import { modelProxyEnvironment } from "../utils/modelProxyEnvironment.ts";
+import { unrefTimer } from "../utils/unrefTimer.ts";
 
 /** Track number of concurrent chat requests for diagnostics */
 let _activeChatCount = 0;
@@ -118,7 +127,14 @@ function mapPermissionMode(mode?: string): PermissionMode | undefined {
 // Tools that are safe to auto-approve without user confirmation.
 // Criteria: no side effects, no writes to filesystem or external systems.
 // Update this set when new read-only SDK tools are added.
-const READ_ONLY_TOOLS = new Set(["read_file", "glob", "grep_search", "list_directory", "web_fetch", "think"]);
+const READ_ONLY_TOOLS = new Set([
+  "read_file",
+  "glob",
+  "grep_search",
+  "list_directory",
+  "web_fetch",
+  "think",
+]);
 
 // Tools that should be auto-approved without a permission dialog because the
 // WebUI cannot provide the interactive response the tool expects. The tool
@@ -222,7 +238,10 @@ export async function registerWithOpenAce(
   } else {
     signal?.addEventListener("abort", abortRegistration, { once: true });
   }
-  const timeoutId = setTimeout(abortRegistration, OPENACE_REGISTRATION_TIMEOUT_MS);
+  const timeoutId = setTimeout(
+    abortRegistration,
+    OPENACE_REGISTRATION_TIMEOUT_MS,
+  );
   let registrationAttempted = false;
   let registrationConfirmed = false;
 
@@ -261,10 +280,14 @@ export async function registerWithOpenAce(
       success?: boolean;
       data?: { session_id?: string };
     };
-    if (registration.success !== true || registration.data?.session_id !== sessionId) {
+    if (
+      registration.success !== true ||
+      registration.data?.session_id !== sessionId
+    ) {
       return {
         success: false,
-        error: "Open-ACE registration response did not confirm the requested session",
+        error:
+          "Open-ACE registration response did not confirm the requested session",
       };
     }
 
@@ -326,7 +349,12 @@ async function executeQwenCommand(
   if (delegatedEnvironment) {
     const originalEnqueue = enqueue;
     const token = delegatedEnvironment.OPENAI_API_KEY;
-    enqueue = response => originalEnqueue(JSON.parse(JSON.stringify(response).split(token).join("[model-proxy-token]")));
+    enqueue = (response) =>
+      originalEnqueue(
+        JSON.parse(
+          JSON.stringify(response).split(token).join("[model-proxy-token]"),
+        ),
+      );
   }
   let abortController: AbortController | undefined;
   let onAbort: (() => void) | undefined;
@@ -364,7 +392,9 @@ async function executeQwenCommand(
     abortController.signal.addEventListener("abort", onAbort, { once: true });
 
     // Log permission mode for debugging
-    const mappedPermissionMode = permissionMode ? mapPermissionMode(permissionMode) : undefined;
+    const mappedPermissionMode = permissionMode
+      ? mapPermissionMode(permissionMode)
+      : undefined;
     logger.chat.debug(
       "Executing Qwen query with permissionMode: {permissionMode} (mapped: {mappedPermissionMode})",
       { permissionMode, mappedPermissionMode },
@@ -372,8 +402,8 @@ async function executeQwenCommand(
 
     _activeChatCount++;
     logger.chat.info(
-      "[DIAG] Chat request START requestId={requestId} activeCount={activeCount} "
-      + "concurrentRequests={concurrentRequests} pendingPermissions={pendingPermissions}",
+      "[DIAG] Chat request START requestId={requestId} activeCount={activeCount} " +
+        "concurrentRequests={concurrentRequests} pendingPermissions={pendingPermissions}",
       {
         requestId,
         activeCount: _activeChatCount,
@@ -382,7 +412,11 @@ async function executeQwenCommand(
       },
     );
 
-    const loopState: LoopState = { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 };
+    const loopState: LoopState = {
+      errorCount: 0,
+      lastFingerprint: "",
+      firstErrorTime: 0,
+    };
 
     // Per-agent loop states keyed by parent_tool_use_id (#140).
     // Each fork agent gets its own LoopState so parallel agents don't
@@ -402,7 +436,10 @@ async function executeQwenCommand(
 
       // Read-only tools never require confirmation — skip the dialog entirely.
       if (READ_ONLY_TOOLS.has(toolName)) {
-        logger.chat.debug("canUseTool: auto-approving read-only tool {toolName}", { toolName });
+        logger.chat.debug(
+          "canUseTool: auto-approving read-only tool {toolName}",
+          { toolName },
+        );
         return { behavior: "allow", updatedInput: input };
       }
 
@@ -410,21 +447,34 @@ async function executeQwenCommand(
       // so the tool executes with defaults. The UnifiedMessageProcessor still
       // intercepts the tool_use to display questions as a chat message.
       if (AUTO_APPROVE_NO_DIALOG_TOOLS.has(toolName)) {
-        logger.chat.debug("canUseTool: auto-approving tool without dialog {toolName}", { toolName });
+        logger.chat.debug(
+          "canUseTool: auto-approving tool without dialog {toolName}",
+          { toolName },
+        );
         return { behavior: "allow", updatedInput: input };
       }
 
       // Auto-approve write tools the user already allowed during this request.
       if (localAllowedTools.has(toolName)) {
-        logger.chat.debug("canUseTool: auto-approving previously allowed tool {toolName}", { toolName });
+        logger.chat.debug(
+          "canUseTool: auto-approving previously allowed tool {toolName}",
+          { toolName },
+        );
         return { behavior: "allow", updatedInput: input };
       }
 
       // For run_shell_command, also check command-specific entries.
-      if (toolName === "run_shell_command" && input?.command && typeof input.command === "string") {
+      if (
+        toolName === "run_shell_command" &&
+        input?.command &&
+        typeof input.command === "string"
+      ) {
         const baseCmd = extractBaseCommand(input.command as string);
         if (baseCmd && localAllowedTools.has(`${toolName}:${baseCmd}`)) {
-          logger.chat.debug("canUseTool: auto-approving previously allowed command {toolName}:{baseCmd}", { toolName, baseCmd });
+          logger.chat.debug(
+            "canUseTool: auto-approving previously allowed command {toolName}:{baseCmd}",
+            { toolName, baseCmd },
+          );
           return { behavior: "allow", updatedInput: input };
         }
       }
@@ -435,21 +485,26 @@ async function executeQwenCommand(
       // The SDK should handle this before calling canUseTool, but this provides
       // defense-in-depth in case the SDK's internal matching has edge cases.
       if (allowedTools && allowedTools.length > 0) {
-        const toolMatches = allowedTools.some(pattern => {
+        const toolMatches = allowedTools.some((pattern) => {
           if (pattern === toolName) return true;
-          const openParen = pattern.indexOf('(');
+          const openParen = pattern.indexOf("(");
           if (openParen !== -1) {
             const patternToolName = pattern.substring(0, openParen);
             if (patternToolName !== toolName) return false;
             const inner = pattern.substring(openParen + 1, pattern.length - 1);
-            const cmdPrefix = inner.replace(/:.*$/, '');
-            const actualCmd = String(input?.command || '').trim();
-            return actualCmd === cmdPrefix || actualCmd.startsWith(cmdPrefix + ' ');
+            const cmdPrefix = inner.replace(/:.*$/, "");
+            const actualCmd = String(input?.command || "").trim();
+            return (
+              actualCmd === cmdPrefix || actualCmd.startsWith(cmdPrefix + " ")
+            );
           }
           return false;
         });
         if (toolMatches) {
-          logger.chat.debug("canUseTool: auto-approving tool in session allowedTools: {toolName}", { toolName });
+          logger.chat.debug(
+            "canUseTool: auto-approving tool in session allowedTools: {toolName}",
+            { toolName },
+          );
           return { behavior: "allow", updatedInput: input };
         }
         logger.chat.debug(
@@ -463,7 +518,13 @@ async function executeQwenCommand(
 
       // Defense 2: enqueue returns false → stream already closed
       const suggestions = _options.suggestions
-        ? (_options.suggestions as Array<{ type: string; label: string; description?: string }>).map((s) => ({
+        ? (
+            _options.suggestions as Array<{
+              type: string;
+              label: string;
+              description?: string;
+            }>
+          ).map((s) => ({
             type: s.type,
             label: s.label,
             description: s.description,
@@ -471,7 +532,8 @@ async function executeQwenCommand(
         : undefined;
 
       // For ask_user_question tool, extract and validate questions from input
-      const confirmationType = toolName === "ask_user_question" ? "ask_user_question" : "default";
+      const confirmationType =
+        toolName === "ask_user_question" ? "ask_user_question" : "default";
       let questions:
         | Array<{
             question: string;
@@ -488,35 +550,42 @@ async function executeQwenCommand(
           Array.isArray(rawQuestions) &&
           rawQuestions.length >= 1 &&
           rawQuestions.length <= 4 &&
-          rawQuestions.every((q) =>
-            typeof q === "object" &&
-            q !== null &&
-            typeof q.question === "string" &&
-            typeof q.header === "string" &&
-            Array.isArray(q.options) &&
-            q.options.length >= 2 &&
-            q.options.length <= 4 &&
-            q.options.every((o: unknown) =>
-              typeof o === "object" &&
-              o !== null &&
-              typeof (o as { label?: unknown }).label === "string"
-            ) &&
-            typeof q.multiSelect === "boolean"
+          rawQuestions.every(
+            (q) =>
+              typeof q === "object" &&
+              q !== null &&
+              typeof q.question === "string" &&
+              typeof q.header === "string" &&
+              Array.isArray(q.options) &&
+              q.options.length >= 2 &&
+              q.options.length <= 4 &&
+              q.options.every(
+                (o: unknown) =>
+                  typeof o === "object" &&
+                  o !== null &&
+                  typeof (o as { label?: unknown }).label === "string",
+              ) &&
+              typeof q.multiSelect === "boolean",
           )
         ) {
           questions = rawQuestions.map((q) => ({
             question: String(q.question),
             header: String(q.header).substring(0, 12), // Limit header to 12 chars
-            options: q.options.map((o: { label: string; description?: string }) => ({
-              label: String(o.label),
-              description: o.description ? String(o.description) : undefined,
-            })),
+            options: q.options.map(
+              (o: { label: string; description?: string }) => ({
+                label: String(o.label),
+                description: o.description ? String(o.description) : undefined,
+              }),
+            ),
             multiSelect: Boolean(q.multiSelect),
           }));
         } else {
-          logger.chat.warn("Invalid questions format for ask_user_question tool", {
-            questions: rawQuestions,
-          });
+          logger.chat.warn(
+            "Invalid questions format for ask_user_question tool",
+            {
+              questions: rawQuestions,
+            },
+          );
         }
       }
 
@@ -536,10 +605,13 @@ async function executeQwenCommand(
         return { behavior: "deny", message: "Stream closed" };
       }
 
-      logger.chat.debug("canUseTool: waiting for user response, permissionId={permissionId}, tool={toolName}", {
-        permissionId,
-        toolName,
-      });
+      logger.chat.debug(
+        "canUseTool: waiting for user response, permissionId={permissionId}, tool={toolName}",
+        {
+          permissionId,
+          toolName,
+        },
+      );
 
       // Defense 3: abort listener for async abort during wait
       //
@@ -569,7 +641,9 @@ async function executeQwenCommand(
           localPendingIds.delete(permissionId);
           safeResolve({ behavior: "deny", message: "Request aborted" });
         };
-        abortController!.signal.addEventListener("abort", onAbort, { once: true });
+        abortController!.signal.addEventListener("abort", onAbort, {
+          once: true,
+        });
 
         // Preserve a snapshot of the input so it can be merged back when the
         // user responds. For ask_user_question this snapshot is the only
@@ -582,7 +656,12 @@ async function executeQwenCommand(
             abortController!.signal.removeEventListener("abort", onAbort);
             localPendingIds.delete(permissionId);
             if (result.behavior === "allow") {
-              if (scope === "specific" && toolName === "run_shell_command" && input?.command && typeof input.command === "string") {
+              if (
+                scope === "specific" &&
+                toolName === "run_shell_command" &&
+                input?.command &&
+                typeof input.command === "string"
+              ) {
                 const baseCmd = extractBaseCommand(input.command as string);
                 if (baseCmd) localAllowedTools.add(`${toolName}:${baseCmd}`);
               } else {
@@ -634,20 +713,32 @@ async function executeQwenCommand(
           ...(!isNewSession && sessionId ? { resume: sessionId } : {}),
           ...(allowedTools ? { allowedTools } : {}),
           ...(workingDirectory ? { cwd: workingDirectory } : {}),
-          ...(mappedPermissionMode ? { permissionMode: mappedPermissionMode } : {}),
+          ...(mappedPermissionMode
+            ? { permissionMode: mappedPermissionMode }
+            : {}),
           ...(model ? { model } : {}),
           ...(authType ? { authType } : {}),
           ...(Object.keys(cliEnv).length > 0 ? { env: cliEnv } : {}),
           stderr: (message: string) => {
-            if (delegatedEnvironment) message = message.split(delegatedEnvironment.OPENAI_API_KEY).join("[model-proxy-token]");
+            if (delegatedEnvironment)
+              message = message
+                .split(delegatedEnvironment.OPENAI_API_KEY)
+                .join("[model-proxy-token]");
             logger.chat.info("CLI stderr: {message}", { message });
           },
           canUseTool,
-          timeout: { canUseTool: SESSION_TIMEOUT_MS, controlRequest: SESSION_TIMEOUT_MS },
+          timeout: {
+            canUseTool: SESSION_TIMEOUT_MS,
+            controlRequest: SESSION_TIMEOUT_MS,
+          },
         },
       })) {
         const sdkMessage: typeof rawSdkMessage = delegatedEnvironment
-          ? JSON.parse(JSON.stringify(rawSdkMessage).split(delegatedEnvironment.OPENAI_API_KEY).join("[model-proxy-token]"))
+          ? JSON.parse(
+              JSON.stringify(rawSdkMessage)
+                .split(delegatedEnvironment.OPENAI_API_KEY)
+                .join("[model-proxy-token]"),
+            )
           : rawSdkMessage;
         messageCount++;
         if (firstMessageLatencyMs === null) {
@@ -665,10 +756,15 @@ async function executeQwenCommand(
         // Backend loop detection — failsafe if frontend detection fails.
         // Each agent (main session or fork) maintains its own LoopState
         // so parallel fork agents don't accumulate toward the same counter (#140).
-        const rawForkId = (sdkMessage as Record<string, unknown>).parent_tool_use_id;
+        const rawForkId = (sdkMessage as Record<string, unknown>)
+          .parent_tool_use_id;
         const forkId = typeof rawForkId === "string" ? rawForkId : undefined;
         const ls = forkId
-          ? (agentLoopStates.get(forkId) ?? { errorCount: 0, lastFingerprint: "", firstErrorTime: 0 })
+          ? (agentLoopStates.get(forkId) ?? {
+              errorCount: 0,
+              lastFingerprint: "",
+              firstErrorTime: 0,
+            })
           : loopState;
         if (forkId && !agentLoopStates.has(forkId)) {
           agentLoopStates.set(forkId, ls);
@@ -682,7 +778,8 @@ async function executeQwenCommand(
         const loopResult = checkLoop(sdkMessage, ls);
         if (
           loopResult &&
-          (mappedPermissionMode !== "yolo" || isFatalFingerprint(loopResult.fingerprint))
+          (mappedPermissionMode !== "yolo" ||
+            isFatalFingerprint(loopResult.fingerprint))
         ) {
           logger.chat.error(
             "Loop detected: fingerprint={fingerprint}, count={count}, preview={preview}, aborting CLI",
@@ -693,30 +790,37 @@ async function executeQwenCommand(
             },
           );
           abortController!.abort();
-          const errorMessage = loopResult.fingerprint === "input_closed"
-            ? "CLI session ended unexpectedly. Please send a new message."
-            : `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x) — ${loopResult.preview}`;
-          if (!enqueue({
-            type: "error",
-            error: errorMessage,
-          })) break;
+          const errorMessage =
+            loopResult.fingerprint === "input_closed"
+              ? "CLI session ended unexpectedly. Please send a new message."
+              : `Auto-aborted: loop detected (${loopResult.fingerprint}, ${loopResult.count}x) — ${loopResult.preview}`;
+          if (
+            !enqueue({
+              type: "error",
+              error: errorMessage,
+            })
+          )
+            break;
           break;
         }
 
         logger.chat.debug("Qwen SDK Message: {sdkMessage}", { sdkMessage });
 
-        if (!enqueue({
-          type: "claude_json",
-          data: sdkMessage,
-        })) break;
+        if (
+          !enqueue({
+            type: "claude_json",
+            data: sdkMessage,
+          })
+        )
+          break;
       }
     });
 
     if (!enqueue({ type: "done" })) return;
 
     logger.chat.info(
-      "[DIAG] Chat request COMPLETE requestId={requestId} durationMs={durationMs} "
-      + "messageCount={messageCount} firstLatencyMs={firstLatencyMs}",
+      "[DIAG] Chat request COMPLETE requestId={requestId} durationMs={durationMs} " +
+        "messageCount={messageCount} firstLatencyMs={firstLatencyMs}",
       {
         requestId,
         durationMs: Date.now() - startTime,
@@ -731,11 +835,17 @@ async function executeQwenCommand(
       return;
     }
     const safeError = delegatedEnvironment
-      ? new Error(error instanceof Error ? error.message.split(delegatedEnvironment.OPENAI_API_KEY).join("[model-proxy-token]") : "CLI request failed")
+      ? new Error(
+          error instanceof Error
+            ? error.message
+                .split(delegatedEnvironment.OPENAI_API_KEY)
+                .join("[model-proxy-token]")
+            : "CLI request failed",
+        )
       : error;
     logger.chat.error(
-      "[DIAG] Chat request ERROR requestId={requestId} durationMs={durationMs} "
-      + "messageCount={messageCount} error={error}",
+      "[DIAG] Chat request ERROR requestId={requestId} durationMs={durationMs} " +
+        "messageCount={messageCount} error={error}",
       {
         requestId,
         durationMs: Date.now() - startTime,
@@ -766,8 +876,8 @@ async function executeQwenCommand(
     }
 
     logger.chat.info(
-      "[DIAG] Chat request FINALLY requestId={requestId} durationMs={durationMs} "
-      + "activeCount={activeCount} concurrentRequests={concurrentRequests}",
+      "[DIAG] Chat request FINALLY requestId={requestId} durationMs={durationMs} " +
+        "activeCount={activeCount} concurrentRequests={concurrentRequests}",
       {
         requestId,
         durationMs: Date.now() - startTime,
@@ -808,16 +918,31 @@ export async function handleChatRequest(
   let delegatedEnvironment: Record<string, string> | undefined;
   try {
     const config = c.var.config as AppConfig;
-    if (config.modelProxyBaseUrl && getEnv("OPENACE_API_URL")) throw new Error("Conflicting model gateways");
-    delegatedEnvironment = modelProxyEnvironment(config, config.modelProxyBaseUrl ? c.req.header("X-Model-Proxy-Token") : undefined);
+    if (config.modelProxyBaseUrl && getEnv("OPENACE_API_URL"))
+      throw new Error("Conflicting model gateways");
+    delegatedEnvironment = modelProxyEnvironment(
+      config,
+      config.modelProxyBaseUrl
+        ? c.req.header("X-Model-Proxy-Token")
+        : undefined,
+    );
   } catch (error) {
     logger.chat.warn("Delegated model configuration rejected: {reason}", {
       reason: error instanceof Error ? error.message : "unknown",
     });
-    return c.json({ error: "Delegated model configuration or credential unavailable" }, 403);
+    return c.json(
+      { error: "Delegated model configuration or credential unavailable" },
+      403,
+    );
   }
   if (!(c.var.config as AppConfig).serializeChatRequests) {
-    return handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions, undefined, delegatedEnvironment);
+    return handleChatRequestUnlocked(
+      c,
+      requestAbortControllers,
+      pendingPermissions,
+      undefined,
+      delegatedEnvironment,
+    );
   }
   if (serializedServers.has(requestAbortControllers)) {
     // The lock has no timeout by design; expose the active request ids so an
@@ -827,16 +952,29 @@ export async function handleChatRequest(
     // empty list still means "lock held", not "no holder".
     return c.json(
       {
-        error: "Shared workspace has an active request; wait or cancel it first",
+        error:
+          "Shared workspace has an active request; wait or cancel it first",
         active_request_ids: [...requestAbortControllers.keys()],
       },
       409,
     );
   }
   serializedServers.add(requestAbortControllers);
-  const release = () => { serializedServers.delete(requestAbortControllers); };
-  try { return await handleChatRequestUnlocked(c, requestAbortControllers, pendingPermissions, release, delegatedEnvironment); }
-  catch (error) { release(); throw error; }
+  const release = () => {
+    serializedServers.delete(requestAbortControllers);
+  };
+  try {
+    return await handleChatRequestUnlocked(
+      c,
+      requestAbortControllers,
+      pendingPermissions,
+      release,
+      delegatedEnvironment,
+    );
+  } catch (error) {
+    release();
+    throw error;
+  }
 }
 
 async function handleChatRequestUnlocked(
@@ -866,8 +1004,8 @@ async function handleChatRequestUnlocked(
   );
 
   logger.chat.info(
-    "[DIAG] handleChatRequest ENTRY requestId={requestId} "
-    + "concurrentRequests={concurrentRequests} pendingPermissions={pendingPermissions}",
+    "[DIAG] handleChatRequest ENTRY requestId={requestId} " +
+      "concurrentRequests={concurrentRequests} pendingPermissions={pendingPermissions}",
     {
       requestId: chatRequest.requestId,
       concurrentRequests: requestAbortControllers.size,
@@ -885,8 +1023,8 @@ async function handleChatRequestUnlocked(
       const existingAc = requestAbortControllers.get(existingRequestId);
       if (existingAc && !existingAc.signal.aborted) {
         logger.chat.warn(
-          "[DIAG] Aborting existing request for session sessionId={sessionId} "
-          + "oldRequestId={oldRequestId} newRequestId={newRequestId}",
+          "[DIAG] Aborting existing request for session sessionId={sessionId} " +
+            "oldRequestId={oldRequestId} newRequestId={newRequestId}",
           {
             sessionId: chatRequest.sessionId,
             oldRequestId: existingRequestId,
@@ -900,7 +1038,10 @@ async function handleChatRequestUnlocked(
         // permission prompts don't collide with stale ones.
         for (const [permissionId, pending] of pendingPermissions) {
           if (pending.abortSignal === existingAc.signal) {
-            pending.resolve({ behavior: "deny", message: "Request superseded by new session request" });
+            pending.resolve({
+              behavior: "deny",
+              message: "Request superseded by new session request",
+            });
             pendingPermissions.delete(permissionId);
           }
         }
@@ -919,7 +1060,10 @@ async function handleChatRequestUnlocked(
   if (bridgedSessionId !== chatRequest.sessionId) {
     logger.chat.info(
       "Session bridged: original={originalSessionId} effective={effectiveSessionId}",
-      { originalSessionId: chatRequest.sessionId, effectiveSessionId: bridgedSessionId },
+      {
+        originalSessionId: chatRequest.sessionId,
+        effectiveSessionId: bridgedSessionId,
+      },
     );
     // Intentionally mutate request to update sessionId for downstream use
     chatRequest.sessionId = bridgedSessionId ?? undefined;
@@ -970,7 +1114,9 @@ async function handleChatRequestUnlocked(
             // Fallback: outgoing not available (e.g. tests) — use stream enqueue
             controller.enqueue(heartbeat);
           }
-        } catch { clearInterval(keepaliveId); }
+        } catch {
+          clearInterval(keepaliveId);
+        }
       }, KEEPALIVE_INTERVAL_MS);
 
       try {
@@ -994,16 +1140,20 @@ async function handleChatRequestUnlocked(
           // would make Open-ACE reject the subsequent model request with 404.
           // Extract token from request for authentication (RFC 9110 auth-scheme
           // is case-insensitive, so accept "bearer" as well as "Bearer")
-          const token = c.req.header?.("Authorization")?.replace(/^Bearer\s+/i, "") ||
-                       c.req.query?.("token");
+          const token =
+            c.req.header?.("Authorization")?.replace(/^Bearer\s+/i, "") ||
+            c.req.query?.("token");
 
           registrationAbortController = new AbortController();
           const requestSignal = c.req.raw?.signal;
-          const abortOnRequestClose = () => registrationAbortController?.abort();
+          const abortOnRequestClose = () =>
+            registrationAbortController?.abort();
           if (requestSignal?.aborted) {
             registrationAbortController.abort();
           } else {
-            requestSignal?.addEventListener("abort", abortOnRequestClose, { once: true });
+            requestSignal?.addEventListener("abort", abortOnRequestClose, {
+              once: true,
+            });
           }
           let registerResult: { success: boolean; error?: string };
           try {
@@ -1020,16 +1170,17 @@ async function handleChatRequestUnlocked(
           }
 
           if (registerResult.success) {
-            logger.chat.info(
-              "Registered session with Open-ACE: {sessionId}",
-              { sessionId: effectiveSessionId },
-            );
+            logger.chat.info("Registered session with Open-ACE: {sessionId}", {
+              sessionId: effectiveSessionId,
+            });
           } else {
             logger.chat.warn(
               "Failed to register session with Open-ACE: {error}. Aborting model request.",
               { error: registerResult.error, sessionId: effectiveSessionId },
             );
-            throw new Error("Unable to register this session with Open-ACE. Please retry.");
+            throw new Error(
+              "Unable to register this session with Open-ACE. Please retry.",
+            );
           }
         }
 
@@ -1059,7 +1210,11 @@ async function handleChatRequestUnlocked(
         };
         enqueue(errorResponse);
         enqueue({ type: "done" });
-        try { controller.close(); } catch { /* already closed */ }
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
       } finally {
         onComplete?.();
       }
@@ -1071,8 +1226,9 @@ async function handleChatRequestUnlocked(
       const ac = requestAbortControllers.get(chatRequest.requestId);
       if (ac) {
         // 检查是否有属于当前请求的 pending permissions
-        const pendingForThisRequest = [...pendingPermissions.entries()]
-          .filter(([, pending]) => pending.requestId === chatRequest.requestId);
+        const pendingForThisRequest = [...pendingPermissions.entries()].filter(
+          ([, pending]) => pending.requestId === chatRequest.requestId,
+        );
 
         if (pendingForThisRequest.length > 0) {
           // Pending permission while the client disconnects: do NOT abort. Letting
@@ -1081,9 +1237,9 @@ async function handleChatRequestUnlocked(
           // the approved tool can then execute. executeQwenCommand's finally block
           // aborts and cleans up the controller + session when the turn ends.
           logger.chat.info(
-            "[DIAG] Client DISCONNECTED with pending permissions, deferring abort "
-            + "requestId={requestId} pendingCount={pendingCount} activeCount={activeCount} "
-            + "concurrentRequests={concurrentRequests}",
+            "[DIAG] Client DISCONNECTED with pending permissions, deferring abort " +
+              "requestId={requestId} pendingCount={pendingCount} activeCount={activeCount} " +
+              "concurrentRequests={concurrentRequests}",
             {
               requestId: chatRequest.requestId,
               pendingCount: pendingForThisRequest.length,
@@ -1096,7 +1252,11 @@ async function handleChatRequestUnlocked(
           const forceAbort = () => {
             ac.abort();
             requestAbortControllers.delete(chatRequest.requestId);
-            if (chatRequest.sessionId && activeSessions.get(chatRequest.sessionId) === chatRequest.requestId) {
+            if (
+              chatRequest.sessionId &&
+              activeSessions.get(chatRequest.sessionId) ===
+                chatRequest.requestId
+            ) {
               activeSessions.delete(chatRequest.sessionId);
             }
           };
@@ -1107,8 +1267,9 @@ async function handleChatRequestUnlocked(
           // resolved, the turn is running and the finally block will clean it up —
           // aborting now would kill the approved tool mid-execution (issue #186).
           const delayTimer = setTimeout(() => {
-            const stillPending = [...pendingPermissions.values()]
-              .some((p) => p.requestId === chatRequest.requestId);
+            const stillPending = [...pendingPermissions.values()].some(
+              (p) => p.requestId === chatRequest.requestId,
+            );
             if (stillPending) {
               logger.chat.warn(
                 "[DIAG] Pending permission still unresolved after delay, force-aborting requestId={requestId}",
@@ -1117,7 +1278,7 @@ async function handleChatRequestUnlocked(
               forceAbort();
             }
           }, PENDING_PERMISSION_ABORT_DELAY_MS);
-          if (delayTimer.unref) delayTimer.unref();
+          unrefTimer(delayTimer);
 
           // When the user resolves the prompt, stop the safety timer and let the
           // turn continue. Do NOT abort here: originalResolve() only schedules the
@@ -1146,8 +1307,8 @@ async function handleChatRequestUnlocked(
         } else {
           // 无 pending permissions，立即 abort（保持现有行为）
           logger.chat.info(
-            "[DIAG] Client DISCONNECTED requestId={requestId} activeCount={activeCount} "
-            + "concurrentRequests={concurrentRequests}",
+            "[DIAG] Client DISCONNECTED requestId={requestId} activeCount={activeCount} " +
+              "concurrentRequests={concurrentRequests}",
             {
               requestId: chatRequest.requestId,
               activeCount: _activeChatCount,
@@ -1160,8 +1321,8 @@ async function handleChatRequestUnlocked(
           const diagRequestId = chatRequest.requestId;
           const checkId = setTimeout(() => {
             logger.chat.warn(
-              "[DIAG] Post-cancel check requestId={requestId} activeCount={activeCount} "
-              + "concurrentRequests={concurrentRequests}",
+              "[DIAG] Post-cancel check requestId={requestId} activeCount={activeCount} " +
+                "concurrentRequests={concurrentRequests}",
               {
                 requestId: diagRequestId,
                 activeCount: _activeChatCount,
@@ -1169,10 +1330,13 @@ async function handleChatRequestUnlocked(
               },
             );
           }, 3_000);
-          if (checkId.unref) checkId.unref();
+          unrefTimer(checkId);
 
           // Clean up session mapping
-          if (chatRequest.sessionId && activeSessions.get(chatRequest.sessionId) === chatRequest.requestId) {
+          if (
+            chatRequest.sessionId &&
+            activeSessions.get(chatRequest.sessionId) === chatRequest.requestId
+          ) {
             activeSessions.delete(chatRequest.sessionId);
           }
         }
