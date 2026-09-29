@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { handleDeleteProjectRequest } from "./projects.ts";
 
 // A fake home directory that resolves the same way on every platform

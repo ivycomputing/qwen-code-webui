@@ -5,16 +5,21 @@
  * `qwenCode` object via `npm view qwen-code-webui qwenCode` to derive the
  * host CLI version pair that this WebUI release was tested against. These
  * tests keep that metadata in sync with the actual constants the runtime
- * enforces, so a version-range bump cannot ship without updating both.
+ * enforces and with the CLI actually bundled in the installed SDK, so a
+ * version bump cannot ship without updating all of them.
  */
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import {
   MIN_TESTED_CLI_VERSION,
   MAX_TESTED_CLI_VERSION,
+  compareVersions,
 } from "./validation.ts";
 
 interface QwenCodeMetadata {
@@ -44,23 +49,37 @@ describe("package.json qwenCode metadata", () => {
   });
 
   it("recommends a CLI inside the tested range", () => {
-    const { recommendedCli } = pkg.qwenCode!;
-    const [rMaj, rMin, rPatch] = recommendedCli.split(".").map(Number);
-    const [minMaj, minMin, minPatch] =
-      MIN_TESTED_CLI_VERSION.split(".").map(Number);
-    const [maxMaj, maxMin, maxPatch] =
-      MAX_TESTED_CLI_VERSION.split(".").map(Number);
+    expect(
+      compareVersions(pkg.qwenCode!.recommendedCli, MIN_TESTED_CLI_VERSION),
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      compareVersions(pkg.qwenCode!.recommendedCli, MAX_TESTED_CLI_VERSION),
+    ).toBeLessThanOrEqual(0);
+  });
 
-    const belowMin =
-      rMaj < minMaj ||
-      (rMaj === minMaj && rMin < minMin) ||
-      (rMaj === minMaj && rMin === minMin && rPatch < minPatch);
-    const aboveMax =
-      rMaj > maxMaj ||
-      (rMaj === maxMaj && rMin > maxMin) ||
-      (rMaj === maxMaj && rMin === maxMin && rPatch > maxPatch);
+  it("recommends exactly the CLI bundled inside the installed SDK", () => {
+    // The bundled CLI is what --qwen-path bundled and the PATH-missing
+    // fallback actually run, so the recommendation must track it. Probing
+    // the installed artifact (rather than a second hand-maintained constant)
+    // is what closes the drift class.
+    const bundledCli = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "node_modules",
+      "@qwen-code",
+      "sdk",
+      "dist",
+      "cli",
+      "cli.js",
+    );
+    if (!existsSync(bundledCli)) {
+      throw new Error(`SDK bundled CLI not found at ${bundledCli}`);
+    }
+    const version = execFileSync(process.execPath, [bundledCli, "--version"], {
+      encoding: "utf8",
+      timeout: 15_000,
+    }).trim();
 
-    expect(belowMin).toBe(false);
-    expect(aboveMax).toBe(false);
+    expect(pkg.qwenCode?.recommendedCli).toBe(version);
   });
 });
