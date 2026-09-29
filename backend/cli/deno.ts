@@ -7,7 +7,8 @@
 
 import { createApp } from "../app.ts";
 import { validateModelProxyConfig } from "../utils/modelProxyEnvironment.ts";
-import { DenoRuntime } from "../runtime/deno.ts";
+import { DenoRuntime, relayWebSocket } from "../runtime/deno.ts";
+import { resolveCurrentVSCodeWsTarget } from "../handlers/vscode.ts";
 import { parseCliArgs } from "./args.ts";
 import { validateQwenCli } from "./validation.ts";
 import { logger, setupLogger } from "../utils/logger.ts";
@@ -67,6 +68,11 @@ async function main(runtime: DenoRuntime) {
     quotaCheckEnabled: args.quotaCheckEnabled,
     openaceApiUrl: args.openaceApiUrl,
   });
+
+  // Wire the VS Code WebSocket proxy: upgrade requests under /vscode are
+  // intercepted inside Deno.serve and relayed to the local code-server
+  // (parity with cli/node.ts registering the http-proxy upgrade handler).
+  runtime.onUpgrade((req) => relayWebSocket(req, resolveCurrentVSCodeWsTarget));
 
   // Graceful shutdown: kill CLI subprocesses on SIGTERM/SIGINT.
   // Windows Deno only supports SIGINT/SIGBREAK listeners — registering

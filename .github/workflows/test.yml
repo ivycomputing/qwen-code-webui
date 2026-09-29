@@ -46,6 +46,27 @@ jobs:
       # regenerates it on install (npm ci runs prepare), so both typecheck.
       - run: npm run typecheck
 
+  # The backend runs cross-platform runtime code (Windows .cmd spawning,
+  # timeout tree-kills, path handling); run its suite on windows-latest too.
+  backend-tests-windows:
+    name: backend tests (windows-latest)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+
   # The npm and Deno builds must resolve the same @qwen-code/sdk version
   # (issue #277). Deno resolves the SDK from backend/package.json into
   # deno.lock; this guard blocks merges where an npm bump forgets `deno install`.

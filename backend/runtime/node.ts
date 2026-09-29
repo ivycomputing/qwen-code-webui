@@ -20,6 +20,33 @@ import { getPlatform } from "../utils/os.ts";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 
+/**
+ * Whether a command refers to a Windows script file (.cmd/.bat) that can
+ * only be executed through cmd.exe.
+ */
+export function isWindowsScriptFile(command: string): boolean {
+  return /\.(cmd|bat)$/i.test(command);
+}
+
+/**
+ * Builds the cmd.exe argument vector for running a .cmd/.bat script:
+ * `/d /s /c "<command>" <args>` as a single quoted command line, quoting any
+ * token that contains spaces. /d disables AutoRun scripts, /s makes cmd
+ * strip only the outer quotes — together this is the robust form for
+ * command paths that contain spaces (e.g. C:\Program Files\...).
+ */
+export function buildWindowsCommandLine(
+  command: string,
+  args: string[],
+): string[] {
+  // The command itself is always quoted; arguments only when they contain
+  // spaces (simple flags stay unquoted for readability).
+  const quotedArgs = args.map((token) =>
+    /\s/.test(token) ? `"${token}"` : token,
+  );
+  return ["/d", "/s", "/c", [`"${command}"`, ...quotedArgs].join(" ")];
+}
+
 export class NodeRuntime implements Runtime {
   async findExecutable(name: string): Promise<string[]> {
     const platform = getPlatform();
@@ -72,13 +99,17 @@ export class NodeRuntime implements Runtime {
         env: options?.env ? { ...process.env, ...options.env } : process.env,
       };
 
-      // On Windows, always use cmd.exe /c for all commands
+      // On Windows only .cmd/.bat scripts need cmd.exe (they cannot be
+      // spawned directly); the command line is quoted as one string so paths
+      // with spaces survive cmd's re-parsing. Real executables spawn
+      // directly — Node quotes arguments correctly for CreateProcess, which
+      // also handles paths with spaces without any cmd.exe involvement.
       let actualCommand = command;
       let actualArgs = args;
 
-      if (isWindows) {
+      if (isWindows && isWindowsScriptFile(command)) {
         actualCommand = "cmd.exe";
-        actualArgs = ["/c", command, ...args];
+        actualArgs = buildWindowsCommandLine(command, args);
       }
 
       const child = spawn(actualCommand, actualArgs, spawnOptions);

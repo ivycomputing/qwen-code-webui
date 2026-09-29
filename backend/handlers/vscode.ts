@@ -338,22 +338,55 @@ vscodeProxy.on("error", (err, _req, _res) => {
   logger.app.error("VS Code proxy error: {error}", { error: err.message });
 });
 
-// WebSocket upgrade handler for VS Code proxy
+export interface VSCodeWsTarget {
+  /** Base HTTP URL of the code-server instance, e.g. http://localhost:8443 */
+  httpUrl: string;
+  /** Request path with the /vscode prefix stripped, query string preserved */
+  path: string;
+}
+
+/**
+ * Transport-neutral resolution of the proxy target for a VS Code WebSocket
+ * upgrade request. Shared by the Node http-proxy upgrade handler and the
+ * Deno-native WebSocket relay so both runtimes rewrite paths identically.
+ * @returns null when no code-server is running or the path is not under /vscode
+ */
+export function resolveVSCodeWsTarget(
+  port: number | null,
+  requestPath: string,
+): VSCodeWsTarget | null {
+  // The mount is exactly /vscode or /vscode/... — not /vscode-anything
+  if (!port || !/^\/vscode(\/|$)/.test(requestPath)) return null;
+  return {
+    httpUrl: `http://localhost:${port}`,
+    path: requestPath.replace(/^\/vscode\/?/, "/") || "/",
+  };
+}
+
+/** resolveVSCodeWsTarget bound to the currently running code-server port. */
+export function resolveCurrentVSCodeWsTarget(
+  requestPath: string,
+): VSCodeWsTarget | null {
+  return resolveVSCodeWsTarget(getVSCodePort(), requestPath);
+}
+
+// WebSocket upgrade handler for VS Code proxying (Node runtime)
 export function createVSCodeUpgradeHandler() {
   return (req: IncomingMessage, socket: Duplex, head: Buffer) => {
-    const port = getVSCodePort();
-    if (!port || !req.url?.startsWith("/vscode")) {
+    const target = resolveCurrentVSCodeWsTarget(req.url ?? "");
+    if (!target) {
       socket.destroy();
       return;
     }
 
-    req.url = req.url.replace(/^\/vscode\/?/, "/") || "/";
+    req.url = target.path;
 
+    const host = new URL(target.httpUrl).host;
     vscodeProxy.ws(req, socket, head, {
-      target: `http://localhost:${port}`,
+      target: target.httpUrl,
       headers: {
-        host: `localhost:${port}`,
-        origin: `http://localhost:${port}`,
+        host,
+        origin: `http://${host}`,
       },
     });
   };
