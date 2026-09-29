@@ -1,10 +1,16 @@
 name: Release
 
-# Releases are tag-driven: the npm-publish flow bumps the version, publishes
-# to npm, merges the version bump, then pushes an annotated v* tag. This
-# workflow then creates the GitHub Release (auto-generated notes) and
-# documents the version in CHANGELOG.md — no manual release or changelog
-# maintenance.
+# Releases are tag-driven: the npm-publish flow bumps the version, generates
+# the CHANGELOG.md section, publishes to npm, merges the version-bump pull
+# request, and pushes an annotated v* tag at the merge commit. This workflow
+# then creates the GitHub Release with auto-generated notes.
+#
+# The changelog deliberately lands via the version-bump pull request, not
+# here: the protect-main-branch ruleset requires pull requests for every
+# push to main (no bypass actors), and the repo setting "Allow GitHub
+# Actions to create and approve pull requests" is disabled, so the
+# GITHUB_TOKEN cannot open PRs. The npm-publish flow runs with full
+# credentials and carries the changelog section in the same PR.
 
 on:
   push:
@@ -12,28 +18,25 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
-# Serialize releases so concurrent tags cannot race on the changelog PR.
+# Serialize releases so concurrent tags cannot race.
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
   release:
-    name: GitHub release + changelog
+    name: GitHub release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Fail before creating anything for tags the changelog script cannot
-      # handle (e.g. prerelease suffixes), instead of half-succeeding.
+      # Fail before creating anything for tags outside the release
+      # convention (e.g. prerelease suffixes), instead of half-succeeding.
       - name: Validate tag shape
         run: |
           if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -42,8 +45,7 @@ jobs:
           fi
 
       # npm publishes take a few minutes to propagate to the registry API;
-      # the first v0.3.0 run failed by checking once, immediately after
-      # `npm publish` returned. Poll for up to 10 minutes.
+      # poll for up to 10 minutes instead of checking once.
       - name: Verify the tag version is published to npm
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -71,44 +73,3 @@ jobs:
               --generate-notes \
               --title "$GITHUB_REF_NAME"
           fi
-
-      # The protect-main-branch ruleset requires pull requests for every
-      # change to main (no bypass actors), so the changelog lands via a
-      # bot PR. The ruleset demands zero approvals, so the bot merges it
-      # itself; no auto-merge setting is required.
-      - name: Update CHANGELOG.md via pull request
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BRANCH="changelog/$GITHUB_REF_NAME"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$BRANCH" origin/main
-
-          if ! node scripts/update-changelog.mjs "$GITHUB_REF_NAME"; then
-            echo "::error::changelog generation failed"
-            exit 1
-          fi
-
-          if git diff --quiet CHANGELOG.md; then
-            echo "no changelog changes to contribute"
-            exit 0
-          fi
-
-          git add CHANGELOG.md
-          git commit -m "chore(changelog): document $GITHUB_REF_NAME"
-          git push origin "$BRANCH"
-
-          gh pr create \
-            --title "chore(changelog): document $GITHUB_REF_NAME" \
-            --body "Automated changelog update for $GITHUB_REF_NAME (release workflow)." \
-            --base main \
-            --head "$BRANCH"
-
-          # Mergeable can be "unknown" for a few seconds after creation.
-          for i in $(seq 1 10); do
-            STATE=$(gh pr view "$BRANCH" --json mergeable --jq '.mergeable')
-            [ "$STATE" = "MERGEABLE" ] && break
-            echo "PR mergeable=$STATE; waiting"; sleep 10
-          done
-          gh pr merge "$BRANCH" --squash --delete-branch
