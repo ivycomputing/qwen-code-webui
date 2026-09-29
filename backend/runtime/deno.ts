@@ -99,8 +99,21 @@ export async function relayWebSocket(
     (code >= 1000 && code <= 1011 && code !== 1005 && code !== 1006) ||
     (code >= 3000 && code <= 4999);
 
+  // Set when the client socket closes before the upstream handshake
+  // completes — upstream.close() during CONNECTING does not abort an
+  // already-dispatched handshake on Deno, so onopen must close it instead.
+  let clientClosed = false;
+
   upstream.onopen = () => {
     upstreamOpen = true;
+    if (clientClosed) {
+      try {
+        upstream.close();
+      } catch {
+        // already closing
+      }
+      return;
+    }
     for (const data of pending) upstream.send(data);
     pending.length = 0;
   };
@@ -116,6 +129,7 @@ export async function relayWebSocket(
   };
   socket.onclose = () => {
     pending.length = 0;
+    clientClosed = true;
     try {
       upstream.close();
     } catch {
