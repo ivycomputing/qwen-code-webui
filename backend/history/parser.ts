@@ -4,6 +4,7 @@
  */
 
 import type { SDKAssistantMessage, SDKUserMessage } from "@qwen-code/sdk";
+import { basename, join } from "node:path";
 import { logger } from "../utils/logger.ts";
 import { readTextFile, readDir } from "../utils/fs.ts";
 
@@ -123,8 +124,9 @@ async function parseHistoryFile(
       }
     }
 
-    // Extract session ID from file name (remove .jsonl extension)
-    const fileName = filePath.split("/").pop() || "";
+    // Extract session ID from file name (remove .jsonl extension).
+    // basename() is required on Windows, where filePath uses backslashes.
+    const fileName = basename(filePath);
     const sessionId = fileName.replace(".jsonl", "");
 
     return {
@@ -159,7 +161,7 @@ async function getHistoryFiles(historyDir: string): Promise<string[]> {
     const pushFile = (dir: string, fileName: string) => {
       if (seenFileNames.has(fileName)) return;
       seenFileNames.add(fileName);
-      files.push(`${dir}/${fileName}`);
+      files.push(join(dir, fileName));
     };
 
     // Scan root directory for JSONL files
@@ -170,7 +172,7 @@ async function getHistoryFiles(historyDir: string): Promise<string[]> {
     }
 
     // Also scan chats/ subdirectory (qwen-code-cli stores sessions here)
-    const chatsDir = `${historyDir}/chats`;
+    const chatsDir = join(historyDir, "chats");
     try {
       for await (const entry of readDir(chatsDir)) {
         if (entry.isFile && entry.name.endsWith(".jsonl")) {

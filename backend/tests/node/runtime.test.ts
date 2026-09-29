@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import { join } from "node:path";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { NodeRuntime } from "../../runtime/node.js";
@@ -84,6 +84,7 @@ describe.skipIf(getPlatform() !== "windows")(
 
     it("should run .cmd scripts whose path contains spaces", async () => {
       const dir = join(mkdtempSync(join(tmpdir(), "wcmd-")), "dir with spaces");
+      mkdirSync(dir, { recursive: true });
       const scriptPath = join(dir, "hello.cmd");
       writeFileSync(scriptPath, "@echo off\r\necho hellofromcmd\r\n");
 

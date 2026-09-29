@@ -1,5 +1,5 @@
 import { Context } from "hono";
-import { resolve, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import type { ProjectInfo, ProjectsResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 import { readDir, stat, remove } from "../utils/fs.ts";
@@ -61,10 +61,15 @@ export async function handleProjectsRequest(c: Context) {
                   encodedName,
                 });
               } else {
-                logger.api.debug("Skipping non-directory: {decodedPath}", { decodedPath });
+                logger.api.debug("Skipping non-directory: {decodedPath}", {
+                  decodedPath,
+                });
               }
             } catch {
-              logger.api.debug("Skipping non-existent directory: {decodedPath}", { decodedPath });
+              logger.api.debug(
+                "Skipping non-existent directory: {decodedPath}",
+                { decodedPath },
+              );
             }
           } else {
             // Fallback: use simple decoding if advanced decoding fails
@@ -78,10 +83,16 @@ export async function handleProjectsRequest(c: Context) {
                   encodedName,
                 });
               } else {
-                logger.api.debug("Skipping non-directory fallback path: {fallbackPath}", { fallbackPath });
+                logger.api.debug(
+                  "Skipping non-directory fallback path: {fallbackPath}",
+                  { fallbackPath },
+                );
               }
             } catch {
-              logger.api.debug("Skipping non-existent fallback path: {fallbackPath}", { fallbackPath });
+              logger.api.debug(
+                "Skipping non-existent fallback path: {fallbackPath}",
+                { fallbackPath },
+              );
             }
           }
         }
@@ -161,7 +172,10 @@ export async function handleDeleteProjectRequest(c: Context) {
       return c.json({ error: "Home directory not found" }, 500);
     }
 
-    const projectsDir = `${homeDir}/.qwen/projects`;
+    // join() normalizes separators: on Windows, `${homeDir}/.qwen/projects`
+    // would mix separators and never match the backslash-normalized
+    // resolve() result below, rejecting every valid request.
+    const projectsDir = join(homeDir, ".qwen", "projects");
 
     // Resolve and verify the path stays within projectsDir.
     // Note: resolve(projectsDir, "") returns projectsDir itself, which is safe
@@ -184,7 +198,9 @@ export async function handleDeleteProjectRequest(c: Context) {
     // Delete the project directory
     await remove(resolved);
 
-    logger.api.info("Deleted project: {encodedProjectName}", { encodedProjectName });
+    logger.api.info("Deleted project: {encodedProjectName}", {
+      encodedProjectName,
+    });
 
     return c.json({ success: true, message: "Project deleted successfully" });
   } catch (error) {
