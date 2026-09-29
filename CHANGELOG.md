@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left per-request child tracking ineffective; an aborted child's stdio pipes
   are also disposed after exit so they cannot hold the event loop.
 
+## [0.3.0] - 2026-09-29
+
+- fix(cli): make abort tracking reach ESM spawn imports; reap only aborted children's pipes (#275)
+- chore(deno): re-sync deno.lock; import Buffer explicitly in baseline files (#276)
+- feat(server): reverse-proxy subpath mount, file-based token secret, optional chat serialization (#273)
+- feat(chat): per-request hosted model delegation (#274)
+- fix(cli): unify SDK version, add CLI version checks and bundled-CLI fallback (#282)
+- fix(runtime): close known gaps — Deno VS Code WS proxy, Windows CI, cmd.exe quoting (#284)
+- chore(release): automate GitHub Releases and CHANGELOG from version tags (#285)
+- ci(release): tolerate npm propagation delay; land changelog via PR (#286)
+- ci(release): fix invalid pull-requests permission key (#288)
+
 ## [0.2.43] - 2026-09-08
 
 - fix(deps): patch all Dependabot-flagged vulnerable dependencies (#244)
