@@ -91,9 +91,11 @@ cd frontend && npm run dev
 
 ### Prerequisites
 
-- ✅ **Qwen CLI** installed and authenticated ([Get it here](https://github.com/QwenLM/qwen-code))
+- ✅ **Qwen CLI** installed and authenticated ([Get it here](https://github.com/QwenLM/qwen-code)) — recommended. If no `qwen` is found in PATH, the WebUI falls back to the CLI bundled with `@qwen-code/sdk` and logs a warning
 - ✅ **Node.js >=20.0.0** (for npm installation)
 - ✅ **Modern browser** (Chrome, Firefox, Safari, Edge)
+
+**CLI version compatibility:** the tested range is `0.17.0` – `0.24.6`. At startup the WebUI logs the CLI path and version it will actually use; versions below the minimum get a warning (some features such as model-proxy delegation may silently misbehave), and newer versions are noted as unverified. Prefer keeping your installed CLI up to date (`npm install -g @qwen-code/qwen-code`) — the WebUI deliberately uses your installed CLI rather than the SDK-bundled one so the terminal and WebUI share the same version, credentials, and settings.
 
 ---
 
@@ -105,7 +107,7 @@ The backend server supports the following command-line options:
 | ---------------------- | --------------------------------------------------------- | ----------- |
 | `-p, --port <port>`    | Port to listen on                                         | 8080        |
 | `--host <host>`        | Host address to bind to (use 0.0.0.0 for all interfaces)  | 127.0.0.1   |
-| `--qwen-path <path>`   | Path to qwen executable (overrides automatic detection)   | Auto-detect |
+| `--qwen-path <path>`   | Path to qwen executable (overrides automatic detection), or `bundled` to use the CLI bundled with `@qwen-code/sdk` | Auto-detect |
 | `-d, --debug`          | Enable debug mode                                         | false       |
 | `-h, --help`           | Show help message                                         | -           |
 | `-v, --version`        | Show version                                              | -           |
@@ -133,6 +135,9 @@ qwen-code-webui --debug
 
 # Custom Qwen CLI path
 qwen-code-webui --qwen-path /path/to/qwen
+
+# Force the CLI bundled with @qwen-code/sdk
+qwen-code-webui --qwen-path bundled
 ```
 
 ---
@@ -143,10 +148,14 @@ qwen-code-webui --qwen-path /path/to/qwen
 
 If you encounter errors, this typically indicates Qwen CLI path detection failure.
 
-**Quick Solution:**
+When no `qwen` is found in PATH, the server falls back to the CLI bundled with `@qwen-code/sdk` (Node installations) and logs a warning; Deno single-binary builds require a host-installed CLI. You can also pick a CLI explicitly:
 
 ```bash
+# Use your installed CLI at a known location
 qwen-code-webui --qwen-path "$(which qwen)"
+
+# Use the SDK-bundled CLI
+qwen-code-webui --qwen-path bundled
 ```
 
 **Debug Mode:**
@@ -182,6 +191,21 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
+### Keeping `@qwen-code/sdk` in sync (maintainers)
+
+The SDK version has a single source of truth: `backend/package.json`. Deno
+resolves it from there (`backend/deno.json` deliberately does not pin it), so:
+
+- Dependabot opens weekly npm bumps for `/backend`; after merging one, run
+  `deno install` in `backend/` to refresh `deno.lock`. Note: `deno install`
+  rewrites `backend/node_modules` into Deno's symlink layout; run `npm ci` in
+  `backend/` afterwards if you need npm's canonical layout back.
+- CI (`sdk-version-sync` job, `backend/scripts/check-sdk-version-sync.js`)
+  fails the PR if `package-lock.json` and `deno.lock` disagree.
+- The bundled-CLI fallback and `--qwen-path bundled` use the CLI shipped
+  inside the SDK, so a SDK bump also moves the fallback CLI version — update
+  `MAX_TESTED_CLI_VERSION` in `backend/cli/validation.ts` accordingly.
+
 ---
 
 ## 🔒 Security Considerations
@@ -207,7 +231,7 @@ cd frontend && npm run dev
 <details>
 <summary><strong>Q: Do I need Qwen API access?</strong></summary>
 
-Yes, you need the Qwen CLI tool installed and authenticated. The web UI is a frontend for the existing Qwen CLI.
+You need the Qwen CLI tool installed and authenticated for the full experience — the web UI drives your installed CLI so both share credentials and settings. If no CLI is installed, the web UI falls back to the CLI bundled with `@qwen-code/sdk` (Node installations), but installing your own is recommended so you control the version.
 
 </details>
 

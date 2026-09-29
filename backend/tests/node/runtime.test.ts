@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { join } from "node:path";
 import { NodeRuntime } from "../../runtime/node.js";
 
 describe("Node.js Runtime", () => {
@@ -30,5 +31,25 @@ describe("Node.js Runtime", () => {
     const result = await runtime.runCommand("echo", ["test"]);
     expect(typeof result.success).toBe("boolean");
     expect(typeof result.stdout).toBe("string");
+  });
+
+  it("should kill commands that exceed timeoutMs", async () => {
+    const start = Date.now();
+    const result = await runtime.runCommand("sleep", ["10"], {
+      timeoutMs: 500,
+    });
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(false);
+    expect(result.code).toBe(124);
+    expect(result.stderr).toContain("command timed out");
+    expect(elapsed).toBeLessThan(5000);
+  });
+
+  it("should resolve the SDK-bundled CLI when @qwen-code/sdk is installed", () => {
+    const cliPath = runtime.resolveBundledCliPath?.();
+    // The SDK ships dist/cli/cli.js with every install; when deps are
+    // installed (they are, in dev and CI) the path must resolve and exist.
+    expect(cliPath).toBeTruthy();
+    expect(cliPath).toContain(join("dist", "cli", "cli.js"));
   });
 });

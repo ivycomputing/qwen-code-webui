@@ -58,7 +58,7 @@
     "@hono/node-server": "^1.19.15",
     "@logtape/logtape": "^1.0.0",
     "@logtape/pretty": "^1.0.0",
-    "@qwen-code/sdk": "^0.1.4",
+    "@qwen-code/sdk": "^0.1.16",
     "commander": "^14.0.0",
     "hono": "^4.12.34",
     "http-proxy": "^1.18.1",
@@ -77,8 +77,5 @@
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",
     "vitest": "^4.1.9"
-  },
-  "peerDependencies": {
-    "@qwen-code/sdk": "^0.1.4"
   }
 }

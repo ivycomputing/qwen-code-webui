@@ -22,9 +22,12 @@
     "node:os": "node:os",
     "node:path": "node:path",
     "node:process": "node:process",
-    "commander": "npm:commander@^14.0.0",
+    // npm packages (@qwen-code/sdk, commander) are intentionally NOT pinned
+    // here: Deno resolves them from package.json (issue #277). Only
+    // @qwen-code/sdk is exact-lockfile-synced across builds — CI enforces it
+    // via scripts/check-sdk-version-sync.js; ranged deps like commander may
+    // resolve to different patch versions in each lockfile.
     "hono": "jsr:@hono/hono@^4.8.5",
-    "@qwen-code/sdk": "npm:@qwen-code/sdk@0.1.4",
     "@logtape/logtape": "jsr:@logtape/logtape@^1.0.0",
     "@logtape/pretty": "jsr:@logtape/pretty@^1.0.0"
   }

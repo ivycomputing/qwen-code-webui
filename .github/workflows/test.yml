@@ -45,3 +45,124 @@ jobs:
       # generated cli/version.ts; the `prepare` hook in backend/package.json
       # regenerates it on install (npm ci runs prepare), so both typecheck.
       - run: npm run typecheck
+
+  # The npm and Deno builds must resolve the same @qwen-code/sdk version
+  # (issue #277). Deno resolves the SDK from backend/package.json into
+  # deno.lock; this guard blocks merges where an npm bump forgets `deno install`.
+  sdk-version-sync:
+    name: SDK version sync (npm ↔ deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: node scripts/check-sdk-version-sync.js
+        working-directory: backend
+
+  # Type-check the Deno entry points. The historical Buffer/unref baseline
+  # from #277 is fixed (explicit Buffer imports in #276, unrefTimer helper in
+  # this PR), so this is a blocking gate.
+  deno-check:
+    name: Deno type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # deno task generate-version shells out to node
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # --frozen: fail instead of silently refreshing deno.lock when it is
+      # out of sync with package.json (complements sdk-version-sync)
+      - run: deno install --frozen
+        working-directory: backend
+
+      - run: deno task generate-version && deno task check
+        working-directory: backend
+
+  # Compile the Deno single-binary entry and exercise it end to end. This
+  # build path was silently broken for months (bare require(), createApp()
+  # wrapper misuse); the smoke test keeps `deno compile` output bootable and
+  # verifies the embedded static-file layout the binary serves from.
+  deno-build-smoke:
+    name: Deno compile smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # validateQwenCli needs a host CLI to find before the server will start
+      - run: npm install -g @qwen-code/qwen-code
+
+      - run: deno install --frozen
+        working-directory: backend
+
+      - run: deno task generate-version
+        working-directory: backend
+
+      # A stub index.html is enough to verify the embedded layout; the real
+      # frontend build is covered by the frontend test job.
+      - name: Create stub static assets
+        run: mkdir -p dist/static && echo ok > dist/static/index.html
+        working-directory: backend
+
+      - name: Compile binary
+        run: |
+          deno compile \
+            --allow-net --allow-run --allow-read --allow-write --allow-env --allow-sys \
+            --include ./dist/static \
+            --output /tmp/qwen-code-webui-smoke cli/deno.ts
+        working-directory: backend
+
+      - run: /tmp/qwen-code-webui-smoke --version
+        working-directory: backend
+
+      - name: Serve and probe static root
+        run: |
+          /tmp/qwen-code-webui-smoke --port 18080 &
+          pid=$!
+          for i in $(seq 1 45); do
+            curl -sf http://127.0.0.1:18080/ >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:18080/
+          kill $pid
+
+  # Build the esbuild bundle and import it, guarding against bundle-only
+  # regressions (e.g. top-level import collisions with the esbuild banner's
+  # createRequire — the #170 bug class, which shipped once already).
+  bundle-smoke:
+    name: esbuild bundle smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - run: node scripts/build-bundle.js
+
+      - run: npx vitest --run tests/node/bundle.test.ts

@@ -6,6 +6,12 @@
 
 import { spawn, type SpawnOptions } from "node:child_process";
 import process from "node:process";
+// Alias the import: the esbuild bundle banner already imports `createRequire`
+// at top scope, and a duplicate top-level import of that name is a
+// SyntaxError in the bundled ESM output (see #170).
+import { createRequire as nodeCreateRequire } from "node:module";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import type { CommandResult, Runtime } from "./types.ts";
 import type { MiddlewareHandler } from "hono";
@@ -54,7 +60,10 @@ export class NodeRuntime implements Runtime {
   runCommand(
     command: string,
     args: string[],
-    options?: { env?: Record<string, string> },
+    options?: {
+      env?: Record<string, string>;
+      timeoutMs?: number;
+    },
   ): Promise<CommandResult> {
     return new Promise((resolve) => {
       const isWindows = getPlatform() === "windows";
@@ -77,6 +86,24 @@ export class NodeRuntime implements Runtime {
       const textDecoder = new TextDecoder();
       let stdout = "";
       let stderr = "";
+      let timedOut = false;
+
+      const timeout = options?.timeoutMs
+        ? setTimeout(() => {
+            timedOut = true;
+            // On Windows the command runs via `cmd.exe /c`; child.kill() only
+            // terminates cmd.exe and leaves grandchildren alive (still holding
+            // the stdio pipes). Kill the whole tree, then destroy our ends of
+            // the pipes so 'close' — and this promise — cannot hang.
+            if (isWindows && child.pid) {
+              spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"]);
+            } else {
+              child.kill("SIGKILL");
+            }
+            child.stdout?.destroy();
+            child.stderr?.destroy();
+          }, options.timeoutMs)
+        : null;
 
       child.stdout?.on("data", (data: Uint8Array) => {
         stdout += textDecoder.decode(data, { stream: true });
@@ -87,15 +114,21 @@ export class NodeRuntime implements Runtime {
       });
 
       child.on("close", (code: number | null) => {
+        if (timeout) clearTimeout(timeout);
         resolve({
-          success: code === 0,
-          code: code ?? 1,
+          success: code === 0 && !timedOut,
+          code: timedOut ? 124 : (code ?? 1),
           stdout,
-          stderr,
+          stderr: timedOut
+            ? stderr
+              ? `${stderr}\ncommand timed out`
+              : "command timed out"
+            : stderr,
         });
       });
 
       child.on("error", (error: Error) => {
+        if (timeout) clearTimeout(timeout);
         resolve({
           success: false,
           code: 1,
@@ -104,6 +137,22 @@ export class NodeRuntime implements Runtime {
         });
       });
     });
+  }
+
+  /**
+   * Resolve the Qwen CLI bundled inside the @qwen-code/sdk package
+   * (dist/cli/cli.js). Returns null when the SDK or its bundled CLI is not
+   * present on disk, e.g. when the package was installed without deps.
+   */
+  resolveBundledCliPath(): string | null {
+    try {
+      const require = nodeCreateRequire(import.meta.url);
+      const sdkPackageJson = require.resolve("@qwen-code/sdk/package.json");
+      const cliPath = join(dirname(sdkPackageJson), "dist", "cli", "cli.js");
+      return existsSync(cliPath) ? cliPath : null;
+    } catch {
+      return null;
+    }
   }
 
   async serve(
@@ -140,9 +189,13 @@ export class NodeRuntime implements Runtime {
   }
 
   private _server?: import("@hono/node-server").ServerType;
-  private _upgradeHandler: ((req: IncomingMessage, socket: Duplex, head: Buffer) => void) | null = null;
+  private _upgradeHandler:
+    | ((req: IncomingMessage, socket: Duplex, head: Buffer) => void)
+    | null = null;
 
-  onUpgrade(handler: (req: IncomingMessage, socket: Duplex, head: Buffer) => void) {
+  onUpgrade(
+    handler: (req: IncomingMessage, socket: Duplex, head: Buffer) => void,
+  ) {
     this._upgradeHandler = handler;
   }
 
