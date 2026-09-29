@@ -20,6 +20,37 @@ import { getPlatform } from "../utils/os.ts";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 
+/**
+ * Whether a command refers to a Windows script file (.cmd/.bat) that can
+ * only be executed through cmd.exe.
+ */
+export function isWindowsScriptFile(command: string): boolean {
+  return /\.(cmd|bat)$/i.test(command);
+}
+
+/**
+ * Builds the cmd.exe argument vector for running a .cmd/.bat script.
+ *
+ * The full command line — the quoted command plus any quoted arguments —
+ * is wrapped in one outer pair of quotes: `/d /s /c ""<command>" <args>"`.
+ * /d disables AutoRun scripts; /s makes cmd strip only that outer pair,
+ * leaving a well-quoted inner line even when paths contain spaces (e.g.
+ * C:\Program Files\...). Without the outer quotes, /s would strip the
+ * command's own quotes and cmd would split the path at its first space.
+ */
+export function buildWindowsCommandLine(
+  command: string,
+  args: string[],
+): string[] {
+  // The command itself is always quoted; arguments only when they contain
+  // spaces (simple flags stay unquoted for readability).
+  const quotedArgs = args.map((token) =>
+    /\s/.test(token) ? `"${token}"` : token,
+  );
+  const line = [`"${command}"`, ...quotedArgs].join(" ");
+  return ["/d", "/s", "/c", `"${line}"`];
+}
+
 export class NodeRuntime implements Runtime {
   async findExecutable(name: string): Promise<string[]> {
     const platform = getPlatform();
@@ -72,13 +103,21 @@ export class NodeRuntime implements Runtime {
         env: options?.env ? { ...process.env, ...options.env } : process.env,
       };
 
-      // On Windows, always use cmd.exe /c for all commands
+      // On Windows only .cmd/.bat scripts need cmd.exe (they cannot be
+      // spawned directly); the command line is quoted as one string so paths
+      // with spaces survive cmd's re-parsing. Real executables spawn
+      // directly — Node quotes arguments correctly for CreateProcess, which
+      // also handles paths with spaces without any cmd.exe involvement.
       let actualCommand = command;
       let actualArgs = args;
 
-      if (isWindows) {
+      if (isWindows && isWindowsScriptFile(command)) {
         actualCommand = "cmd.exe";
-        actualArgs = ["/c", command, ...args];
+        actualArgs = buildWindowsCommandLine(command, args);
+        // The whole command line is one pre-quoted argument; without this
+        // Node would re-quote it (escaping the inner quotes as \"), which
+        // cmd's parser cannot read.
+        spawnOptions.windowsVerbatimArguments = true;
       }
 
       const child = spawn(actualCommand, actualArgs, spawnOptions);
@@ -91,10 +130,12 @@ export class NodeRuntime implements Runtime {
       const timeout = options?.timeoutMs
         ? setTimeout(() => {
             timedOut = true;
-            // On Windows the command runs via `cmd.exe /c`; child.kill() only
-            // terminates cmd.exe and leaves grandchildren alive (still holding
-            // the stdio pipes). Kill the whole tree, then destroy our ends of
-            // the pipes so 'close' — and this promise — cannot hang.
+            // Windows .cmd/.bat scripts run via `cmd.exe /c`, where
+            // child.kill() only terminates cmd.exe and leaves grandchildren
+            // alive (still holding the stdio pipes). Kill the whole tree in
+            // that case, then destroy our ends of the pipes so 'close' — and
+            // this promise — cannot hang. Directly-spawned executables can
+            // be killed with SIGKILL.
             if (isWindows && child.pid) {
               spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"]);
             } else {
