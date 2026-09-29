@@ -89,7 +89,10 @@ describe.skipIf(getPlatform() !== "windows")(
       writeFileSync(scriptPath, "@echo off\r\necho hellofromcmd\r\n");
 
       const result = await runtime.runCommand(scriptPath, []);
-      expect(result.success).toBe(true);
+      expect(
+        result.success,
+        `stdout=${JSON.stringify(result.stdout)} stderr=${JSON.stringify(result.stderr)} code=${result.code}`,
+      ).toBe(true);
       expect(result.stdout).toContain("hellofromcmd");
     });
   },
