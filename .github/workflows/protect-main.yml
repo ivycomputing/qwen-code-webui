@@ -7,7 +7,9 @@ on:
 jobs:
   check-direct-push:
     runs-on: ubuntu-latest
-    if: "!startsWith(github.event.head_commit.message, 'Merge pull request')"
+    # Release automation (changelog commits from .github/workflows/release.yml)
+    # is exempt alongside merge commits.
+    if: "!startsWith(github.event.head_commit.message, 'Merge pull request') && !startsWith(github.event.head_commit.message, 'chore(changelog):')"
     steps:
       - name: Reject direct push to main
         run: |

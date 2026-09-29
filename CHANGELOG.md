@@ -5,6 +5,286 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.43] - 2026-09-08
+
+- fix(deps): patch all Dependabot-flagged vulnerable dependencies (#244)
+- fix(security): restrict postMessage target origins (CodeQL cross-window leak) (#245)
+
+## [0.2.42] - 2026-09-07
+
+- Version bump only.
+
+## [0.2.41] - 2026-09-05
+
+- fix: preserve original questions in ask_user_question tool responses
+- fix: add missing toolName in backward compatibility test
+- test: add test for client tampering prevention
+- fix: guarantee questions snapshot and validate answers for ask_user_question
+- fix(openace): inject X-Session-Id header into LLM proxy requests (#221)
+- fix(vscode): normalize Windows path for VS Code folder parameter (#240)
+- fix: conversation history list shows empty due to CLI/WebUI incompatibility (#236)
+- fix: preserve URL params in navigation to maintain remote context (#237)
+- fix(remote): add remote session branch to Allow All permission handler (#238)
+- fix: handle control_request messages in local mode permission flow (#239)
+- fix(openace): pre-register session before first request to ensure proper attribution (#241)
+- fix(loop-detection): use full content hash instead of truncation for error fingerprinting (#227)
+- fix: skip loop detection in YOLO mode for autonomous workflows (#226)
+- fix: reset loop counter on successful tool results (#225) (#228)
+- fix(release): bump version to 0.2.41 and add artifact traceability (#230)
+
+## [0.2.40] - 2026-07-31
+
+- fix: 集成模式下 Token 过期自动刷新机制 (#213)
+
+## [0.2.39] - 2026-07-27
+
+- fix(frontend): make `typecheck` actually type-check (tsc -b --noEmit) (#205)
+- feat: add v2 token format support with TTL validation (#210)
+
+## [0.2.38] - 2026-07-14
+
+- fix: prevent white flash (FOUC) in dark theme iframe loading (#200)
+- fix(frontend): SSE auto-reconnect for remote session stability (#196)
+- chore(deps): bump ws (#202)
+- fix(frontend): unblock `npm run build` (ES2022 lib + drop unused imports) (#203)
+
+## [0.2.37] - 2026-07-13
+
+- fix: 深色主题下部分区域背景和文字不可读 (#198)
+
+## [0.2.36] - 2026-07-03
+
+- fix(DirectoryBrowser): display API errors and path hints in browse step
+- feat: handle openace-scroll-to-bottom message when switching tabs
+- feat: add origin validation and tests for scroll-to-bottom feature
+- fix: 修复深色模式下聊天输入框文字颜色问题 (#184)
+- chore: clean up unused destructure and fix test typing (#188)
+- chore: ignore .qwen/ local tooling artifacts (#189)
+- chore: ignore root-only package-lock.json (#190)
+- test: green frontend suite + run vitest in CI (#192)
+- chore(deps-dev): bump the npm_and_yarn group across 2 directories with 1 update (#191)
+- fix: keep CLI alive when client disconnects during pending permission (#187)
+- chore(deps): bump the npm_and_yarn group across 2 directories with 7 updates (#193)
+- chore: publish 0.2.36 (#194)
+
+## [0.2.35] - 2026-06-03
+
+- Fix Stop abort flow for lingering CLI sessions
+- Add stop abort integration verification script
+- Preserve user abort source in stop handler
+- Fix duplicate createRequire import causing SyntaxError in ESM bundle (#170)
+- feat: Add URL parameter theme override for iframe theme sync (#165)
+- Fix remote stop abort confirmation flow
+- Tidy remote stop hook dependencies
+- Show remote stopping state in Stop button
+- Clean up deprecated reactive permission flow
+- Address PR review feedback
+- Fix auto-rejection loop reset semantics
+
+## [0.2.34] - 2026-06-01
+
+- feat: remote workspace file changes panel and VSCode editor support
+- fix: address PR review feedback
+- fix: address PR #156 second review feedback
+- feat: improve file changes panel UI
+- feat: interactive AskUserQuestion dialog with countdown support (#159)
+
+## [0.2.33] - 2026-05-29
+
+- feat: add ask_user_question display and improve todo activeForm (#145)
+- feat: add file changes panel and VS Code integration (#144)
+- fix: correct react-resizable-panels import names (#144)
+- fix: correct react-resizable-panels API and remove unused import (#144)
+- fix: use percentage strings for react-resizable-panels defaultSize (#144)
+- fix: optimize VS Code (code-server) startup from hanging to ~0.4s (#144)
+- feat: add Japanese and Korean i18n translations (#144)
+- fix: address PR #146 code review feedback
+- fix: address second round PR #146 review feedback
+- feat: add workingDirectory whitelist + replace manual WebSocket proxy
+- fix: resolve TS2454 in chat.test.ts — add definite assignment assertion
+- perf: add chunk splitting to reduce initial bundle size
+- fix: resolve dependabot brace-expansion vulnerability (GHSA-jxxr-4gwj-5jf2)
+- fix: update @vitejs/plugin-react-swc to 4.3.1 to resolve esbuild deprecation warning
+- fix: resolve qs DoS vulnerability (dependabot #96, #97)
+- fix: support commonjs requires in esm bundle
+- fix: improve VS Code proxy headers and add auth token to editor URL
+- fix: apply addTokenToUrl in checkStatus and restore workingDirectory guard
+- fix: resolve VS Code WebSocket 1006 error by correcting path matching
+- fix: resolve VS Code WebSocket 1006 error
+- fix: rewrite Origin header when proxying to code-server
+- fix: add path guard and conditional origin rewrite per review
+- Improve file changes panel interactions (#151)
+- Handle remote file changes panel gracefully
+- Open code-server with current project folder
+- fix: 切换项目创建新Tab而非中断会话 (#229)
+- feat: integrate Open ACE HA model pool for qwen-code model selection (#155)
+
+## [0.2.32] - 2026-05-21
+
+- Version bump only.
+
+## [0.2.30] - 2026-05-21
+
+- fix: pass stderr as function instead of boolean to QueryOptions
+- fix: scope loop detection per agent to fix fork agent false positives (#140) (#141)
+- fix: prevent stream stall detector false positives (#125)
+- fix: update chat handler tests to match stderr function type
+- fix: auto-approve countdown for permission prompts in default mode (#143)
+- fix: add autoApproveMs to onPermissionRequest callback type
+
+## [0.2.29] - 2026-05-19
+
+- fix: support BrowserRouter basename via window.__WEBUI_BASENAME__
+- refactor: add type declaration and guard for __WEBUI_BASENAME__
+- ci: add branch protection to prevent direct commits to main (#130)
+- fix: bridge Claude Code session resume and handle stream errors (#131)
+- fix: address PR review comments for session bridge (#132)
+- fix: address second round review — extract constant, narrow patterns, fix tests
+- fix: guard interrupted message type and correct abort callback (#134)
+- fix: replace onPermissionError with onAbortRequest in test — type-safe negative assertion (#135)
+- fix: update stale chat handler tests for canUseTool/stderr/timeout options (#136)
+
+## [0.2.28] - 2026-05-15
+
+- chore(deps): bump the npm_and_yarn group across 2 directories with 2 updates
+- fix: detect stream stall when frontend reader hangs indefinitely (#114)
+- fix: enable Enter key to confirm ConfirmModal dialogs (#115)
+- fix: permission dialog still showing for tools in allowedTools
+- fix: address PR review — error handling, dedup, log levels
+- fix: sync controlRequest timeout with canUseTool to prevent session abort (#118)
+- fix: clear thinking/assistant state on remote SSE disconnect (#82)
+- fix: add resetRequestState() to remote handleAbort path
+- fix: migrate project mapping to dedicated config directory (#120)
+- chore(deps): bump the npm_and_yarn group across 2 directories with 3 updates
+- fix: prevent AI sub-agent prompts from appearing as User messages (#122)
+- fix: upgrade frontend vite plugins for vite 8 compatibility
+- fix: prevent concurrent CLI sessions and detect interrupted conversations (#123)
+- fix: address PR review - pending permission cleanup, diagnostic, and tests
+- fix: keepalive not reaching frontend causes stall detector false positive (#126)
+- fix: remove reactive permission flow that misinterpreted execution errors (#128)
+- fix: configure vitest jsdom environment and test setup
+
+## [0.2.27] - 2026-05-12
+
+- fix: context percentage showing >100% due to accumulated result message usage
+- fix: rename openace-tab-activated to openace-clear-notification-state
+- fix: debounce auto-scroll disable to prevent false negatives during streaming
+- fix: skip permission dialog for tools already in allowed list
+- fix: address PR review - multi-word commands, tests, and comments
+
+## [0.2.26] - 2026-05-11
+
+- fix: smart auto-scroll — stop interrupting users reading chat history
+- fix: auto-scroll stops working after returning to bottom
+- fix: thinking timeout false positive and abort not working
+
+## [0.2.25] - 2026-05-09
+
+- fix: handle SSE error events in remote chat hook
+- fix: replace PascalCase tool names with snake_case constants
+- fix: update usePermissions.test.ts with TOOL_NAMES constants
+- feat: improve permission dialog UX and fix type errors (#106)
+- fix: address PR review feedback for permission dialog UX
+- fix: extend canUseTool timeout to 24 hours
+- fix: show specific command in permanent allow button to avoid ambiguity
+- feat: granular run_shell_command permission with 3-button UI
+- fix: address PR re-review — non-shell allow scope, extract utility, scope semantics
+- fix: rename non-shell allow button to "允许本次" / "Allow this time"
+- chore: remove unused permission.yes i18n key
+- fix: make SettingsModal props optional and add scope to sendPermissionResponse
+- fix: SSE error recovery — clear stale sessionId, handle non-200 responses, abort on permission failure
+- fix: address PR review — extract helper, await abort, guard sessionId clear
+- fix: improve chat error handling — show actual errors, fix chunk boundaries
+- fix: disable Node.js HTTP server timeouts for streaming responses
+- fix: chat reliability — stream fixes + Input closed error handling (#111)
+
+## [0.2.24] - 2026-05-06
+
+- fix: replace hardcoded English strings with i18n t() calls
+- fix: translate hardcoded Local/Remote strings in AddProjectModal
+
+## [0.2.23] - 2026-05-06
+
+- chore(deps): bump the npm_and_yarn group across 2 directories with 1 update
+- fix: context percentage exceeding 100% due to accumulated input_tokens
+- fix: replace invalid query-filters with valid queries exclude syntax
+- fix: updateLastMessage search backwards for last ChatMessage
+- Merge main (includes CodeQL config fix from PR #89)
+- fix: use correct query-filters field for CodeQL config
+- fix: clear conversation should not generate fake session ID
+- fix: suppress stale error message on /clear abort
+- fix: reset clearAbortRef in finally block to prevent swallowing errors
+- fix: project deletion fails silently and CORS missing DELETE method (#92)
+- feat: auto-approve previously allowed tools within same streaming session
+- fix: refine auto-approve to read-only tools only + proactive deny detection (#98)
+- fix: thinking timeout fires even when AI is actively producing output (#99)
+- fix: add diagnostic logging for chat request lifecycle and fix test compatibility
+
+## [0.2.22] - 2026-04-29
+
+- feat: add permission_request types to shared StreamResponse
+- feat: backend permission endpoint for proactive canUseTool
+- refactor: add canUseTool callback to executeQwenCommand
+- feat: frontend permission response API and permission request state
+- feat: stream parser handles permission_request and orphan cleanup
+- feat: ChatPage proactive permission flow and [proactive] marker handling
+- fix: address post-implementation review — 6 issues (#85)
+- fix: enqueue consistency — loop detection + outer catch (#85)
+
+## [0.2.21] - 2026-04-28
+
+- fix: handle Qwen SDK message format, auto-abort on loop, thinking timeout
+- fix: thinking toggle, demo tool name cache, arrow key navigation, i18n tooltips (#73, #72, #68, #67)
+- fix: Input closed loop detection — status:"cancelled", backend watchdog, cross-tool counting (#83)
+
+## [0.2.20] - 2026-04-28
+
+- Version bump only.
+
+## [0.2.19] - 2026-04-28
+
+- Version bump only.
+
+## [0.2.18] - 2026-04-27
+
+- feat: add auto-rejection loop detection and fix command result loop callback
+- fix: remote abort button not showing, abort error handling, and race condition
+
+## [0.2.17] - 2026-04-26
+
+- Add pause/resume support for remote sessions (#164)
+- Fix remote workspace: project path shows "/" and back arrow in integrated mode
+
+## [0.2.16] - 2026-04-26
+
+- fix: /context command not responding and context circle display issues
+- feat: remote session reconnect history replay, abort API, permission i18n
+
+## [0.2.15] - 2026-04-24
+
+- refactor: improve chat input status bar UX
+- style: add visual separators in chat status bar
+- feat: add remote workspace support with machine selection and SSE streaming
+- fix: add global ESC key handler to forward to parent window for fullscreen exit (Issue #103)
+- fix: 权限确认面板 UI 优化 — i18n、选中样式、去重
+- feat: remote workspace model switching support
+- feat: remote session model hot-switch and /context command
+- fix: context panel sub-category sum mismatch and missing unit label
+- fix: resolve symlink in qwen CLI path to prevent spawn ENOENT
+- fix: remote workspace session resilience and UX improvements
+
+## [0.2.14] - 2026-04-17
+
+- Version bump only.
+
+## [0.2.13] - 2026-04-16
+
+- fix: remove duplicate cache token counting in context ratio
+
+## [0.2.12] - 2026-04-15
+
+- refactor: remove real-time stats sync to Open-ACE
+
 ## [Unreleased]
 
 ### Fixed
