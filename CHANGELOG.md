@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Abort tracking now reaches CLI consumers that import `spawn`/`fork` as ESM
+  named bindings (`syncBuiltinESMExports` after patching), which had silently
+  left per-request child tracking ineffective; an aborted child's stdio pipes
+  are also disposed after exit so they cannot hold the event loop.
+
 ## [0.2.43] - 2026-09-08
 
 - fix(deps): patch all Dependabot-flagged vulnerable dependencies (#244)
@@ -30,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(loop-detection): use full content hash instead of truncation for error fingerprinting (#227)
 - fix: skip loop detection in YOLO mode for autonomous workflows (#226)
 - fix: reset loop counter on successful tool results (#225) (#228)
-- fix(release): bump version to 0.2.41 and add artifact traceability (#230)
 
 ## [0.2.40] - 2026-07-31
 
@@ -65,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - chore(deps-dev): bump the npm_and_yarn group across 2 directories with 1 update (#191)
 - fix: keep CLI alive when client disconnects during pending permission (#187)
 - chore(deps): bump the npm_and_yarn group across 2 directories with 7 updates (#193)
-- chore: publish 0.2.36 (#194)
 
 ## [0.2.35] - 2026-06-03
 
@@ -209,7 +216,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix: context percentage exceeding 100% due to accumulated input_tokens
 - fix: replace invalid query-filters with valid queries exclude syntax
 - fix: updateLastMessage search backwards for last ChatMessage
-- Merge main (includes CodeQL config fix from PR #89)
 - fix: use correct query-filters field for CodeQL config
 - fix: clear conversation should not generate fake session ID
 - fix: suppress stale error message on /clear abort
@@ -285,20 +291,186 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - refactor: remove real-time stats sync to Open-ACE
 
-## [Unreleased]
-
-### Fixed
-
-- Abort tracking now reaches CLI consumers that import `spawn`/`fork` as ESM
-  named bindings (`syncBuiltinESMExports` after patching), which had silently
-  left per-request child tracking ineffective; an aborted child's stdio pipes
-  are also disposed after exit so they cannot hold the event loop.
-
 ## [0.2.11] - 2026-04-14
 
 ### Fixed
 
 - Correct URL building for Open-ACE session API calls
+
+## [0.2.10] - 2026-04-13
+
+- fix: project delete button visibility and click handler for integrated mode
+- feat: add session statistics tracking for Open-ACE integration
+
+## [0.2.9] - 2026-04-13
+
+- fix: improve modal dialog interaction and keyboard handling
+
+## [0.2.8] - 2026-04-12
+
+- fix: add pointer-events-none to modal overlay elements to prevent click blocking
+- fix: remove pointer-events styles from AddProjectModal (issue #65)
+- feat: 支持 --auth-type 参数传递认证类型 (#66)
+
+## [0.2.7] - 2026-04-10
+
+- docs: add README for offline package installation method
+- feat: add command result loop detection to prevent AI infinite retry
+- test: add unit tests for command result loop detection
+- feat: add Open-ACE quota integration
+- fix: improve test types and add Open-ACE env config
+- fix: Node.js runtime compatibility and quota check defaults
+- fix: correct static path for bundled production builds
+- feat: add token authentication for Open-ACE integration
+- feat: enforce quota limits via backend middleware
+- feat: add project management integration and session tracking
+- fix: use openace_url parameter for cross-origin API calls
+- feat: implement i18n framework with Chinese and English support
+- fix: improve Enter key handling in Add Project dialog
+- feat: add Enter key support to ConfirmModal for quick confirmation
+- fix: add i18n support for ProjectSelector page
+- feat: add /clear slash command to clear conversation context
+- fix: generate new sessionId when clearing conversation
+- feat: display model name and token usage in status bar (issue #54)
+- chore: update Makefile to use npm instead of deno
+- chore: add deno build target for standalone executable
+- feat: add auto-focus to project selector for keyboard navigation
+- feat: auto fullscreen when entering chat page in iframe
+- fix: translate hardcoded UI text for i18n support (issue #51)
+- fix: improve status bar layout and add i18n support (issue #54)
+- fix: auto-select default model and validate saved selection (issue #55)
+- fix: improve clear dialog with proper buttons and keyboard shortcuts
+- fix: add !important to ConfirmModal button background colors
+- Fix issue 56: Update project selector title and remove redundant subtitle
+- Fix security vulnerabilities: Update lodash and vite dependencies
+- fix: resolve ESLint errors and frontend test failures (issue #59)
+- Configure CodeQL to exclude demo/test file false positives
+- feat: implement /clear command and related features
+- Add CodeQL suppression comments for intentional patterns
+- Fix issue #62: Move send button outside textarea to prevent text occlusion
+- Fix context window usage calculation to use prompt tokens instead of accumulated tokens
+- Add delete project feature for local mode (issue #61)
+- feat(i18n): Add language sync from open-ace via URL parameter
+- feat: Auto-focus input when switching workspace tabs (Issue #63)
+- feat(tab-notification): Add multi-session tab notification mechanism (Issue #63)
+- feat(chat): Add session update postMessage for workspace state persistence
+- fix(#68): Change tab switch shortcut to Cmd+Shift+,/. to avoid Chrome conflicts
+- feat(#63): Trigger input tab notification when AI finishes responding
+- fix: use getEncodedName() for workspace session update
+- fix: improve session state persistence for workspace restoration (Issue #70)
+- fix: support Qwen SDK 'parts' format in message history loading (Issue #70)
+- feat: add tab settings persistence for workspace restoration (Issue #70)
+- fix: show input notification only after AI finishes responding
+- fix: use iframe check instead of isIntegratedMode for tab switch (Issue #68)
+- feat: focus permission button when switching to tab with permission request (Issue #68)
+- fix: revert permission button focus change that broke keyboard shortcut (Issue #68)
+- fix: use e.code for keyboard shortcut to support non-English input methods (Issue #68)
+
+## [0.2.4] - 2026-04-01
+
+- Version bump only.
+
+## [0.2.3] - 2026-04-01
+
+- fix: prevent AI infinite retry loop when user denies permission
+
+## [0.2.2] - 2026-04-01
+
+- docs: update gh-release skill with npm token storage
+- Create codeql.yml
+- fix: make 'Press Enter' hint follow selected project on keyboard navigation
+- Remove Current Mode toggle button from ChatPage header
+- feat: add model selector dropdown to ChatPage header
+- style: add visible scrollbar and improve hover highlight for model selector
+- fix: use static class names for hover effect in model selector
+- fix: add custom CSS class for model selector hover effect
+- fix: make Enter key behavior consistent with Tab in slash command autocomplete
+- fix: use completeWithTab for Enter key to ensure consistent behavior
+- Fix issue #37: Remove [Bailian Coding Plan] prefix and fix hover style
+- chore: restore Docker deployment and maintenance updates
+
+## [0.2.0] - 2026-03-18
+
+- fix: prevent duplicate tool name display in WebUI components
+- feat: add reusable ChatTestBase for UI testing
+- fix: support Cmd+Shift+M keyboard shortcut on macOS for mode toggle
+- fix: optimize ChatPage UI for better space utilization
+- feat: add project switch button to ChatPage header
+- feat: add expand thinking toggle button to ChatPage
+- fix: exclude non-existent directories from project list
+- feat: add default project selection and keyboard navigation
+- feat: sort projects by hierarchy and alphabetically
+- fix: remove duplicate loading indicator when WebUI Components enabled
+- feat: add input history navigation and slash command autocomplete
+- feat: enhance slash command with Tab autocomplete and sub-command support
+- fix: Thinking expand toggle not working correctly
+- fix: Issue 27 input history not working
+- fix: slash command dropdown should open above when space is limited
+- test: add UI test for slash command autocomplete (Issue 28)
+- fix: reduce slash command dropdown gap to 2px
+- fix: expand thinking button not working and add settings toggle (Issue #23)
+- test: update expand thinking test to use correct port (Issue #23)
+- fix: Thinking content not expanding when expandThinking is enabled
+- fix: Thinking messages not expanding in WebUI Components mode
+- fix: Thinking messages rendering in wrong position in WebUI mode
+- fix: restore ChatViewer rendering for Thinking messages in WebUI mode
+- fix: control Thinking expand state via DOM manipulation in WebUI mode
+- fix: expandThinking default to true and reverse arrow direction
+- fix: use refs in useInputHistory to fix arrow key navigation
+- test: add Playwright tests for Issue 27 input history navigation
+- fix: update refs immediately in useInputHistory for arrow key navigation
+- fix: remove e.target check for arrow key navigation in ChatInput
+- fix: call addToHistory when sending message with Enter key
+- feat: position slash command dropdown below input with auto-expand
+- feat: auto-expand input height for slash command suggestions
+- feat: use fixed 25vh expanded height for slash command input
+- feat: align slash command dropdown with input text
+- fix: position dropdown directly below input within expanded margin
+- fix: adjust Send button position and skill dropdown alignment
+- fix: use fixed vertical position for slash command dropdown
+- Add toggle button for WebUI Components in ChatPage
+- Update toggle button style to match ExpandThinkingButton
+- Update toggle button icon color to blue when enabled
+- Match toggle button style to ExpandThinkingButton
+- Update ExpandThinkingButton disabled state to white background
+- Fix ExpandThinkingButton border to match other buttons
+- Change YOLO mode shortcut from Cmd+Shift+M to Cmd+Shift+Y and add mode toggle button
+- Fix permission mode shortcut not working globally
+- feat: add debug logging for permissionMode tracking
+
+## [0.1.1] - 2026-03-17
+
+- feat: transform Claude Code Web UI to Qwen Code Web UI
+- fix: update test files for Qwen SDK compatibility
+- fix: update remaining 'Claude Code Web UI' references to 'Qwen Code Web UI'
+- fix: update project history path from .claude to .qwen
+- fix: fix project list API to read from ~/.qwen/projects directory
+- fix: correctly decode project paths with hyphens
+- fix: fix backend service crashing frequently after startup
+- fix: update packaging script for Qwen Code Web UI
+- fix: fix Deno runtime serve() return type
+- fix: clean up broken symlinks to eliminate packaging warnings
+- feat: integrate @qwen-code/webui component library
+- docs: add @qwen-code/webui component library integration analysis
+- docs: move QWEN_WEBUI_ANALYSIS.md to docs directory
+- feat: add version display and experimental feature toggle
+- feat: add open source project copyright notice
+- Add copyright notice for Ivy Computing Team
+- chore: clean up project documentation and config files
+- fix: resolve TypeScript errors in MessageAdapter
+- feat: add gh-release skill for automated release process
+- docs: update CHANGELOG for v0.1.0 release
+- feat: add version bump support to package.sh
+- docs: update gh-release skill with version bump support
+- docs: add npm publish step to gh-release skill
+- fix: correct git clone URL in README
+- fix: correct repository URL to ivycomputing/qwen-code-webui
+- fix: collapse system messages by default to maximize chat area
+- fix: prevent duplicate tool_use and tool_result messages in chat
+- Update LICENSE
+- fix: make system messages fully collapsed by default
+- test: add YOLO mode test case for permission mode handling
+- test: add E2E test for YOLO mode (issue #18)
 
 ## [0.1.0] - 2026-03-16
 

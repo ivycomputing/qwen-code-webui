@@ -30,6 +30,15 @@ jobs:
         with:
           node-version: 20
 
+      # Fail before creating anything for tags the changelog script cannot
+      # handle (e.g. prerelease suffixes), instead of half-succeeding.
+      - name: Validate tag shape
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Refusing to release non-semver tag $GITHUB_REF_NAME (expected vX.Y.Z)"
+            exit 1
+          fi
+
       - name: Verify the tag version is published to npm
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -61,7 +70,7 @@ jobs:
           git checkout main
           git pull --ff-only origin main
 
-          if ! node scripts/update-changelog.js "$GITHUB_REF_NAME"; then
+          if ! node scripts/update-changelog.mjs "$GITHUB_REF_NAME"; then
             echo "::error::changelog generation failed"
             exit 1
           fi
