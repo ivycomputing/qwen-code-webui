@@ -43,4 +43,11 @@ describe("resolveVSCodeWsTarget", () => {
   it("does not match the prefix in the middle of a path", () => {
     expect(resolveVSCodeWsTarget(8443, "/foo/vscode/bar")).toBeNull();
   });
+
+  it("matches /vscode followed directly by a query string, like /vscode/", () => {
+    expect(resolveVSCodeWsTarget(8443, "/vscode?x=1")).toEqual({
+      httpUrl: "http://localhost:8443",
+      path: "/?x=1",
+    });
+  });
 });

@@ -355,11 +355,16 @@ export function resolveVSCodeWsTarget(
   port: number | null,
   requestPath: string,
 ): VSCodeWsTarget | null {
-  // The mount is exactly /vscode or /vscode/... — not /vscode-anything
-  if (!port || !/^\/vscode(\/|$)/.test(requestPath)) return null;
+  // The mount is exactly /vscode or /vscode/... — not /vscode-anything.
+  // Matching ignores the query string so "/vscode?x=1" behaves like "/vscode/".
+  const queryIndex = requestPath.indexOf("?");
+  const pathname =
+    queryIndex === -1 ? requestPath : requestPath.slice(0, queryIndex);
+  const search = queryIndex === -1 ? "" : requestPath.slice(queryIndex);
+  if (!port || !/^\/vscode(\/|$)/.test(pathname)) return null;
   return {
     httpUrl: `http://localhost:${port}`,
-    path: requestPath.replace(/^\/vscode\/?/, "/") || "/",
+    path: pathname.replace(/^\/vscode\/?/, "/") + search,
   };
 }
 

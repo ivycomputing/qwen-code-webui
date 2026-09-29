@@ -130,10 +130,12 @@ export class NodeRuntime implements Runtime {
       const timeout = options?.timeoutMs
         ? setTimeout(() => {
             timedOut = true;
-            // On Windows the command runs via `cmd.exe /c`; child.kill() only
-            // terminates cmd.exe and leaves grandchildren alive (still holding
-            // the stdio pipes). Kill the whole tree, then destroy our ends of
-            // the pipes so 'close' — and this promise — cannot hang.
+            // Windows .cmd/.bat scripts run via `cmd.exe /c`, where
+            // child.kill() only terminates cmd.exe and leaves grandchildren
+            // alive (still holding the stdio pipes). Kill the whole tree in
+            // that case, then destroy our ends of the pipes so 'close' — and
+            // this promise — cannot hang. Directly-spawned executables can
+            // be killed with SIGKILL.
             if (isWindows && child.pid) {
               spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"]);
             } else {

@@ -25,6 +25,15 @@ function isWindowsScriptFile(command: string): boolean {
  *
  * Messages are piped bidirectionally; client frames sent before the upstream
  * socket opens are buffered so nothing is dropped during the connect window.
+ * The upstream close code/reason is forwarded to the client when it is a
+ * sendable code.
+ *
+ * Data forwarded from the client: message payload and (single) subprotocol.
+ * Not forwarded: origin, cookies and other headers — the Deno WebSocket
+ * client API cannot set them. code-server only rejects *mismatched*
+ * origins, so the no-origin upgrade works there (verified against a live
+ * code-server); other upstreams with stricter policies would need a
+ * different design.
  *
  * @param req - The upgrade request received inside Deno.serve
  * @param getTarget - Resolves the proxy target for the request path; a null
@@ -42,19 +51,31 @@ export async function relayWebSocket(
     return new Response("WebSocket proxy unavailable", { status: 503 });
   }
 
-  const subprotocol = req.headers.get("sec-websocket-protocol");
+  // A comma-separated Sec-WebSocket-Protocol offers several candidates;
+  // forward the list upstream and negotiate the first one server-side
+  // (Deno.upgradeWebSocket only accepts a single protocol).
+  const offeredProtocols = (req.headers.get("sec-websocket-protocol") ?? "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const negotiatedProtocol = offeredProtocols[0];
   const { response, socket } = Deno.upgradeWebSocket(
     req,
-    subprotocol ? { protocol: subprotocol } : {},
+    negotiatedProtocol ? { protocol: negotiatedProtocol } : {},
   );
 
   const upstreamUrl = target.httpUrl.replace(/^http/, "ws") + target.path;
-  const upstream = new WebSocket(upstreamUrl, subprotocol ?? undefined);
+  const upstream = new WebSocket(
+    upstreamUrl,
+    offeredProtocols.length > 0 ? offeredProtocols : undefined,
+  );
   socket.binaryType = "arraybuffer";
   upstream.binaryType = "arraybuffer";
 
   // Frames from the browser can arrive before the upstream socket connects;
-  // buffer them and flush on open.
+  // buffer them and flush on open. When the client closes with frames still
+  // buffered they are dropped deliberately: flushing to a possibly-dead
+  // upstream could raise spurious errors for no benefit.
   const pending: (string | ArrayBuffer)[] = [];
   let upstreamOpen = false;
 
@@ -70,6 +91,13 @@ export async function relayWebSocket(
       // already closing
     }
   };
+
+  // Codes that RFC 6455 allows a peer to SEND: 1000-1011 except the
+  // reserved 1005/1006, plus the 3000-4999 application range. Anything
+  // else (notably 1005 "no code" and 1006 "abnormal") cannot be forwarded.
+  const forwardableCloseCode = (code: number): boolean =>
+    (code >= 1000 && code <= 1011 && code !== 1005 && code !== 1006) ||
+    (code >= 3000 && code <= 4999);
 
   upstream.onopen = () => {
     upstreamOpen = true;
@@ -94,10 +122,14 @@ export async function relayWebSocket(
       // already closing
     }
   };
-  upstream.onclose = () => {
+  upstream.onclose = (event) => {
     pending.length = 0;
     try {
-      socket.close();
+      if (forwardableCloseCode(event.code)) {
+        socket.close(event.code, event.reason);
+      } else {
+        socket.close();
+      }
     } catch {
       // already closing
     }

@@ -39,8 +39,9 @@ describe("Node.js Runtime", () => {
   });
 
   it("should execute commands whose path or arguments contain spaces", async () => {
-    // On Windows CI, process.execPath is C:\Program Files\...\node.exe, so
-    // this exercises the spaces-in-path handling for real there.
+    // Arguments with spaces exercise the quoting logic on every platform;
+    // dedicated spaced-path coverage for Windows lives in the .cmd test
+    // below (CI's node toolcache paths happen to contain no spaces).
     const result = await runtime.runCommand(process.execPath, [
       "-e",
       "console.log('ok 42')",
