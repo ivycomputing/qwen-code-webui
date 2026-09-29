@@ -3,6 +3,11 @@
   "version": "0.3.0",
   "type": "module",
   "description": "Web-based interface for the Qwen Code CLI with streaming chat interface",
+  "qwenCode": {
+    "testedCliMin": "0.17.0",
+    "testedCliMax": "0.24.6",
+    "recommendedCli": "0.24.6"
+  },
   "keywords": [
     "qwen",
     "qwen-code",

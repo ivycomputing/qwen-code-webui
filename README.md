@@ -204,7 +204,10 @@ resolves it from there (`backend/deno.json` deliberately does not pin it), so:
   fails the PR if `package-lock.json` and `deno.lock` disagree.
 - The bundled-CLI fallback and `--qwen-path bundled` use the CLI shipped
   inside the SDK, so a SDK bump also moves the fallback CLI version — update
-  `MAX_TESTED_CLI_VERSION` in `backend/cli/validation.ts` accordingly.
+  `MAX_TESTED_CLI_VERSION` in `backend/cli/validation.ts` **and the `qwenCode`
+  metadata in `backend/package.json`** (a test enforces they stay in sync).
+  Downstream consumers such as open-ace read that metadata via
+  `npm view qwen-code-webui qwenCode` to derive the tested CLI pair.
 
 ---
 
