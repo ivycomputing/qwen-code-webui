@@ -37,7 +37,7 @@
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.0",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.48.2",
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/jest-dom": "^6.6.3",
