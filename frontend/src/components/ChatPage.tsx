@@ -652,8 +652,9 @@ export function ChatPage() {
       const successAttachments = attachments.filter(a => a.status === 'success' && a.path);
       
       if (successAttachments.length > 0) {
-        // Add file references to the message
-        const fileReferences = successAttachments.map(a => `用户引用了文件：${a.path}`).join('\n');
+        // Add file references to the message with AI tool usage guidance
+        const fileList = successAttachments.map(a => `- ${a.path}`).join('\n');
+        const fileReferences = `用户上传了以下文件，请使用 read_file 工具读取文件内容：\n${fileList}`;
         finalContent = `${content}\n\n${fileReferences}`;
         
         // Clear attachments after sending
