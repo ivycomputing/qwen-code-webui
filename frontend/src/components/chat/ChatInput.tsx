@@ -723,6 +723,7 @@ export function ChatInput({
                 )}
               </button>
             )}
+            <button
               type="submit"
               disabled={!input.trim() || isLoading || disabled}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
