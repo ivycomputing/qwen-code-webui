@@ -38,6 +38,7 @@ import { ModelSelector } from "./chat/ModelSelector";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages, type ChatMessagesHandle } from "./chat/ChatMessages";
 import { WebUIChatMessages, type WebUIChatMessagesHandle } from "./chat/WebUIChatMessages";
+import { type FileAttachment } from "./chat/FileAttachmentPreview";
 import { HistoryView } from "./HistoryView";
 import { getChatUrl, getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
@@ -109,6 +110,9 @@ export function ChatPage() {
     questions: Question[];
     autoApproveMs?: number;
   } | null>(null);
+
+  // File attachments state
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
 
   // Remote workspace parameters
   const isRemoteWorkspace = searchParams.get("workspaceType") === "remote";
@@ -643,15 +647,28 @@ export function ChatPage() {
       const content = messageContent || input.trim();
       if (!content || isLoading) return;
 
+      // Handle file attachments
+      let finalContent = content;
+      const successAttachments = attachments.filter(a => a.status === 'success' && a.path);
+      
+      if (successAttachments.length > 0) {
+        // Add file references to the message
+        const fileReferences = successAttachments.map(a => `用户引用了文件：${a.path}`).join('\n');
+        finalContent = `${content}\n\n${fileReferences}`;
+        
+        // Clear attachments after sending
+        setAttachments([]);
+      }
+
       // Intercept /clear before sending to backend
-      if (content === "/clear") {
+      if (finalContent === "/clear") {
         setShowClearConfirm(true);
         if (!messageContent) clearInput();
         return;
       }
 
       // Intercept /context before sending to backend
-      if (content === "/context") {
+      if (finalContent === "/context") {
         setShowContextPanel(true);
         if (!messageContent) clearInput();
         return;
@@ -667,12 +684,12 @@ export function ChatPage() {
           addMessage({
             type: "chat",
             role: "user",
-            content,
+            content: finalContent,
             timestamp: Date.now(),
           });
         }
         if (!messageContent) clearInput();
-        await remoteChat.sendMessage(content, remotePermissionMode);
+        await remoteChat.sendMessage(finalContent, remotePermissionMode);
         return;
       }
 
@@ -683,7 +700,7 @@ export function ChatPage() {
         const userMessage: ChatMessage = {
           type: "chat",
           role: "user",
-          content: content,
+          content: finalContent,
           timestamp: Date.now(),
         };
         addMessage(userMessage);
@@ -715,7 +732,7 @@ export function ChatPage() {
           headers: { "Content-Type": "application/json" },
           signal: fetchAbortController.signal,
           body: JSON.stringify({
-            message: content,
+            message: finalContent,
             requestId,
             ...(currentSessionId ? { sessionId: currentSessionId } : {}),
             allowedTools: tools || allowedTools,
@@ -1913,6 +1930,9 @@ export function ChatPage() {
                 selectedModelName={selectedModelName}
                 contextWindowSize={contextWindowSize}
                 tokenUsage={tokenUsage}
+                attachments={attachments}
+                onAttachmentsChange={setAttachments}
+                workingDirectory={workingDirectory}
               />
             )}
           </>

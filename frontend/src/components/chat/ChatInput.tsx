@@ -8,6 +8,7 @@ import { useSlashCommand } from "../../hooks/useSlashCommand";
 import { SlashCommandSuggestion } from "./SlashCommandSuggestion";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
+import { FileAttachmentPreview, type FileAttachment } from "./FileAttachmentPreview";
 import { isIntegratedMode } from "../../api/openace";
 import type { PermissionMode } from "../../types";
 import type { SlashCommand, SubCommand } from "../../utils/slashCommands";
@@ -70,6 +71,10 @@ interface ChatInputProps {
   selectedModelName?: string;
   contextWindowSize?: number;
   tokenUsage?: TokenUsageInfo;
+  // File attachment props
+  attachments?: FileAttachment[];
+  onAttachmentsChange?: (attachments: FileAttachment[]) => void;
+  workingDirectory?: string;
 }
 
 export function ChatInput({
@@ -90,6 +95,9 @@ export function ChatInput({
   selectedModelName,
   contextWindowSize,
   tokenUsage,
+  attachments = [],
+  onAttachmentsChange,
+  workingDirectory,
 }: ChatInputProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -101,6 +109,181 @@ export function ChatInput({
     navigateNext,
     resetNavigation,
   } = useInputHistory();
+
+  // File upload constants
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+  // File validation functions
+  const validateFileSize = useCallback((file: File): { valid: boolean; error?: string } => {
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      return {
+        valid: false,
+        error: `File too large: ${sizeMB}MB, exceeds 10MB limit. Please compress before upload.`
+      };
+    }
+    return { valid: true };
+  }, []);
+
+  const validateFileType = useCallback((file: File): { valid: boolean; error?: string } => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      return {
+        valid: false,
+        error: `Unsupported file type: ${file.type}. Supported: PNG, JPG, GIF, WEBP`
+      };
+    }
+    return { valid: true };
+  }, []);
+
+  // Show privacy warning on first upload
+  const showPrivacyWarning = useCallback(() => {
+    const shown = localStorage.getItem('privacy-warning-shown');
+    if (!shown) {
+      console.warn('Note: Uploaded images may contain sensitive information. Please ensure no private content.');
+      localStorage.setItem('privacy-warning-shown', 'true');
+    }
+  }, []);
+
+  // Read file as base64 for preview
+  const readFileAsBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  // File upload function
+  const uploadFile = useCallback(async (file: File, id: string): Promise<void> => {
+    if (!workingDirectory) {
+      console.error('Working directory not set');
+      onAttachmentsChange?.(attachments.map(a => 
+        a.id === id ? { ...a, status: 'error', error: 'Working directory not set' } : a
+      ));
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`/api/upload?workingDirectory=${encodeURIComponent(workingDirectory)}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      onAttachmentsChange?.(attachments.map(a => 
+        a.id === id ? { ...a, status: 'success', path: data.path, progress: 100 } : a
+      ));
+    } catch (error) {
+      console.error('Upload error:', error);
+      onAttachmentsChange?.(attachments.map(a => 
+        a.id === id ? { ...a, status: 'error', error: error instanceof Error ? error.message : 'Upload failed' } : a
+      ));
+    }
+  }, [workingDirectory, attachments, onAttachmentsChange]);
+
+  // Add files to attachments
+  const handleFileAdd = useCallback(async (files: File[]): Promise<void> => {
+    for (const file of files) {
+      // Validate file size
+      const sizeValidation = validateFileSize(file);
+      if (!sizeValidation.valid) {
+        console.error(sizeValidation.error);
+        continue;
+      }
+
+      // Validate file type
+      const typeValidation = validateFileType(file);
+      if (!typeValidation.valid) {
+        console.error(typeValidation.error);
+        continue;
+      }
+
+      // Show privacy warning
+      showPrivacyWarning();
+
+      const id = crypto.randomUUID();
+      
+      // Create preview for images
+      let preview: string | undefined;
+      if (file.type.startsWith('image/')) {
+        preview = await readFileAsBase64(file);
+      }
+
+      // Add to attachments
+      const newAttachment: FileAttachment = {
+        id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        preview,
+        status: 'uploading',
+        progress: 0,
+      };
+      
+      const newAttachments = [...attachments, newAttachment];
+      onAttachmentsChange?.(newAttachments);
+
+      // Start upload
+      await uploadFile(file, id);
+    }
+  }, [attachments, onAttachmentsChange, validateFileSize, validateFileType, showPrivacyWarning, readFileAsBase64, uploadFile]);
+
+  // Handle paste event
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>): Promise<void> => {
+    const files = Array.from(e.clipboardData.files);
+    const images = files.filter(f => f.type.startsWith('image/'));
+    
+    if (images.length > 0) {
+      e.preventDefault();
+      await handleFileAdd(images);
+    }
+  }, [handleFileAdd]);
+
+  // Handle drop event
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>): Promise<void> => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const files = Array.from(e.dataTransfer.files);
+    const supportedFiles = files.filter(f => ALLOWED_IMAGE_TYPES.includes(f.type));
+    
+    if (supportedFiles.length === 0) {
+      console.error('Unsupported file type. Please upload PNG, JPG, GIF, or WEBP images');
+      return;
+    }
+    
+    await handleFileAdd(supportedFiles);
+  }, [handleFileAdd]);
+
+  // Handle drag over event
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>): void => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  // Retry upload
+  const handleRetry = useCallback((id: string): void => {
+    const attachment = attachments.find(a => a.id === id);
+    if (attachment) {
+      const file = new File([], attachment.name, { type: attachment.type });
+      uploadFile(file, id);
+    }
+  }, [attachments, uploadFile]);
+
+  // Remove attachment
+  const handleRemove = useCallback((id: string): void => {
+    onAttachmentsChange?.(attachments.filter(a => a.id !== id));
+  }, [attachments, onAttachmentsChange]);
 
   // Slash command handling
   const handleSlashCommandExecute = useCallback(
@@ -383,9 +566,15 @@ export function ChatInput({
 
   return (
     <div className="flex-shrink-0">
+      {/* File attachment preview */}
+      <FileAttachmentPreview
+        attachments={attachments}
+        onRemove={handleRemove}
+        onRetry={handleRetry}
+      />
       <form onSubmit={handleSubmit} className="relative">
         <div className="flex gap-2 items-end" style={{ marginBottom: isSlashActive ? `${expandedHeight}px` : '0' }}>
-          <div className="flex-1 relative">
+          <div className="flex-1 relative" onDrop={handleDrop} onDragOver={handleDragOver}>
             <textarea
               ref={inputRef}
               value={input}
@@ -396,6 +585,7 @@ export function ChatInput({
               onKeyDown={handleKeyDown}
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
+              onPaste={handlePaste}
               placeholder={
                 isLoading && currentRequestId ? t("chat.processing") : t("chat.typeMessage")
               }

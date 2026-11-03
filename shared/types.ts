@@ -45,6 +45,15 @@ export interface ChatRequest {
   workingDirectory?: string;
   permissionMode?: "default" | "plan" | "auto-edit" | "yolo";
   model?: string;
+  // File attachments
+  attachments?: FileAttachmentInfo[];
+}
+
+export interface FileAttachmentInfo {
+  path: string;
+  filename: string;
+  type: string;
+  size: number;
 }
 
 // Model provider types

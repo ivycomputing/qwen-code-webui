@@ -25,6 +25,7 @@ import {
 } from "./handlers/permission.ts";
 import { handleVersionRequest } from "./handlers/version.ts";
 import { handleModelsRequest } from "./handlers/models.ts";
+import { handleUploadRequest } from "./handlers/upload.ts";
 import {
   handleQuotaStatusRequest,
   quotaCheckMiddleware,
@@ -188,6 +189,8 @@ export function createApp(
   app.post("/api/permission/respond", (c) =>
     handlePermissionRespond(c, pendingPermissions),
   );
+
+  app.post("/api/upload", (c) => handleUploadRequest(c));
 
   app.post("/api/chat", quotaCheckMiddleware, (c) =>
     handleChatRequest(c, requestAbortControllers, pendingPermissions),
