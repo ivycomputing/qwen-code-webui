@@ -1,4 +1,3 @@
-import React from 'react';
 import { XMarkIcon, ExclamationCircleIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 export interface FileAttachment {
