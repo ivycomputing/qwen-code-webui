@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import { ArrowPathIcon, StopIcon } from "@heroicons/react/24/solid";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { ArrowPathIcon, StopIcon, PaperClipIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
 import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
@@ -101,6 +101,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const { enterBehavior } = useEnterBehavior();
   const {
@@ -113,6 +114,14 @@ export function ChatInput({
   // File upload constants
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const MAX_CONCURRENT_UPLOADS = 3;
+
+  // Upload queue management
+  const uploadQueueRef = useRef<{
+    queue: Array<{ file: File; id: string }>;
+    active: number;
+    fileMap: Map<string, File>;
+  }>({ queue: [], active: 0, fileMap: new Map() });
 
   // File validation functions
   const validateFileSize = useCallback((file: File): { valid: boolean; error?: string } => {
@@ -156,42 +165,96 @@ export function ChatInput({
   }, []);
 
   // File upload function
-  const uploadFile = useCallback(async (file: File, id: string): Promise<void> => {
+  // File upload function with real progress tracking
+  const uploadFile = useCallback((file: File, id: string): void => {
     if (!workingDirectory) {
       console.error('Working directory not set');
-      onAttachmentsChange?.(attachments.map(a => 
+      onAttachmentsChange?.(attachments.map(a =>
         a.id === id ? { ...a, status: 'error', error: 'Working directory not set' } : a
       ));
       return;
     }
 
+    // Store original file for retry
+    uploadQueueRef.current.fileMap.set(id, file);
+
     const formData = new FormData();
     formData.append('file', file);
 
-    try {
-      const response = await fetch(`/api/upload?workingDirectory=${encodeURIComponent(workingDirectory)}`, {
-        method: 'POST',
-        body: formData,
-      });
+    const xhr = new XMLHttpRequest();
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const progress = (e.loaded / e.total) * 100;
+        onAttachmentsChange?.(attachments.map(a =>
+          a.id === id ? { ...a, progress } : a
+        ));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      uploadQueueRef.current.active--;
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          onAttachmentsChange?.(attachments.map(a =>
+            a.id === id ? { ...a, status: 'success', path: data.path, progress: 100 } : a
+          ));
+        } catch {
+          onAttachmentsChange?.(attachments.map(a =>
+            a.id === id ? { ...a, status: 'error', error: 'Invalid response from server' } : a
+          ));
+        }
+      } else {
+        try {
+          const error = JSON.parse(xhr.responseText);
+          onAttachmentsChange?.(attachments.map(a =>
+            a.id === id ? { ...a, status: 'error', error: error.error || 'Upload failed' } : a
+          ));
+        } catch {
+          onAttachmentsChange?.(attachments.map(a =>
+            a.id === id ? { ...a, status: 'error', error: 'Upload failed' } : a
+          ));
+        }
       }
 
-      const data = await response.json();
-      onAttachmentsChange?.(attachments.map(a => 
-        a.id === id ? { ...a, status: 'success', path: data.path, progress: 100 } : a
+      // Process next item in queue
+      processQueue();
+    });
+
+    xhr.addEventListener('error', () => {
+      uploadQueueRef.current.active--;
+      onAttachmentsChange?.(attachments.map(a =>
+        a.id === id ? { ...a, status: 'error', error: 'Network error during upload' } : a
       ));
-    } catch (error) {
-      console.error('Upload error:', error);
-      onAttachmentsChange?.(attachments.map(a => 
-        a.id === id ? { ...a, status: 'error', error: error instanceof Error ? error.message : 'Upload failed' } : a
-      ));
-    }
+      processQueue();
+    });
+
+    xhr.open('POST', `/api/upload?workingDirectory=${encodeURIComponent(workingDirectory)}`);
+    xhr.send(formData);
   }, [workingDirectory, attachments, onAttachmentsChange]);
 
-  // Add files to attachments
+  // Process upload queue
+  const processQueue = useCallback(() => {
+    while (
+      uploadQueueRef.current.queue.length > 0 &&
+      uploadQueueRef.current.active < MAX_CONCURRENT_UPLOADS
+    ) {
+      const item = uploadQueueRef.current.queue.shift();
+      if (item) {
+        uploadQueueRef.current.active++;
+        uploadFile(item.file, item.id);
+      }
+    }
+  }, [uploadFile]);
+
+  // Queue file for upload
+  const queueUpload = useCallback((file: File, id: string) => {
+    uploadQueueRef.current.queue.push({ file, id });
+    processQueue();
+  }, [processQueue]);
   const handleFileAdd = useCallback(async (files: File[]): Promise<void> => {
     for (const file of files) {
       // Validate file size
@@ -234,9 +297,9 @@ export function ChatInput({
       onAttachmentsChange?.(newAttachments);
 
       // Start upload
-      await uploadFile(file, id);
+      queueUpload(file, id);
     }
-  }, [attachments, onAttachmentsChange, validateFileSize, validateFileType, showPrivacyWarning, readFileAsBase64, uploadFile]);
+  }, [attachments, onAttachmentsChange, validateFileSize, validateFileType, showPrivacyWarning, readFileAsBase64, queueUpload]);
 
   // Handle paste event
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>): Promise<void> => {
@@ -274,16 +337,32 @@ export function ChatInput({
   // Retry upload
   const handleRetry = useCallback((id: string): void => {
     const attachment = attachments.find(a => a.id === id);
-    if (attachment) {
-      const file = new File([], attachment.name, { type: attachment.type });
-      uploadFile(file, id);
+    const originalFile = uploadQueueRef.current.fileMap.get(id);
+
+    if (attachment && originalFile) {
+      // Reset status and retry with original file
+      onAttachmentsChange?.(attachments.map(a =>
+        a.id === id ? { ...a, status: 'uploading', progress: 0, error: undefined } : a
+      ));
+      queueUpload(originalFile, id);
     }
-  }, [attachments, uploadFile]);
+  }, [attachments, onAttachmentsChange, queueUpload]);
 
   // Remove attachment
   const handleRemove = useCallback((id: string): void => {
     onAttachmentsChange?.(attachments.filter(a => a.id !== id));
+    uploadQueueRef.current.fileMap.delete(id);
   }, [attachments, onAttachmentsChange]);
+
+  // Handle file selection via button
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      handleFileAdd(files);
+    }
+    // Reset input to allow selecting same file again
+    e.target.value = '';
+  }, [handleFileAdd]);
 
   // Slash command handling
   const handleSlashCommandExecute = useCallback(
@@ -607,6 +686,28 @@ export function ChatInput({
             )}
           </div>
           <div className="flex gap-2 pb-3">
+            {/* File selection button */}
+            {!isLoading && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                  title={t("chat.selectFile") || "Select file"}
+                  aria-label={t("chat.selectFile") || "Select file"}
+                >
+                  <PaperClipIcon className="w-4 h-4" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </>
+            )}
             {isLoading && (
               <button
                 type="button"
@@ -622,7 +723,6 @@ export function ChatInput({
                 )}
               </button>
             )}
-            <button
               type="submit"
               disabled={!input.trim() || isLoading || disabled}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
