@@ -38,7 +38,10 @@ describe("cliProcessRegistry", () => {
     alivePids = new Set<number>();
     __cliProcessRegistryTestUtils.reset();
 
-    killSpy = vi.spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+    killSpy = vi.spyOn(process, "kill").mockImplementation(((
+      pid: number,
+      signal?: number | NodeJS.Signals,
+    ) => {
       if (signal === 0 || signal === undefined) {
         if (!alivePids.has(pid)) {
           throw new Error(`process ${pid} missing`);
@@ -68,7 +71,10 @@ describe("cliProcessRegistry", () => {
 
     const child = new FakeChildProcess(4242);
     alivePids.add(child.pid);
-    __cliProcessRegistryTestUtils.attachChildToRequest("req-1", child as unknown as import("node:child_process").ChildProcess);
+    __cliProcessRegistryTestUtils.attachChildToRequest(
+      "req-1",
+      child as unknown as import("node:child_process").ChildProcess,
+    );
 
     signalTrackedCliAbort("req-1", "user");
 
@@ -84,7 +90,10 @@ describe("cliProcessRegistry", () => {
 
     const child = new FakeChildProcess(5252);
     alivePids.add(child.pid);
-    __cliProcessRegistryTestUtils.attachChildToRequest("req-2", child as unknown as import("node:child_process").ChildProcess);
+    __cliProcessRegistryTestUtils.attachChildToRequest(
+      "req-2",
+      child as unknown as import("node:child_process").ChildProcess,
+    );
 
     signalTrackedCliAbort("req-2", "user");
     alivePids.delete(child.pid);
@@ -104,7 +113,10 @@ describe("cliProcessRegistry", () => {
       stderr: { destroy: vi.fn() },
     });
     alivePids.add(child.pid);
-    __cliProcessRegistryTestUtils.attachChildToRequest("req-pipes", child as any);
+    __cliProcessRegistryTestUtils.attachChildToRequest(
+      "req-pipes",
+      child as any,
+    );
     signalTrackedCliAbort("req-pipes", "user");
     child.emit("exit");
     for (const stream of ["stdin", "stdout", "stderr"]) {
@@ -116,7 +128,10 @@ describe("cliProcessRegistry", () => {
     registerTrackedCliRequest("req-normal");
     const child = new FakeChildProcess(7272);
     Object.assign(child, { stdout: { destroy: vi.fn() } });
-    __cliProcessRegistryTestUtils.attachChildToRequest("req-normal", child as any);
+    __cliProcessRegistryTestUtils.attachChildToRequest(
+      "req-normal",
+      child as any,
+    );
     child.emit("exit");
     expect((child as any).stdout.destroy).not.toHaveBeenCalled();
   });
@@ -127,7 +142,39 @@ describe("cliProcessRegistry", () => {
     // when syncBuiltinESMExports refreshed an already-linked import.
     const probe = await import("./esmSpawnProbe.ts");
     registerTrackedCliRequest("req-esm");
-    const require = (await import("node:module")).createRequire(import.meta.url);
+    const require = (await import("node:module")).createRequire(
+      import.meta.url,
+    );
     expect(probe.currentSpawn()).toBe(require("node:child_process").spawn);
+  });
+});
+
+describe("SDK CLI detection (CLI 1.0 dropped --channel=SDK)", () => {
+  const { isSdkCliSpawn, isSdkCliFork } = __cliProcessRegistryTestUtils;
+  const streamArgs = [
+    "--input-format",
+    "stream-json",
+    "--output-format",
+    "stream-json",
+  ];
+
+  it("matches a CLI 1.0 spawn that no longer passes --channel=SDK", () => {
+    expect(isSdkCliSpawn("qwen", streamArgs)).toBe(true);
+  });
+
+  it("still matches an older CLI spawn that passes --channel=SDK", () => {
+    expect(isSdkCliSpawn("node", ["--channel=SDK", ...streamArgs])).toBe(true);
+  });
+
+  it("does not match a spawn without the stream-json transport", () => {
+    expect(isSdkCliSpawn("qwen", ["--version"])).toBe(false);
+  });
+
+  it("matches a CLI 1.0 fork of cli.js without --channel=SDK", () => {
+    expect(isSdkCliFork("/path/to/cli.js", streamArgs)).toBe(true);
+  });
+
+  it("does not match a fork without the stream-json transport", () => {
+    expect(isSdkCliFork("/path/to/cli.js", ["--version"])).toBe(false);
   });
 });

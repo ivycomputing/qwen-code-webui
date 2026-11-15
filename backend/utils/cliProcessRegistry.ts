@@ -42,8 +42,10 @@ let originalSpawn = childProcess.spawn;
 let originalFork = childProcess.fork;
 
 function isSdkCliSpawn(command: string, args: readonly string[]): boolean {
+  // CLI 1.0 dropped the --channel=SDK flag, so detect the SDK transport by its
+  // stream-json input/output format instead. Older CLIs that still pass
+  // --channel=SDK also use stream-json, so they continue to match.
   return (
-    args.includes("--channel=SDK") &&
     args.includes("--input-format") &&
     args.includes("stream-json") &&
     args.includes("--output-format")
@@ -51,7 +53,11 @@ function isSdkCliSpawn(command: string, args: readonly string[]): boolean {
 }
 
 function isSdkCliFork(modulePath: string, args: readonly string[]): boolean {
-  return modulePath.includes("cli.js") && args.includes("--channel=SDK");
+  return (
+    modulePath.includes("cli.js") &&
+    args.includes("--input-format") &&
+    args.includes("stream-json")
+  );
 }
 
 function isPidAlive(pid: number): boolean {
