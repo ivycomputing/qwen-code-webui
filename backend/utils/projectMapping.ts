@@ -6,9 +6,17 @@
  * chars with '-') is lossy and cannot be reversed for paths containing hyphens.
  */
 
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { exists, mkdir, readTextFile, remove, rename, writeTextFile } from "./fs.ts";
+import {
+  exists,
+  mkdir,
+  readDir,
+  readTextFile,
+  remove,
+  rename,
+  writeTextFile,
+} from "./fs.ts";
 import { getHomeDir } from "./os.ts";
 import { logger } from "./logger.ts";
 
@@ -137,7 +145,10 @@ export async function writeProjectPathMapping(
       return;
     }
 
-    const tmpPath = join(dirname(mappingFilePath), `${MAPPING_FILE_NAME}.${randomUUID()}.tmp`);
+    const tmpPath = join(
+      dirname(mappingFilePath),
+      `${MAPPING_FILE_NAME}.${randomUUID()}.tmp`,
+    );
     await writeTextFile(tmpPath, JSON.stringify(mapping, null, 2));
     await rename(tmpPath, mappingFilePath);
   } catch (error) {
@@ -174,6 +185,79 @@ export async function decodeProjectPath(
   if (decodedPath) {
     await updateProjectPathMapping(encodedName, decodedPath);
     return decodedPath;
+  }
+
+  // The heuristic only understands Unix-style encoded names (leading "-").
+  // Windows encoded names start with a drive letter (e.g. "C--Users-...") and
+  // paths with spaces/hyphens are ambiguous, so recover the real path from the
+  // `cwd` recorded in the project's session files instead. This also rescues
+  // Unix paths the heuristic cannot disambiguate.
+  const cwdPath = await recoverPathFromSessionCwd(encodedName);
+  if (cwdPath && (await pathExists(cwdPath))) {
+    await updateProjectPathMapping(encodedName, cwdPath);
+    return cwdPath;
+  }
+
+  return null;
+}
+
+/**
+ * Recover a project's real path from the `cwd` field of its session files.
+ * Qwen Code records the working directory on each conversation message, which
+ * is an authoritative (non-lossy) source for the encoded project name. Reads
+ * session files from both the project root (CLI 1.0) and chats/ (older CLI).
+ */
+async function recoverPathFromSessionCwd(
+  encodedName: string,
+): Promise<string | null> {
+  const homeDir = getHomeDir();
+  if (!homeDir) {
+    return null;
+  }
+
+  const projectDir = join(homeDir, ".qwen", "projects", encodedName);
+  const candidateFiles: string[] = [];
+
+  try {
+    for await (const entry of readDir(projectDir)) {
+      if (entry.isFile && entry.name.endsWith(".jsonl")) {
+        candidateFiles.push(join(projectDir, entry.name));
+      }
+    }
+  } catch {
+    // Project directory unreadable; nothing to recover from.
+  }
+
+  const chatsDir = join(projectDir, "chats");
+  try {
+    for await (const entry of readDir(chatsDir)) {
+      if (entry.isFile && entry.name.endsWith(".jsonl")) {
+        candidateFiles.push(join(chatsDir, entry.name));
+      }
+    }
+  } catch {
+    // chats/ subdirectory may not exist.
+  }
+
+  for (const file of candidateFiles) {
+    try {
+      const content = await readTextFile(file);
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const record = JSON.parse(trimmed) as { cwd?: unknown };
+          if (typeof record.cwd === "string" && isAbsolute(record.cwd)) {
+            return record.cwd;
+          }
+        } catch {
+          // Metadata lines (e.g. workspace-directories) are not strict JSON;
+          // skip them and keep looking for a message line carrying cwd.
+        }
+      }
+    } catch {
+      // File unreadable; try the next one.
+    }
   }
 
   return null;

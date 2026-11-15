@@ -40,8 +40,10 @@ async function main(runtime: NodeRuntime) {
 
   // In development (tsx), __dirname is backend/cli, so static files are at ../dist/static
   // In production (bundled), __dirname is dist/cli, so static files are at ../static
-  // Check if we're running from bundled dist directory
-  const isBundled = __dirname.includes("/dist/cli");
+  // Check if we're running from bundled dist directory. Normalize separators so
+  // the check also matches Windows backslash paths (otherwise staticPath becomes
+  // dist/dist/static and every request returns HTTP 500).
+  const isBundled = __dirname.replace(/\\/g, "/").includes("/dist/cli");
   const staticPath = isBundled
     ? join(__dirname, "../static")
     : join(__dirname, "../dist/static");
@@ -61,7 +63,9 @@ async function main(runtime: NodeRuntime) {
       process.env.OPENACE_API_URL,
     );
   } catch (error) {
-    console.error(`Delegated model proxy configuration invalid: ${error instanceof Error ? error.message : error}`);
+    console.error(
+      `Delegated model proxy configuration invalid: ${error instanceof Error ? error.message : error}`,
+    );
     process.exit(1);
   }
 

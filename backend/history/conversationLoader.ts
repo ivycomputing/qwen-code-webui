@@ -46,9 +46,14 @@ export async function loadConversation(
     const historyDir = `${homeDir}/.openclaw/agents/${encodedProjectName}/sessions`;
     filePath = `${historyDir}/${sessionId}.jsonl`;
   } else {
-    // qwen-code-webui stores conversations in chats/ subdirectory
+    // qwen-code-cli stores conversations in chats/ subdirectory, but CLI 1.0
+    // writes them to the project root instead. Check chats/ first for backwards
+    // compatibility, then fall back to the root layout.
     const historyDir = `${homeDir}/.qwen/projects/${encodedProjectName}`;
     filePath = `${historyDir}/chats/${sessionId}.jsonl`;
+    if (!(await exists(filePath))) {
+      filePath = `${historyDir}/${sessionId}.jsonl`;
+    }
   }
 
   // Check if file exists before trying to read it
