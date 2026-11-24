@@ -26,7 +26,7 @@
     "@qwen-code/sdk": "^0.1.4",
     "@qwen-code/webui": "^0.1.0-beta.4",
     "dayjs": "^1.11.13",
-    "i18next": "^26.0.3",
+    "i18next": "^26.7.2",
     "i18next-browser-languagedetector": "^8.2.1",
     "qs": "^6.16.0",
     "react": "^19.1.0",
